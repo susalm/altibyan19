@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="description" content="مصحف رقمي تفاعلي مدعوم بتقنيات الذكاء الاصطناعي للتفسير الميسر، أسباب النزول، إعراب القرآن، والعمل الكامل دون إنترنت." />
+    <meta property="og:title" content="مصحف التبيان الإلكتروني" />
+    <meta property="og:description" content="مصحف رقمي تفاعلي مدعوم بتقنيات الذكاء الاصطناعي للتفسير الميسر، أسباب النزول، إعراب القرآن، والعمل الكامل دون إنترنت." />
+    <meta name="theme-color" content="#011c14" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" id="app-favicon" type="image/png" href="/IMG_1767.png" />
+    <link rel="apple-touch-icon" id="app-apple-icon" href="/IMG_1767.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <script>
+      (function() {
+        try {
+          var customAlt = localStorage.getItem("app_icon_custom_alt_data");
+          var iconUrl = customAlt || "/IMG_1767.png";
+          var fav = document.getElementById("app-favicon");
+          if (fav) fav.href = iconUrl;
+          var apple = document.getElementById("app-apple-icon");
+          if (apple) apple.href = iconUrl;
+        } catch(e) {}
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Aref+Ruqaa:wght@400;700&family=Aref+Ruqaa+Ink:wght@400;700&family=Cairo:wght@400;500;600;700;800;900&display=swap">
+    <title>مصحف التبيان الإلكتروني</title>
+  </head>
+  <body>
+    <div id="root">
+      <div id="app-initial-splash" style="position:fixed;inset:0;background-color:#011c14;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#c5a85c;font-family:system-ui,-apple-system,sans-serif;z-index:99999;user-select:none;-webkit-user-select:none;">
+        <div style="width:78px;height:78px;border-radius:22px;background:rgba(197,168,92,0.12);border:1.5px solid rgba(197,168,92,0.35);display:flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 12px 30px rgba(0,0,0,0.5);overflow:hidden;">
+          <img src="/IMG_1767.png" alt="مصحف التبيان" style="width:100%;height:100%;object-fit:cover;border-radius:20px;" />
+        </div>
+        <div style="font-size:16px;font-weight:400;color:#c5a85c;letter-spacing:0.5px;margin-bottom:6px;font-family:'Cairo',sans-serif;">مصحف التبيان</div>
+        <div style="font-size:10px;font-weight:400;color:rgba(197,168,92,0.7);letter-spacing:0.2px;font-family:'Cairo',sans-serif;">جاري فتح المصحف الشريف...</div>
+      </div>
+    </div>
+    <script>
+      setTimeout(function() {
+        var splash = document.getElementById('app-initial-splash');
+        if (splash && document.getElementById('root')?.contains(splash)) {
+          var btnContainer = document.createElement('div');
+          btnContainer.style = 'margin-top:18px;display:flex;gap:10px;flex-direction:column;align-items:center;';
+
+          var btn = document.createElement('button');
+          btn.innerText = 'إعادة تحميل التطبيق';
+          btn.style = 'padding:10px 24px;background:#c5a85c;color:#011c14;border:none;border-radius:12px;font-weight:bold;cursor:pointer;font-size:13px;box-shadow:0 4px 15px rgba(0,0,0,0.4);font-family:inherit;';
+          btn.onclick = function() {
+            try { sessionStorage.clear(); } catch(e) {}
+            window.location.reload();
+          };
+
+          var btnClear = document.createElement('button');
+          btnClear.innerText = 'مسح الذاكرة المؤقتة والتحديث';
+          btnClear.style = 'padding:8px 18px;background:rgba(255,255,255,0.08);color:#e6cf8b;border:1px solid rgba(197,168,92,0.3);border-radius:10px;cursor:pointer;font-size:11px;font-family:inherit;';
+          btnClear.onclick = function() {
+            try {
+              sessionStorage.clear();
+              localStorage.removeItem("quran_settings_tebyan");
+              localStorage.removeItem("quran_theme");
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  names.forEach(function(name) { caches.delete(name); });
+                });
+              }
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  regs.forEach(function(r) { r.unregister(); });
+                });
+              }
+            } catch(e) {}
+            setTimeout(function() { window.location.reload(); }, 250);
+          };
+
+          btnContainer.appendChild(btn);
+          btnContainer.appendChild(btnClear);
+          splash.appendChild(btnContainer);
+        }
+      }, 3500);
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
