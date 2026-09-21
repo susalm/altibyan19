@@ -34,7 +34,7 @@ const defaultSettings: QuranSettings = {
   showTranslation: true,
   reciterId: "Minshawy_Murattal_128kbps",
   colorTajweed: true,
-  pageMode: "continuous",
+  pageMode: "mushaf-svg",
   autoAdvance: true,
   autoScrollSpeed: 3,
   autoScrollActive: false,
@@ -182,7 +182,18 @@ export default function App() {
   });
   const isDark = theme === "dark";
   const [preferredLightTheme, setPreferredLightTheme] = useState<"light" | "gold-velvet" | "navy-velvet" | "emerald-velvet">("gold-velvet");
-  const [settings, setSettings] = useState<QuranSettings>(defaultSettings);
+  const [settings, setSettings] = useState<QuranSettings>(() => {
+    try {
+      const savedSettings = localStorage.getItem(LOCAL_SETTINGS_KEY);
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed && typeof parsed === "object") {
+          return { ...defaultSettings, ...parsed, pageMode: parsed.pageMode || "mushaf-svg" };
+        }
+      }
+    } catch {}
+    return defaultSettings;
+  });
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [playbackSync, setPlaybackSync] = useState<any>(null);
   const [activePlan, setActivePlan] = useState<any | null>(null);
@@ -216,22 +227,15 @@ export default function App() {
   // Offline pages count & background downloader state
   const [offlinePagesCount, setOfflinePagesCount] = useState<number>(0);
   const [isAutoDownloadingPages, setIsAutoDownloadingPages] = useState<boolean>(false);
-  const [showAutoDownloadToast, setShowAutoDownloadToast] = useState<boolean>(true);
 
-  // Background download on app mount: Quran pages, library books, and verse services
-  // User mandate: Show message for 3 seconds only on app launch
+  // Background download on app mount: Quran pages, library books, and verse services silently
   useEffect(() => {
-    const toastTimer = setTimeout(() => {
-      setShowAutoDownloadToast(false);
-    }, 3000);
-
     const cleanupDownloads = startAppBackgroundDownloads((downloaded, total, isComplete) => {
       setOfflinePagesCount(downloaded);
       setIsAutoDownloadingPages(!isComplete);
     });
 
     return () => {
-      clearTimeout(toastTimer);
       cleanupDownloads();
     };
   }, []);
@@ -256,7 +260,7 @@ export default function App() {
         try {
           const parsed = JSON.parse(savedSettings);
           if (parsed && typeof parsed === "object") {
-            if (!parsed.pageMode) parsed.pageMode = "continuous";
+            if (!parsed.pageMode) parsed.pageMode = "mushaf-svg";
             if (!parsed.mushafProvider) parsed.mushafProvider = "quran-svg";
             if (!parsed.language) parsed.language = "ar";
             if (parsed.hideMushafFrame === undefined) parsed.hideMushafFrame = true;
@@ -1222,38 +1226,6 @@ export default function App() {
           isDark={isDark}
         />
       )}
-
-      {/* Floating Offline Download Notice Toast (Shown on app launch for 3 seconds only) */}
-      <AnimatePresence>
-        {showAutoDownloadToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 25, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.3 } }}
-            className="fixed bottom-16 left-1/2 -translate-x-1/2 sm:left-4 sm:translate-x-0 z-50 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[10px] shadow-xl border border-emerald-500/30 bg-slate-900/95 text-slate-100 backdrop-blur-md dark:bg-slate-800/95 dir-rtl max-w-[92vw] sm:max-w-md"
-            dir="rtl"
-          >
-            <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-              <Download size={13} className="animate-bounce" />
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-[10px] text-emerald-400">
-                بدء تحميل الملفات الضرورية
-              </span>
-              <span className="text-[9px] text-slate-300 truncate">
-                جاري تحميل صفحات المصحف وكتب المكتبة وخدمات الآية في الخلفية...
-              </span>
-            </div>
-            <button 
-              onClick={() => setShowAutoDownloadToast(false)}
-              className="mr-1 text-slate-400 hover:text-white text-[10px] p-1 cursor-pointer shrink-0"
-              title="إغلاق"
-            >
-              ✕
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

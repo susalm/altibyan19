@@ -21,6 +21,8 @@ import {
   generateOfflineMuyassar,
   isCorruptAyahOnlyText
 } from "./src/utils/libraryOfflineEngine";
+import { getOfflineEnglishTranslation } from "./src/utils/englishTranslation";
+import { getOfflineAhkamJassas } from "./src/utils/ahkamJassasBook";
 
 dotenv.config();
 
@@ -617,12 +619,21 @@ app.get("/api/tafsir/book-pack/:edition", async (req: express.Request, res: expr
       translation_clear_quran: "en.itani",
       "en.itani": "en.itani",
       translation_sahih_intl: "en.sahih",
+      english_saheeh: "en.sahih",
       "en.sahih": "en.sahih",
+      tafsir_baghawi: "ar.baghawi",
+      "ar.baghawi": "ar.baghawi",
+      tafsir_jalalayn: "ar.jalalayn",
+      tafsir_suyuti: "ar.jalalayn",
+      "ar.jalalayn": "ar.jalalayn",
       translation_french: "fr.hamidullah",
+      french_rashid: "fr.hamidullah",
       "fr.hamidullah": "fr.hamidullah",
       translation_urdu: "ur.jalandhry",
+      urdu_junagarhi: "ur.jalandhry",
       "ur.jalandhry": "ur.jalandhry",
       translation_indonesian: "id.indonesian",
+      indonesian_affairs: "id.indonesian",
       "id.indonesian": "id.indonesian",
       translation_mukhtasar_bn: "bn.bengali",
       "bn.bengali": "bn.bengali",
@@ -815,25 +826,56 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       tafsir_jalalayn: { quranTafseerId: 2, alquranCloudEdition: "ar.jalalayn", name: "تفسير الجلالين (المحلي والسيوطي)" },
     };
 
-    const translationApis: Record<string, { alquranCloudEdition: string; quranComId: number; name: string }> = {
-      english: { alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
-      translation: { alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
-      "en.sahih": { alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
+    const translationApis: Record<string, { quranEncKey?: string; alquranCloudEdition?: string; quranComId?: number; name: string }> = {
+      english_rwwad: { quranEncKey: "english_rwwad", alquranCloudEdition: "en.sahih", quranComId: 20, name: "رواد الترجمة (الإنجليزية)" },
+      english_saheeh: { quranEncKey: "english_saheeh", alquranCloudEdition: "en.sahih", quranComId: 20, name: "صحيح إنترناشونال" },
+      english_hilali_khan: { quranEncKey: "english_hilali_khan", alquranCloudEdition: "en.hilali", quranComId: 203, name: "الهلالي ومحسن خان" },
+      translation_hilali_khan: { quranEncKey: "english_hilali_khan", alquranCloudEdition: "en.hilali", quranComId: 203, name: "ترجمة د. الهلالي ومحسن خان" },
+      french_rashid: { quranEncKey: "french_rashid", alquranCloudEdition: "fr.hamidullah", quranComId: 31, name: "الفرنسية (رشيد معاش)" },
+      spanish_garcia: { quranEncKey: "spanish_garcia", alquranCloudEdition: "es.garcia", quranComId: 83, name: "الإسبانية (عيسى غارسيا)" },
+      german_bubenheim: { quranEncKey: "german_bubenheim", alquranCloudEdition: "de.bubenheim", quranComId: 27, name: "الألمانية (بوبنهايم)" },
+      urdu_junagarhi: { quranEncKey: "urdu_junagarhi", alquranCloudEdition: "ur.jalandhry", quranComId: 234, name: "الأردية (جوناكارهي)" },
+      turkish_shaban: { quranEncKey: "turkish_shaban", alquranCloudEdition: "tr.diyanet", quranComId: 77, name: "التركية (شعبان بريش)" },
+      indonesian_affairs: { quranEncKey: "indonesian_affairs", alquranCloudEdition: "id.indonesian", quranComId: 33, name: "الإندونيسية (الشؤون الدينية)" },
+      russian_kuliev: { quranEncKey: "russian_mokhtasar", alquranCloudEdition: "ru.kuliev", quranComId: 45, name: "الروسية (إلمير كولييف)" },
+      english: { quranEncKey: "english_rwwad", alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
+      translation: { quranEncKey: "english_rwwad", alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
+      "en.sahih": { quranEncKey: "english_saheeh", alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
       "en.pickthall": { alquranCloudEdition: "en.pickthall", quranComId: 19, name: "English Translation (Pickthall)" },
       "en.itani": { alquranCloudEdition: "en.itani", quranComId: 85, name: "English Translation (Clear Quran)" },
       translation_mukhtasar_en: { alquranCloudEdition: "en.itani", quranComId: 85, name: "المختصر في تفسير القرآن الكريم (الترجمة الإنجليزية - مركز تفسير / مستودع susalm/mushaf-altibyan- tafsir-mcp-main)" },
       translation_clear_quran: { alquranCloudEdition: "en.itani", quranComId: 85, name: "الترجمة الميسرة بالإنجليزية (The Clear Quran - Dr. Mustafa Khattab / مستودع susalm/mushaf-altibyan-)" },
-      translation_sahih_intl: { alquranCloudEdition: "en.sahih", quranComId: 20, name: "ترجمة صحيح انترناشونال (Sahih International / مستودع susalm/mushaf-altibyan-)" },
-      translation_hilali_khan: { alquranCloudEdition: "en.hilali", quranComId: 203, name: "ترجمة د. الهلالي ومحسن خان (Hilali & Khan / مستودع susalm/mushaf-altibyan-)" },
+      translation_sahih_intl: { quranEncKey: "english_saheeh", alquranCloudEdition: "en.sahih", quranComId: 20, name: "ترجمة صحيح انترناشونال (Sahih International / مستودع susalm/mushaf-altibyan-)" },
       translation_mukhtasar_bn: { alquranCloudEdition: "bn.bengali", quranComId: 213, name: "المختصر في تفسير القرآن الكريم (الترجمة البنغالية - مركز تفسير / مستودع susalm/mushaf-altibyan-)" },
-      translation_french: { alquranCloudEdition: "fr.hamidullah", quranComId: 31, name: "الترجمة الفرنسية لمعاني القرآن الكريم (Muhammad Hamidullah / مستودع susalm/mushaf-altibyan-)" },
-      translation_urdu: { alquranCloudEdition: "ur.jalandhry", quranComId: 234, name: "الترجمة الأردية لمعاني القرآن الكريم (Fateh Muhammad Jalandhry / مستودع susalm/mushaf-altibyan-)" },
-      translation_indonesian: { alquranCloudEdition: "id.indonesian", quranComId: 33, name: "الترجمة الإندونيسية لمعاني القرآن الكريم (Kemenag / مستودع susalm/mushaf-altibyan-)" },
+      translation_french: { quranEncKey: "french_rashid", alquranCloudEdition: "fr.hamidullah", quranComId: 31, name: "الترجمة الفرنسية لمعاني القرآن الكريم (Muhammad Hamidullah / مستودع susalm/mushaf-altibyan-)" },
+      translation_urdu: { quranEncKey: "urdu_junagarhi", alquranCloudEdition: "ur.jalandhry", quranComId: 234, name: "الترجمة الأردية لمعاني القرآن الكريم (Fateh Muhammad Jalandhry / مستودع susalm/mushaf-altibyan-)" },
+      translation_indonesian: { quranEncKey: "indonesian_affairs", alquranCloudEdition: "id.indonesian", quranComId: 33, name: "الترجمة الإندونيسية لمعاني القرآن الكريم (Kemenag / مستودع susalm/mushaf-altibyan-)" },
     };
 
-    if (translationApis[type]) {
-      const transCfg = translationApis[type];
-      console.log(`[translationApis] Matched key "${type}":`, transCfg);
+    const isTranslation = 
+      Boolean(translationApis[type]) ||
+      type.startsWith("english_") ||
+      type.startsWith("french_") ||
+      type.startsWith("spanish_") ||
+      type.startsWith("german_") ||
+      type.startsWith("urdu_") ||
+      type.startsWith("turkish_") ||
+      type.startsWith("indonesian_") ||
+      type.startsWith("russian_") ||
+      type.startsWith("translation_") ||
+      type.startsWith("translation") ||
+      type === "english" ||
+      (currentTitle && (currentTitle.includes("ترجمة") || currentTitle.includes("الترجمة") || currentTitle.toLowerCase().includes("translation")));
+
+    if (isTranslation) {
+      const transCfg = translationApis[type] || {
+        name: currentTitle || "ترجمة معاني القرآن الكريم",
+        quranEncKey: type.replace(/^translation_/, ""),
+        alquranCloudEdition: type.includes("french") ? "fr.hamidullah" :
+                             type.includes("urdu") ? "ur.jalandhry" :
+                             type.includes("indonesian") ? "id.indonesian" : "en.sahih",
+        quranComId: 20
+      };
 
       const cleanHtml = (html: string): string => {
         if (!html) return "";
@@ -852,24 +894,52 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
           .trim();
       };
 
-      // 0. Primary GitHub repository fetch attempt from susalm/mushaf-altibyan- (tafsir-mcp-main)
+      // 1. Primary authentic translation source: QuranEnc API
+      const quranEncCandidate = transCfg.quranEncKey || type.replace(/^translation_/, "");
+      if (quranEncCandidate) {
+        try {
+          const qencUrl = `https://quranenc.com/api/v1/translation/aya/${encodeURIComponent(quranEncCandidate)}/${surahNumber}/${ayahNumber}`;
+          const qencRes = await fetch(qencUrl, {
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+            signal: AbortSignal.timeout(6000),
+          });
+          if (qencRes.ok) {
+            const qencData = await qencRes.json();
+            if (qencData && qencData.result && qencData.result.translation) {
+              let cleanText = cleanHtml(qencData.result.translation);
+              if (qencData.result.footnotes && qencData.result.footnotes.trim()) {
+                cleanText += `\n\n📌 **Footnotes / الحواشي:**\n${qencData.result.footnotes.trim()}`;
+              }
+              if (cleanText) {
+                tafsirMemoryCache.set(cacheKey, { result: cleanText, source: transCfg.name });
+                return res.json({ result: cleanText, source: transCfg.name });
+              }
+            }
+          }
+        } catch (e) {
+          // continue to other translation providers
+        }
+      }
+
+      // 2. Primary GitHub repository fetch attempt from susalm/mushaf-altibyan- (tafsir-mcp-main)
       const githubTranslationUrls = [
         `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translations/${type}/${surahNumber}/${ayahNumber}.json`,
         `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translation/${type}/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translations/${transCfg.alquranCloudEdition}/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translation/${transCfg.alquranCloudEdition}/${surahNumber}/${ayahNumber}.json`,
+        transCfg.alquranCloudEdition ? `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translations/${transCfg.alquranCloudEdition}/${surahNumber}/${ayahNumber}.json` : "",
+        transCfg.alquranCloudEdition ? `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translation/${transCfg.alquranCloudEdition}/${surahNumber}/${ayahNumber}.json` : "",
         `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/data/translations/${type}/${surahNumber}/${ayahNumber}.json`,
         `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/${type}/${surahNumber}/${ayahNumber}.json`
-      ];
+      ].filter(Boolean);
 
       for (const ghUrl of githubTranslationUrls) {
         try {
-          const ghRes = await fetch(ghUrl);
+          const ghRes = await fetch(ghUrl, { signal: AbortSignal.timeout(4000) });
           if (ghRes.ok) {
             const data = await ghRes.json();
             const textVal = data.text || data.result || data.translation || data.content;
             if (textVal) {
               const cleanText = cleanHtml(textVal);
+              tafsirMemoryCache.set(cacheKey, { result: cleanText, source: transCfg.name });
               return res.json({
                 result: cleanText,
                 source: "ترجمة معاني القرآن الكريم - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
@@ -879,53 +949,65 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
         } catch (_) {}
       }
 
+      // 3. AlQuran Cloud API
       if (transCfg.alquranCloudEdition) {
         try {
           const url = `https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/${transCfg.alquranCloudEdition}`;
-          console.log(`[translationApis] Fetching alquranCloud: ${url}`);
           const response = await fetch(url, {
-            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+            signal: AbortSignal.timeout(5000),
           });
-          console.log(`[translationApis] alquranCloud status: ${response.status}`);
           if (response.ok) {
             const data = await response.json();
-            console.log(`[translationApis] alquranCloud edition type: ${data?.data?.edition?.type}`);
-            if (data && data.data && data.data.edition && data.data.edition.type === "translation" && data.data.text) {
+            if (data && data.data && data.data.text) {
               const cleanText = cleanHtml(data.data.text);
               if (cleanText) {
-                console.log(`[translationApis] Returning alquranCloud result (${cleanText.length} chars)`);
-                return res.json({ result: cleanText });
+                tafsirMemoryCache.set(cacheKey, { result: cleanText, source: transCfg.name });
+                return res.json({ result: cleanText, source: transCfg.name });
               }
             }
           }
         } catch (e) {
-          console.error(`Failed to fetch translation ${type} from alquran.cloud:`, e);
+          // continue
         }
       }
 
+      // 4. Quran.com API
       if (transCfg.quranComId) {
         try {
           const url = `https://api.quran.com/api/v4/verses/by_key/${surahNumber}:${ayahNumber}?translations=${transCfg.quranComId}`;
-          console.log(`[translationApis] Fetching quranCom: ${url}`);
           const response = await fetch(url, {
-            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+            signal: AbortSignal.timeout(5000),
           });
-          console.log(`[translationApis] quranCom status: ${response.status}`);
           if (response.ok) {
             const data = await response.json();
             if (data && data.verse && data.verse.translations && data.verse.translations[0] && data.verse.translations[0].text) {
               const cleanText = cleanHtml(data.verse.translations[0].text);
               if (cleanText) {
-                console.log(`[translationApis] Returning quranCom result (${cleanText.length} chars)`);
-                return res.json({ result: cleanText });
+                tafsirMemoryCache.set(cacheKey, { result: cleanText, source: transCfg.name });
+                return res.json({ result: cleanText, source: transCfg.name });
               }
             }
           }
         } catch (e) {
-          console.error(`Failed to fetch translation ${type} from api.quran.com:`, e);
+          // continue
         }
       }
-      console.warn(`[translationApis] Both external APIs failed for ${type}, falling through...`);
+
+      // 5. Offline English fallback if applicable
+      const offlineEn = getOfflineEnglishTranslation(Number(surahNumber), Number(ayahNumber));
+      if (offlineEn) {
+        tafsirMemoryCache.set(cacheKey, { result: offlineEn, source: transCfg.name });
+        return res.json({ result: offlineEn, source: transCfg.name });
+      }
+
+      // Safe return: Never fall through to Gemini for translations
+      const safeTransNotice = `نص ترجمة معاني الآية الكريمة (${currentTitle}) متاح للقراءة. يرجى التحقق من الاتصال بالإنترنت لإعادة تحميل الترجمة المعتمدة.`;
+      return res.json({
+        result: safeTransNotice,
+        source: transCfg.name
+      });
     }
 
     if (type === "tafsir_mukhtasar" || type === "tafsir-mukhtasar") {
@@ -1131,6 +1213,14 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       }
     }
 
+    if (type === "ahkam_quran_jassas" || type === "ahkam" || type === "ahkam_jassas") {
+      const localAhkam = getOfflineAhkamJassas(Number(surahNumber), Number(ayahNumber), surahName, ayahText);
+      if (localAhkam) {
+        tafsirMemoryCache.set(cacheKey, { result: localAhkam });
+        return res.json({ result: localAhkam });
+      }
+    }
+
     if (type === "book_jadwal_safi" || type === "book_irab" || type === "book_sarf" || type === "book_balagha" || type === "eerab" || type === "sarf" || type === "balagha") {
       const localSarf = getOfflineSarf(Number(surahNumber), Number(ayahNumber), surahName, ayahText, type, false);
       if (localSarf) {
@@ -1209,7 +1299,17 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
         });
       }
     } catch (aiErr: any) {
-      console.warn(`[AI Tafsir] Gemini generation failed for ${type} (${currentTitle}):`, aiErr);
+      const isQuotaOrDemand =
+        aiErr?.status === 429 ||
+        aiErr?.error?.code === 429 ||
+        String(aiErr?.message || "").includes("429") ||
+        String(aiErr?.message || "").includes("quota") ||
+        String(aiErr?.message || "").includes("503") ||
+        String(aiErr?.message || "").includes("high demand");
+      const shortErr = isQuotaOrDemand
+        ? "Gemini API rate limit or high demand reached - serving authentic fallback"
+        : (aiErr?.message || "Unavailable");
+      console.warn(`[AI Tafsir] Gemini generation fallback for ${type} (${currentTitle}): ${shortErr}`);
     }
 
     // 4. Safe fallback if AI is temporarily unavailable

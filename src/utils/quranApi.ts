@@ -438,14 +438,55 @@ export async function fetchTafsirData(surahNumber: number, ayahNumber: number, m
   }
 
   // Fallback for translations or tafsirs
-  const isTranslation = mode === "english" || mode === "translation" || mode.startsWith("translation_") || mode.includes("en.") || mode.includes("fr.") || mode.includes("ur.") || mode.includes("id.") || mode.includes("bn.");
+  const isTranslation =
+    mode === "english" ||
+    mode === "translation" ||
+    mode.startsWith("translation_") ||
+    mode.startsWith("english_") ||
+    mode.startsWith("french_") ||
+    mode.startsWith("spanish_") ||
+    mode.startsWith("german_") ||
+    mode.startsWith("urdu_") ||
+    mode.startsWith("turkish_") ||
+    mode.startsWith("indonesian_") ||
+    mode.startsWith("russian_") ||
+    mode.includes("en.") ||
+    mode.includes("fr.") ||
+    mode.includes("ur.") ||
+    mode.includes("id.") ||
+    mode.includes("bn.");
+
+  if (isTranslation) {
+    try {
+      const qencKey = mode.replace(/^translation_/, "");
+      const qencRes = await fetch(`https://quranenc.com/api/v1/translation/aya/${encodeURIComponent(qencKey)}/${surahNumber}/${ayahNumber}`, {
+        signal: AbortSignal.timeout(5000)
+      });
+      if (qencRes.ok) {
+        const qencData = await qencRes.json();
+        if (qencData?.result?.translation) {
+          let text = qencData.result.translation;
+          if (qencData.result.footnotes?.trim()) {
+            text += `\n\n📌 **Footnotes / الحواشي:**\n${qencData.result.footnotes.trim()}`;
+          }
+          return {
+            status: "success",
+            text,
+            result: text,
+            source: "ترجمة معاني القرآن الكريم (QuranEnc)",
+          };
+        }
+      }
+    } catch (_) {}
+  }
+
   const edition = isTranslation
     ? (mode === "translation_clear_quran" || mode === "translation_mukhtasar_en" ? "en.itani" :
-       mode === "translation_french" ? "fr.hamidullah" :
-       mode === "translation_urdu" ? "ur.jalandhry" :
-       mode === "translation_indonesian" ? "id.indonesian" :
+       mode === "translation_french" || mode === "french_rashid" ? "fr.hamidullah" :
+       mode === "translation_urdu" || mode === "urdu_junagarhi" ? "ur.jalandhry" :
+       mode === "translation_indonesian" || mode === "indonesian_affairs" ? "id.indonesian" :
        mode === "translation_mukhtasar_bn" ? "bn.bengali" :
-       mode === "translation_hilali_khan" ? "en.hilali" : "en.sahih")
+       mode === "translation_hilali_khan" || mode === "english_hilali_khan" ? "en.hilali" : "en.sahih")
     : "ar.muyassar";
 
   try {

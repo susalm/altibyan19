@@ -28,6 +28,7 @@ import { getOfflineGharib } from "../utils/gharibBook";
 import { getOfflineAsbab } from "../utils/asbabBook";
 import { getOfflineMukhtasarTafsir, getOfflineMukhtasarTafsirFallback } from "../utils/mukhtasarBook";
 import { getOfflineAysarTafsir, getOfflineAysarTafsirFallback } from "../utils/aysarBook";
+import { getOfflineAhkamJassas } from "../utils/ahkamJassasBook";
 import { getOfflineEnglishTranslation } from "../utils/englishTranslation";
 import { getAyahTranslationText } from "../utils/quranContentApi";
 import TranslationsCatalogModal from "./TranslationsCatalogModal";
@@ -959,7 +960,7 @@ const AyahWithTafsirCard = ({
   onOpenNote?: (ayah: Ayah) => void;
   hasNote?: boolean;
 }) => {
-  const currentAyahFontSize = globalAyahFontSize !== undefined ? globalAyahFontSize : 8;
+  const currentAyahFontSize = globalAyahFontSize !== undefined && globalAyahFontSize >= 14 ? globalAyahFontSize : 26;
   const currentTafsirFontSize = globalTafsirFontSize !== undefined ? globalTafsirFontSize : 13;
   const [dataCache, setDataCache] = useState<Record<string, string>>(() => {
     if (surahNumber === 1 && FATIHA_TAFSIR[ayah.numberInSurah]) {
@@ -1477,23 +1478,52 @@ const AyahWithTafsirCard = ({
           <div className="flex items-center gap-2 overflow-hidden">
             <BookOpen size={16} className={theme === "navy-velvet" ? "text-[#3F63C6]" : theme === "gold-velvet" || theme === "emerald-velvet" ? "text-[#c5a85c]" : isDark ? "text-emerald-400" : "text-emerald-600"} />
             <span className="truncate font-bold">الآية الكريمة</span>
-            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-lg border flex items-center gap-1 ${
-              theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6b23] border-[#c5a85c]/35 font-bold" :
-              theme === "emerald-velvet" ? "bg-[#012519] text-[#c5a85c] border-[#c5a85c]/35 font-bold" :
-              theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 font-bold" :
-              isDark ? "bg-slate-800 text-emerald-300 border-slate-700 font-bold" : "bg-white text-emerald-900 border-emerald-200"
-            }`}>
-              <span>سورة {surahName} ({toArabicNumerals(ayah.numberInSurah)})</span>
-              {(ayah.page || currentPage) && (
-                <span className="opacity-75 font-normal text-[10px]">
-                  • ص {toArabicNumerals(ayah.page || currentPage)}
-                </span>
-              )}
-            </span>
           </div>
 
-          {/* Ayah Actions & Zoom Buttons */}
+          {/* Ayah Actions Buttons */}
           <div className="flex items-center gap-1.5 shrink-0" dir="rtl" onClick={(e) => e.stopPropagation()}>
+            {/* أيقونة زيادة حجم خط الآية (التحكم في جميع الآيات) */}
+            <button
+              type="button"
+              id={`btn-increase-ayah-font-${ayah.numberInSurah}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateAyahFontSize?.(Math.min(50, currentAyahFontSize + 2));
+              }}
+              disabled={currentAyahFontSize >= 50}
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shadow-2xs disabled:opacity-30 disabled:pointer-events-none ${
+                theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-blue-50" :
+                theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6b23] border-[#c5a85c]/40 hover:bg-[#f5eedc]" :
+                theme === "emerald-velvet" ? "bg-[#011a12] text-[#c5a85c] border-[#c5a85c]/40 hover:bg-[#012519]" :
+                isDark ? "bg-slate-800 text-emerald-400 border-slate-700 hover:bg-slate-750" : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
+              }`}
+              title="زيادة حجم خط الآيات (لجميع الآيات)"
+              aria-label="زيادة حجم خط الآيات"
+            >
+              <ZoomIn size={14} />
+            </button>
+
+            {/* أيقونة نقص حجم خط الآية (التحكم في جميع الآيات) */}
+            <button
+              type="button"
+              id={`btn-decrease-ayah-font-${ayah.numberInSurah}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateAyahFontSize?.(Math.max(14, currentAyahFontSize - 2));
+              }}
+              disabled={currentAyahFontSize <= 14}
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shadow-2xs disabled:opacity-30 disabled:pointer-events-none ${
+                theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-blue-50" :
+                theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6b23] border-[#c5a85c]/40 hover:bg-[#f5eedc]" :
+                theme === "emerald-velvet" ? "bg-[#011a12] text-[#c5a85c] border-[#c5a85c]/40 hover:bg-[#012519]" :
+                isDark ? "bg-slate-800 text-emerald-400 border-slate-700 hover:bg-slate-750" : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
+              }`}
+              title="نقص حجم خط الآيات (لجميع الآيات)"
+              aria-label="نقص حجم خط الآيات"
+            >
+              <ZoomOut size={14} />
+            </button>
+
             {/* أيقونة مشاركة الآية بدون عبارات */}
             <button
               type="button"
@@ -1574,49 +1604,6 @@ const AyahWithTafsirCard = ({
               {internalHasNote && (
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-white dark:border-slate-900" />
               )}
-            </button>
-
-            {/* فاصل دقيق */}
-            <div className={`w-[1px] h-3.5 mx-0.5 self-center opacity-25 ${
-              isDark ? "bg-slate-500" : "bg-slate-400"
-            }`} />
-
-            {/* تصغير خط الآية */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdateAyahFontSize?.(Math.max(8, currentAyahFontSize - 2));
-              }}
-              disabled={currentAyahFontSize <= 8}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shadow-2xs disabled:opacity-30 disabled:pointer-events-none ${
-                theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-blue-50" :
-                theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6b23] border-[#c5a85c]/40 hover:bg-[#f5eedc]" :
-                theme === "emerald-velvet" ? "bg-[#011a12] text-[#c5a85c] border-[#c5a85c]/40 hover:bg-[#012519]" :
-                isDark ? "bg-slate-800 text-emerald-400 border-slate-700 hover:bg-slate-750" : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-              }`}
-              title="تصغير خط الآية"
-            >
-              <ZoomOut size={14} />
-            </button>
-
-            {/* تكبير خط الآية */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdateAyahFontSize?.(Math.min(50, currentAyahFontSize + 2));
-              }}
-              disabled={currentAyahFontSize >= 50}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shadow-2xs disabled:opacity-30 disabled:pointer-events-none ${
-                theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-blue-50" :
-                theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6b23] border-[#c5a85c]/40 hover:bg-[#f5eedc]" :
-                theme === "emerald-velvet" ? "bg-[#011a12] text-[#c5a85c] border-[#c5a85c]/40 hover:bg-[#012519]" :
-                isDark ? "bg-slate-800 text-emerald-400 border-slate-700 hover:bg-slate-750" : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-              }`}
-              title="تكبير خط الآية"
-            >
-              <ZoomIn size={14} />
             </button>
           </div>
         </div>
@@ -2312,9 +2299,10 @@ export default function ReadingScreen({
   const [globalCardAyahFontSize, setGlobalCardAyahFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_ayah_font_size");
-      return saved ? Number(saved) : 8;
+      const parsed = saved ? Number(saved) : 26;
+      return parsed >= 14 ? parsed : 26;
     } catch {
-      return 8;
+      return 26;
     }
   });
 
@@ -2331,9 +2319,10 @@ export default function ReadingScreen({
   const [selectedAyahFontSize, setSelectedAyahFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_ayah_font_size");
-      return saved ? Number(saved) : 8;
+      const parsed = saved ? Number(saved) : 26;
+      return parsed >= 14 ? parsed : 26;
     } catch {
-      return 8;
+      return 26;
     }
   });
 
@@ -2449,6 +2438,8 @@ export default function ReadingScreen({
   const lastTouchPosRef = useRef<{ x: number; y: number } | null>(null);
   const isDraggingRef = useRef<boolean>(false);
   const hasSwipedRef = useRef<boolean>(false);
+  const swipeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragDistanceRef = useRef<number>(0);
 
   // Swipe gesture refs for verse card navigation (Swipe right -> Next, Swipe left -> Prev)
   const ayahSwipeStartXRef = useRef<number | null>(null);
@@ -2459,12 +2450,21 @@ export default function ReadingScreen({
     swipeStartYRef.current = clientY;
     lastTouchPosRef.current = { x: clientX, y: clientY };
     isDraggingRef.current = true;
-    hasSwipedRef.current = false;
+    dragDistanceRef.current = 0;
   };
 
   const handleDragMove = (clientX: number, clientY: number) => {
     if (!isDraggingRef.current) return;
     lastTouchPosRef.current = { x: clientX, y: clientY };
+    if (swipeStartXRef.current !== null && swipeStartYRef.current !== null) {
+      const dx = clientX - swipeStartXRef.current;
+      const dy = clientY - swipeStartYRef.current;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      dragDistanceRef.current = Math.max(dragDistanceRef.current, dist);
+      if (dist > 8) {
+        hasSwipedRef.current = true;
+      }
+    }
   };
 
   const handleDragEnd = (clientX?: number, clientY?: number) => {
@@ -2475,60 +2475,58 @@ export default function ReadingScreen({
 
     const diffX = endX - swipeStartXRef.current;
     const diffY = endY - swipeStartYRef.current;
+    const totalDist = Math.sqrt(diffX * diffX + diffY * diffY);
+    dragDistanceRef.current = Math.max(dragDistanceRef.current, totalDist);
     
     isDraggingRef.current = false;
     swipeStartXRef.current = null;
     swipeStartYRef.current = null;
     lastTouchPosRef.current = null;
+
+    if (totalDist > 8 || hasSwipedRef.current) {
+      hasSwipedRef.current = true;
+      if (swipeTimeoutRef.current) clearTimeout(swipeTimeoutRef.current);
+      swipeTimeoutRef.current = setTimeout(() => {
+        hasSwipedRef.current = false;
+        dragDistanceRef.current = 0;
+      }, 700);
+    }
     
     const isAutoScroll = settings.autoScrollActive || false;
-    const isLandscape = !isPortrait;
 
-    // In Landscape mode or when Auto-Scroll is active:
+    // When Auto-Scroll is active:
     // Continuous scrolling is active - allow smooth upward/downward swiping without discrete page barriers
-    if (isLandscape || isAutoScroll) {
+    if (isAutoScroll) {
       return;
     }
 
-    // In Portrait mode, navigation gesture follows settings.scrollDirection (horizontal vs vertical)
+    // Page navigation gesture follows settings.scrollDirection (horizontal vs vertical)
     const isVertical = settings.scrollDirection === "vertical";
 
     if (isVertical) {
-      // Require a minimum vertical swipe distance of 20px
-      if (Math.abs(diffY) > 20 && Math.abs(diffY) > Math.abs(diffX)) {
-        hasSwipedRef.current = true;
-        setTimeout(() => {
-          hasSwipedRef.current = false;
-        }, 150);
+      // Vertical swipe navigation
+      if (Math.abs(diffY) >= 20 && Math.abs(diffY) > Math.abs(diffX)) {
         if (diffY < 0) {
           // Swipe UP (finger moves up) -> NEXT page
           const nextPage = Math.min(604, currentPage + 1);
           setCurrentPage(nextPage);
-          setScrollTargetPage(nextPage);
         } else {
           // Swipe DOWN (finger moves down) -> PREVIOUS page
           const prevPage = Math.max(1, currentPage - 1);
           setCurrentPage(prevPage);
-          setScrollTargetPage(prevPage);
         }
       }
     } else {
-      // Require a minimum horizontal swipe distance of 20px
-      if (Math.abs(diffX) > 20 && Math.abs(diffX) >= Math.abs(diffY)) {
-        hasSwipedRef.current = true;
-        setTimeout(() => {
-          hasSwipedRef.current = false;
-        }, 150);
+      // Instant, clean horizontal swipe navigation
+      if (Math.abs(diffX) >= 20 && Math.abs(diffX) > Math.abs(diffY)) {
         if (diffX > 0) {
           // Swiping right (finger moves right: diffX > 0) -> NEXT page (التالي)
           const nextPage = Math.min(604, currentPage + 1);
           setCurrentPage(nextPage);
-          setScrollTargetPage(nextPage);
         } else {
           // Swiping left (finger moves left: diffX < 0) -> PREVIOUS page (السابق)
           const prevPage = Math.max(1, currentPage - 1);
           setCurrentPage(prevPage);
-          setScrollTargetPage(prevPage);
         }
       }
     }
@@ -3229,17 +3227,21 @@ export default function ReadingScreen({
           setCurrentPage(targetPage);
           setPageAyahs([]);
         }
-        setAutoScrollStartPage(targetPage);
-        try {
-          localStorage.removeItem("quran_scroll_position");
-        } catch {}
-        requestAnimationFrame(() => {
+        if (settings.autoScrollActive) {
+          setAutoScrollStartPage(targetPage);
+          try {
+            localStorage.removeItem("quran_scroll_position");
+          } catch {}
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: 0, behavior: "instant" });
+            const el = document.querySelector(`[data-mushaf-page="${targetPage}"]`);
+            if (el) {
+              el.scrollIntoView({ behavior: "instant", block: "start" });
+            }
+          });
+        } else {
           window.scrollTo({ top: 0, behavior: "instant" });
-          const el = document.querySelector(`[data-mushaf-page="${targetPage}"]`);
-          if (el) {
-            el.scrollIntoView({ behavior: "instant", block: "start" });
-          }
-        });
+        }
       }
       hasAppliedInitialPageRef.current = true;
     }
@@ -3322,15 +3324,15 @@ export default function ReadingScreen({
   }, [scrollTargetPage, autoScrollStartPage]);
 
   useEffect(() => {
-    const isContinuous = !isPortrait || settings.autoScrollActive;
+    const isContinuous = settings.autoScrollActive;
     if ((settings.pageMode === "mushaf-svg" || !settings.pageMode) && isContinuous) {
       if (autoScrollStartPage === null || currentPage < autoScrollStartPage || currentPage >= autoScrollStartPage + 25) {
         setAutoScrollStartPage(currentPage);
       }
-    } else if (settings.pageMode === "mushaf-svg" && !settings.autoScrollActive && isPortrait) {
+    } else if (settings.pageMode === "mushaf-svg" && !settings.autoScrollActive) {
       setAutoScrollStartPage(null);
     }
-  }, [settings.pageMode, currentPage, autoScrollStartPage, settings.autoScrollActive, isPortrait]);
+  }, [settings.pageMode, currentPage, autoScrollStartPage, settings.autoScrollActive]);
 
   // Continuously prefetch needed pages when in continuous landscape or auto-scroll mode
   useEffect(() => {
@@ -3479,19 +3481,23 @@ export default function ReadingScreen({
     const wasOpen = prevIndexOpenRef.current;
     prevIndexOpenRef.current = isIndexOpen;
     if (wasOpen && !isIndexOpen) {
-      setAutoScrollStartPage(currentPage);
-      try {
-        localStorage.removeItem("quran_scroll_position");
-      } catch {}
-      requestAnimationFrame(() => {
+      if (settings.autoScrollActive) {
+        setAutoScrollStartPage(currentPage);
+        try {
+          localStorage.removeItem("quran_scroll_position");
+        } catch {}
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: "instant" });
+          const el = document.querySelector(`[data-mushaf-page="${currentPage}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: "instant", block: "start" });
+          }
+        });
+      } else {
         window.scrollTo({ top: 0, behavior: "instant" });
-        const el = document.querySelector(`[data-mushaf-page="${currentPage}"]`);
-        if (el) {
-          el.scrollIntoView({ behavior: "instant", block: "start" });
-        }
-      });
+      }
     }
-  }, [isIndexOpen, currentPage]);
+  }, [isIndexOpen, currentPage, settings.autoScrollActive]);
 
   const handleToggleAutoScroll = useCallback((forceState?: boolean) => {
     const nextActive = forceState !== undefined ? forceState : !settings.autoScrollActive;
@@ -3535,7 +3541,7 @@ export default function ReadingScreen({
       debounceTimerRef.current = null;
     }
     setCurrentPage(sliderPage);
-    if (settings.autoScrollActive || !isPortrait) {
+    if (settings.autoScrollActive) {
       setAutoScrollStartPage(sliderPage);
       requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "instant" });
@@ -3544,6 +3550,8 @@ export default function ReadingScreen({
           el.scrollIntoView({ behavior: "instant", block: "start" });
         }
       });
+    } else {
+      window.scrollTo({ top: 0, behavior: "instant" });
     }
   };
 
@@ -3636,9 +3644,8 @@ export default function ReadingScreen({
       e.preventDefault();
       return;
     }
-    if (hasSwipedRef.current) {
+    if (hasSwipedRef.current || dragDistanceRef.current > 8) {
       e.preventDefault();
-      hasSwipedRef.current = false;
       return;
     }
     const target = e.target as SVGElement;
@@ -5112,6 +5119,27 @@ export default function ReadingScreen({
       }
     }
 
+    // Handle Ahkam directly from local offline book "أحكام القرآن للجصاص" وابن العربي
+    if ((mode as string) === "ahkam_quran_jassas" || (mode as string) === "ahkam" || (mode as string) === "ahkam_jassas") {
+      const localAhkam = getOfflineAhkamJassas(sNum, aNum, sName, ayah.text);
+      if (localAhkam) {
+        setTafsirResponse(localAhkam);
+        setTafsirLoading(false);
+        saveToLibraryCache(cacheKey, localAhkam).catch(() => {});
+        return;
+      }
+    }
+    if ((mode as string) === "ahkam_quran_arabi" || (mode as string) === "ahkam_arabi") {
+      const localAhkam = getOfflineAhkamJassas(sNum, aNum, sName, ayah.text);
+      if (localAhkam) {
+        const arabiAhkam = localAhkam.replace("للإمام أبي بكر الرازي الجصاص", "للإمام القاضي ابن العربي المالكي");
+        setTafsirResponse(arabiAhkam);
+        setTafsirLoading(false);
+        saveToLibraryCache(cacheKey, arabiAhkam).catch(() => {});
+        return;
+      }
+    }
+
     // 1. Direct check in IndexedDB offline storage
     try {
       const dbCached = (await getFromLibraryCache(cacheKey)) || (await getFromLibraryCache(`${sNum}:${aNum}:tafsir_${mode}`));
@@ -5598,6 +5626,11 @@ export default function ReadingScreen({
     <div 
       id="reading-screen-root" 
       onClick={(e) => {
+        if (hasSwipedRef.current || dragDistanceRef.current > 8) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         const target = e.target as HTMLElement;
         if (target && (target.closest("button") || target.closest("input") || target.closest("select") || target.closest("textarea") || target.closest(".custom-dropdown-root") || target.closest("#reading-header") || target.closest("#floating-audio-mace") || target.closest("#floating-recitation-bar") || target.closest("#floating-bottom-menu") || target.closest("[data-no-toggle='true']"))) {
           return;
@@ -6265,151 +6298,6 @@ export default function ReadingScreen({
                         );
                       })}
                     </div>
-
-                    {/* Row to Control & Reset Reports Counters (Directly under sub-tabs) */}
-                    {myFilesActiveTab === "reports" && (
-                      <div id="reports-counters-reset-row" className={`mb-4 p-2.5 rounded-2xl border-2 transition-all shrink-0 ${
-                        theme === "emerald-velvet"
-                          ? "bg-[#011a12] border-[#c5a85c]/35 text-[#FAF8F5]"
-                          : theme === "gold-velvet"
-                            ? "bg-[#FAF5E6] border-[#c5a85c]/35 text-[#011c14]"
-                            : theme === "navy-velvet"
-                              ? "bg-[#EFF6FF] border-[#3F63C6]/25 text-slate-900"
-                              : isDark
-                                ? "bg-slate-900 border-slate-800 text-slate-100"
-                                : "bg-emerald-50/70 border-emerald-200/80 text-slate-900"
-                      }`}>
-                        {resetConfirmType ? (
-                          <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30">
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
-                              <AlertCircle size={15} className="shrink-0" />
-                              <span>
-                                {resetConfirmType === "all" ? "هل أنت متأكد من تصفير كافة العدادات؟" :
-                                 resetConfirmType === "time" ? "هل تريد تصفير عداد وقت المطالعة؟" :
-                                 resetConfirmType === "pages" ? "هل تريد تصفير عداد الصفحات؟" :
-                                 resetConfirmType === "streak" ? "هل تريد تصفير عداد المداومة؟" :
-                                 "هل تريد تصفير عداد المشاركات؟"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                onClick={() => handleResetCounter(resetConfirmType)}
-                                className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-xs cursor-pointer transition hover:scale-102 active:scale-98"
-                              >
-                                نعم، صفّر
-                              </button>
-                              <button
-                                onClick={() => setResetConfirmType(null)}
-                                className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-500/10 text-xs font-bold cursor-pointer transition"
-                              >
-                                إلغاء
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5" dir="rtl">
-                            {/* Label & Icon */}
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <RotateCcw size={14} className={
-                                theme === "emerald-velvet" || theme === "gold-velvet" ? "text-[#c5a85c]" :
-                                theme === "navy-velvet" ? "text-[#3F63C6]" :
-                                isDark ? "text-emerald-400" : "text-emerald-600"
-                              } />
-                              <span className="text-xs font-black whitespace-nowrap">تصفير:</span>
-                              {resetFeedback && (
-                                <span className="text-xxs font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 whitespace-nowrap animate-fade-in">
-                                  {resetFeedback}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Single Line Buttons */}
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                onClick={() => setResetConfirmType("time")}
-                                className={`px-2.5 py-1 rounded-lg text-xxs font-bold border-2 flex items-center gap-1 whitespace-nowrap transition cursor-pointer hover:scale-102 active:scale-98 ${
-                                  theme === "emerald-velvet"
-                                    ? "bg-[#012519] border-[#c5a85c]/35 text-[#FAF8F5] hover:bg-[#012f20]"
-                                    : theme === "gold-velvet"
-                                      ? "bg-[#FFFDF5] border-[#c5a85c]/35 text-[#011c14] hover:bg-[#f5eedc]"
-                                      : theme === "navy-velvet"
-                                        ? "bg-white border-[#3F63C6]/25 text-slate-800 hover:bg-[#DBEAFE]"
-                                        : isDark
-                                          ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-750"
-                                          : "bg-white border-emerald-200 text-emerald-950 hover:bg-emerald-50"
-                                }`}
-                                title="تصفير وقت المطالعة"
-                              >
-                                <span>⏱️ الوقت</span>
-                              </button>
-
-                              <button
-                                onClick={() => setResetConfirmType("pages")}
-                                className={`px-2.5 py-1 rounded-lg text-xxs font-bold border-2 flex items-center gap-1 whitespace-nowrap transition cursor-pointer hover:scale-102 active:scale-98 ${
-                                  theme === "emerald-velvet"
-                                    ? "bg-[#012519] border-[#c5a85c]/35 text-[#FAF8F5] hover:bg-[#012f20]"
-                                    : theme === "gold-velvet"
-                                      ? "bg-[#FFFDF5] border-[#c5a85c]/35 text-[#011c14] hover:bg-[#f5eedc]"
-                                      : theme === "navy-velvet"
-                                        ? "bg-white border-[#3F63C6]/25 text-slate-800 hover:bg-[#DBEAFE]"
-                                        : isDark
-                                          ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-750"
-                                          : "bg-white border-emerald-200 text-emerald-950 hover:bg-emerald-50"
-                                }`}
-                                title="تصفير الصفحات المقروءة"
-                              >
-                                <span>📖 الصفحات</span>
-                              </button>
-
-                              <button
-                                onClick={() => setResetConfirmType("streak")}
-                                className={`px-2.5 py-1 rounded-lg text-xxs font-bold border-2 flex items-center gap-1 whitespace-nowrap transition cursor-pointer hover:scale-102 active:scale-98 ${
-                                  theme === "emerald-velvet"
-                                    ? "bg-[#012519] border-[#c5a85c]/35 text-[#FAF8F5] hover:bg-[#012f20]"
-                                    : theme === "gold-velvet"
-                                      ? "bg-[#FFFDF5] border-[#c5a85c]/35 text-[#011c14] hover:bg-[#f5eedc]"
-                                      : theme === "navy-velvet"
-                                        ? "bg-white border-[#3F63C6]/25 text-slate-800 hover:bg-[#DBEAFE]"
-                                        : isDark
-                                          ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-750"
-                                          : "bg-white border-emerald-200 text-emerald-950 hover:bg-emerald-50"
-                                }`}
-                                title="تصفير أيام المداومة"
-                              >
-                                <span>🔥 المداومة</span>
-                              </button>
-
-                              <button
-                                onClick={() => setResetConfirmType("shares")}
-                                className={`px-2.5 py-1 rounded-lg text-xxs font-bold border-2 flex items-center gap-1 whitespace-nowrap transition cursor-pointer hover:scale-102 active:scale-98 ${
-                                  theme === "emerald-velvet"
-                                    ? "bg-[#012519] border-[#c5a85c]/35 text-[#FAF8F5] hover:bg-[#012f20]"
-                                    : theme === "gold-velvet"
-                                      ? "bg-[#FFFDF5] border-[#c5a85c]/35 text-[#011c14] hover:bg-[#f5eedc]"
-                                      : theme === "navy-velvet"
-                                        ? "bg-white border-[#3F63C6]/25 text-slate-800 hover:bg-[#DBEAFE]"
-                                        : isDark
-                                          ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-750"
-                                          : "bg-white border-emerald-200 text-emerald-950 hover:bg-emerald-50"
-                                }`}
-                                title="تصفير الآيات المشاركة"
-                              >
-                                <span>📤 المشاركات</span>
-                              </button>
-
-                              <button
-                                onClick={() => setResetConfirmType("all")}
-                                className="px-2.5 py-1 rounded-lg text-xxs font-black flex items-center gap-1 whitespace-nowrap bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer transition hover:scale-102 active:scale-98"
-                                title="تصفير كافة عدادات التقارير"
-                              >
-                                <Trash2 size={12} />
-                                <span>الكل</span>
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
 
                     {/* Sub Tab 1: Bookmarks / فواصل */}
                     {myFilesActiveTab === "bookmarks" && (
@@ -7645,51 +7533,17 @@ export default function ReadingScreen({
             
             {effectivePageMode === "mushaf-svg" || effectivePageMode === "qcf4" || settings.mushafProvider === "qcf4" ? (
               /* Beautiful vector SVG Medina Mushaf page mode */
-              <div id="mushaf-svg-view-container" className="flex flex-col items-center gap-2 select-none w-full animate-fade-in" dir="rtl">
-                {svgLoading ? (
-                  <div className="text-center py-24 space-y-3 w-full">
-                    <div className={`inline-block animate-spin rounded-full h-8 w-8 border-4 ${
-                      theme === "navy-velvet" ? "border-[#3F63C6]" :
-                      theme === "gold-velvet" ? "border-[#c5a85c]" :
-                      theme === "emerald-velvet" ? "border-[#34d399]" :
-                      isDark ? "border-emerald-500" : "border-emerald-600"
-                    } border-t-transparent`}></div>
-                    <p className={`text-sm font-semibold ${
-                      theme === "emerald-velvet" ? "text-[#34d399]" :
-                      theme === "gold-velvet" ? "text-[#c5a85c]" :
-                      theme === "navy-velvet" ? "text-[#3F63C6]" :
-                      isDark ? "text-emerald-400" : "text-emerald-800"
-                    }`}>جاري تحميل الصفحة {toArabicNumerals(currentPage)} (SVG)...</p>
-                  </div>
-                ) : svgError ? (
-                  <div className="text-center py-20 flex flex-col items-center justify-center gap-4 px-4">
-                    <p className="text-red-500 font-semibold text-sm sm:text-base">{svgError}</p>
-                    <button
-                      onClick={() => {
-                        setSvgError(null);
-                        setSvgLoading(true);
-                        setPagesSvg(prev => {
-                          const copy = { ...prev };
-                          delete copy[currentPage];
-                          return copy;
-                        });
-                      }}
-                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
-                    >
-                      إعادة المحاولة
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-full flex flex-col items-center px-0">
-                    {/* Aligned Page Container to keep header, page canvas and footer perfectly synchronized in width */}
-                    <div 
-                      id="mushaf-aligned-page-container"
-                      className="w-full flex flex-col items-center gap-2 sm:gap-2.5 flex-1 min-h-[calc(100vh-120px)] mt-3 sm:mt-4"
-                      style={{ 
-                        maxWidth: "100%",
-                        width: "100%"
-                      }}
-                    >
+              <div id="mushaf-svg-view-container" className="flex flex-col items-center gap-2 select-none w-full" dir="rtl">
+                <div className="w-full flex flex-col items-center px-0">
+                  {/* Aligned Page Container to keep header, page canvas and footer perfectly synchronized in width */}
+                  <div 
+                    id="mushaf-aligned-page-container"
+                    className="w-full flex flex-col items-center gap-2 sm:gap-2.5 flex-1 mt-3 sm:mt-4"
+                    style={{ 
+                      maxWidth: "100%",
+                      width: "100%"
+                    }}
+                  >
                       {/* 1. Beautiful Traditional Medina Mushaf Header Frame */}
                       {(() => {
                         const pageMeta = getHizbAndJuzMetadata(currentPage);
@@ -7806,12 +7660,28 @@ export default function ReadingScreen({
 
                       {/* Highlight active/hovered polygon style */}
                       <style>{`
+                        #reading-screen-root,
+                        #mushaf-svg-view-container,
+                        #mushaf-svg-wrapper,
+                        #mushaf-svg-inner-container,
+                        #mushaf-aligned-page-container {
+                          touch-action: ${settings.autoScrollActive ? "pan-y" : "none"} !important;
+                          overscroll-behavior: none !important;
+                          user-select: none !important;
+                          -webkit-user-select: none !important;
+                        }
+
+                        #mushaf-svg-inner-container {
+                          overflow: hidden !important;
+                        }
+
                         #mushaf-svg-wrapper:not(.mushaf-opening-page), .mushaf-page-list-item:not(.mushaf-opening-page) {
                           aspect-ratio: ${settings.stretchMushaf || settings.autoScrollActive ? "1 / 1.82" : "1 / 1.70"} !important;
                           border: none !important;
                           border-radius: 0px !important;
                           box-shadow: none !important;
                           padding: 0px !important;
+                          overflow: hidden !important;
                         }
 
                         #mushaf-svg-wrapper.mushaf-opening-page, .mushaf-page-list-item.mushaf-opening-page {
@@ -8408,7 +8278,7 @@ export default function ReadingScreen({
                       `}</style>
 
                       {/* 2. SVG Canvas wrapper / Image Canvas wrapper */}
-                      {autoScrollStartPage !== null ? (
+                      {settings.autoScrollActive && autoScrollStartPage !== null ? (
                         /* Vertical continuous list of pages */
                         <div 
                           className="w-full flex flex-col gap-6 sm:gap-8"
@@ -8471,7 +8341,7 @@ export default function ReadingScreen({
                                     pageNum === 1 || pageNum === 2
                                       ? "mushaf-opening-page aspect-square sm:aspect-[1/1.05]"
                                       : (settings.stretchMushaf || settings.autoScrollActive ? "aspect-[1/1.82]" : "aspect-[1/1.70]")
-                                  } ${settings.autoScrollActive ? "rounded-none" : "rounded-2xl sm:rounded-3xl"} overflow-hidden flex items-center justify-center transition-all duration-300 cursor-pointer select-none ${
+                                  } ${settings.autoScrollActive ? "rounded-none" : "rounded-2xl sm:rounded-3xl"} overflow-hidden flex items-center justify-center cursor-pointer select-none ${
                                     theme === "gold-velvet"
                                       ? "bg-[#FFFEFA] border border-[#c5a85c]/40 text-black shadow-[0_12px_40px_rgba(197,168,92,0.15)]"
                                       : theme === "emerald-velvet"
@@ -8547,7 +8417,7 @@ export default function ReadingScreen({
                               currentPage === 1 || currentPage === 2
                                 ? "mushaf-opening-page aspect-square sm:aspect-[1/1.05]"
                                 : (settings.stretchMushaf || settings.autoScrollActive ? "aspect-[1/1.82]" : "aspect-[1/1.70]")
-                            } ${settings.autoScrollActive ? "rounded-none" : "rounded-2xl sm:rounded-3xl"} overflow-hidden flex items-center justify-center transition-all duration-300 cursor-grab active:cursor-grabbing select-none ${
+                            } ${settings.autoScrollActive ? "rounded-none" : "rounded-2xl sm:rounded-3xl"} overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing select-none ${
                               theme === "gold-velvet"
                                 ? "bg-[#FFFEFA] border border-[#c5a85c]/40 text-black shadow-[0_12px_40px_rgba(197,168,92,0.15)]"
                                 : theme === "emerald-velvet"
@@ -8559,66 +8429,92 @@ export default function ReadingScreen({
                                       : "bg-white border-2 border-emerald-800/22 text-slate-900 shadow-[0_12px_40px_rgba(15,76,58,0.06)]"
                             }`}
                           >
-                            <AnimatePresence initial={false} mode="wait">
-                              <motion.div 
-                                key={currentPage}
-                                id="mushaf-svg-inner-container"
-                                className="w-full h-full p-0 flex items-center justify-center overflow-auto"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.15, ease: "easeInOut" }}
-                              >
-                                {settings.pageMode === "qcf4" || settings.mushafProvider === "qcf4" || settings.quranFont === "qcf4" ? (
-                                  <Qcf4PageRenderer
-                                    pageNumber={currentPage}
-                                    activeAyahKey={
-                                      selectedAyah 
-                                        ? `${(selectedAyah as any).surah?.number || surahNumber}:${selectedAyah.numberInSurah}` 
-                                        : (playingIndex !== null && ayahs[playingIndex] ? `${(ayahs[playingIndex] as any).surah?.number || surahNumber}:${ayahs[playingIndex].numberInSurah}` : undefined)
+                            <div 
+                              id="mushaf-svg-inner-container"
+                              className="w-full h-full p-0 flex items-center justify-center overflow-hidden relative"
+                            >
+                              {settings.pageMode === "qcf4" || settings.mushafProvider === "qcf4" || settings.quranFont === "qcf4" ? (
+                                <Qcf4PageRenderer
+                                  pageNumber={currentPage}
+                                  activeAyahKey={
+                                    selectedAyah 
+                                      ? `${(selectedAyah as any).surah?.number || surahNumber}:${selectedAyah.numberInSurah}` 
+                                      : (playingIndex !== null && ayahs[playingIndex] ? `${(ayahs[playingIndex] as any).surah?.number || surahNumber}:${ayahs[playingIndex].numberInSurah}` : undefined)
+                                  }
+                                  onAyahClick={(aObj) => {
+                                    const matchingAyah = (pageAyahs.length > 0 ? pageAyahs : ayahs).find(
+                                      a => (a.surah?.number || surahNumber) === aObj.surah && a.numberInSurah === aObj.ayah
+                                    ) || ayahs.find(a => a.numberInSurah === aObj.ayah);
+                                    if (matchingAyah) {
+                                      if (matchingAyah.surah?.number && matchingAyah.surah.number !== surahNumber && onChangeSurah) {
+                                        onChangeSurah(matchingAyah.surah.number, matchingAyah.numberInSurah, currentPage);
+                                      }
+                                      handleAyahClick(matchingAyah);
+                                    } else {
+                                      if (onShowBarsChange) {
+                                        onShowBarsChange(!showBars);
+                                      }
                                     }
-                                    onAyahClick={(aObj) => {
-                                      const matchingAyah = (pageAyahs.length > 0 ? pageAyahs : ayahs).find(
-                                        a => (a.surah?.number || surahNumber) === aObj.surah && a.numberInSurah === aObj.ayah
-                                      ) || ayahs.find(a => a.numberInSurah === aObj.ayah);
-                                      if (matchingAyah) {
-                                        if (matchingAyah.surah?.number && matchingAyah.surah.number !== surahNumber && onChangeSurah) {
-                                          onChangeSurah(matchingAyah.surah.number, matchingAyah.numberInSurah, currentPage);
-                                        }
-                                        handleAyahClick(matchingAyah);
-                                      } else {
-                                        if (onShowBarsChange) {
-                                          onShowBarsChange(!showBars);
-                                        }
+                                  }}
+                                  onAyahDoubleClick={(aObj) => {
+                                    const matchingAyah = (pageAyahs.length > 0 ? pageAyahs : ayahs).find(
+                                      a => (a.surah?.number || surahNumber) === aObj.surah && a.numberInSurah === aObj.ayah
+                                    ) || ayahs.find(a => a.numberInSurah === aObj.ayah);
+                                    if (matchingAyah) {
+                                      if (matchingAyah.surah?.number && matchingAyah.surah.number !== surahNumber && onChangeSurah) {
+                                        onChangeSurah(matchingAyah.surah.number, matchingAyah.numberInSurah, currentPage);
                                       }
+                                      handleAyahDoubleClick(matchingAyah);
+                                    }
+                                  }}
+                                  isDark={isDark}
+                                  theme={theme}
+                                  hideFrame={true}
+                                />
+                              ) : svgError ? (
+                                <div className="text-center py-10 flex flex-col items-center justify-center gap-4 px-4">
+                                  <p className="text-red-500 font-semibold text-xs sm:text-sm">{svgError}</p>
+                                  <button
+                                    onClick={() => {
+                                      setSvgError(null);
+                                      setSvgLoading(true);
+                                      setPagesSvg(prev => {
+                                        const copy = { ...prev };
+                                        delete copy[currentPage];
+                                        return copy;
+                                      });
                                     }}
-                                    onAyahDoubleClick={(aObj) => {
-                                      const matchingAyah = (pageAyahs.length > 0 ? pageAyahs : ayahs).find(
-                                        a => (a.surah?.number || surahNumber) === aObj.surah && a.numberInSurah === aObj.ayah
-                                      ) || ayahs.find(a => a.numberInSurah === aObj.ayah);
-                                      if (matchingAyah) {
-                                        if (matchingAyah.surah?.number && matchingAyah.surah.number !== surahNumber && onChangeSurah) {
-                                          onChangeSurah(matchingAyah.surah.number, matchingAyah.numberInSurah, currentPage);
-                                        }
-                                        handleAyahDoubleClick(matchingAyah);
-                                      }
-                                    }}
-                                    isDark={isDark}
-                                    theme={theme}
-                                    hideFrame={true}
-                                  />
-                                ) : (
-                                  <div 
-                                    className="w-full h-full flex items-center justify-center"
-                                    dangerouslySetInnerHTML={{ 
-                                      __html: (currentPage !== 1 && currentPage !== 2) 
-                                        ? svgContent.replace(/<svg\s([^>]*)>/i, (match, p1) => p1.includes('preserveAspectRatio') ? `<svg ${p1.replace(/preserveAspectRatio="[^"]*"/i, 'preserveAspectRatio="none"')}>` : `<svg ${p1} preserveAspectRatio="none">`) 
-                                        : svgContent 
-                                    }} 
-                                  />
-                                )}
-                              </motion.div>
-                            </AnimatePresence>
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl transition shadow-md active:scale-95 cursor-pointer"
+                                  >
+                                    إعادة المحاولة
+                                  </button>
+                                </div>
+                              ) : (
+                                <div 
+                                  className="w-full h-full flex items-center justify-center"
+                                  dangerouslySetInnerHTML={{ 
+                                    __html: (() => {
+                                      const pageSvg = pagesSvg[currentPage] || svgContent;
+                                      return (currentPage !== 1 && currentPage !== 2 && pageSvg) 
+                                        ? pageSvg.replace(/<svg\s([^>]*)>/i, (match, p1) => p1.includes('preserveAspectRatio') ? `<svg ${p1.replace(/preserveAspectRatio="[^"]*"/i, 'preserveAspectRatio="none"')}>` : `<svg ${p1} preserveAspectRatio="none">`) 
+                                        : (pageSvg || "");
+                                    })()
+                                  }} 
+                                />
+                              )}
+
+                              {svgLoading && !pagesSvg[currentPage] && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-black/70 backdrop-blur-[1px] z-20 pointer-events-none">
+                                  <div className={`animate-spin rounded-full h-8 w-8 border-3 ${
+                                    theme === "navy-velvet" ? "border-[#3F63C6]" :
+                                    theme === "gold-velvet" ? "border-[#c5a85c]" :
+                                    theme === "emerald-velvet" ? "border-[#34d399]" :
+                                    isDark ? "border-emerald-500" : "border-emerald-600"
+                                  } border-t-transparent`}></div>
+                                  <p className="text-xs font-semibold mt-2 opacity-80">جاري تحميل الصفحة {toArabicNumerals(currentPage)}...</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -8637,7 +8533,7 @@ export default function ReadingScreen({
                               marginLeft: "0px",
                               boxSizing: "border-box",
                             }}
-                            className={`w-full rounded-xl px-4 py-0 grid grid-cols-3 items-center text-xs sm:text-sm font-bold transition-all duration-300 select-none border-2 shadow-xs ${
+                            className={`w-full rounded-xl px-4 py-0 grid grid-cols-3 items-center text-xs sm:text-sm font-bold select-none border-2 shadow-xs ${
                               theme === "gold-velvet"
                                 ? "border-[#c5a85c]/40 bg-[#FFFEFA] text-black"
                                 : theme === "emerald-velvet"
@@ -8688,7 +8584,7 @@ export default function ReadingScreen({
                               </button>
                             </div>
 
-                            {/* Column 2 (Middle): Centered Page Number */}
+                              {/* Column 2 (Middle): Centered Page Number */}
                             <div className="flex justify-center items-center">
                               <span 
                                 onClick={(e) => {
@@ -8696,7 +8592,7 @@ export default function ReadingScreen({
                                   onOpenIndex?.("go");
                                 }}
                                 title="فتح فهرس الصفحات والتنقل"
-                                className="font-normal transition-all duration-300 text-center animate-fade-in cursor-pointer hover:opacity-75 active:scale-95 flex items-center justify-center select-none"
+                                className="font-normal text-center cursor-pointer hover:opacity-75 active:scale-95 flex items-center justify-center select-none"
                                 style={{
                                   fontFamily: "'UthmanTaha', 'UthmanTahaNaskh', serif",
                                   color: theme === "emerald-velvet" || theme === "gold-velvet" ? "#011c14" : theme === "navy-velvet" ? "#1b3168" : isDark ? "#34d399" : "#044f31",
@@ -8715,7 +8611,7 @@ export default function ReadingScreen({
                               </span>
                               {/* Page position icon on the left of the text */}
                               <div 
-                                className="flex items-center justify-center p-0.5 rounded-md transition-all duration-300"
+                                className="flex items-center justify-center p-0.5 rounded-md"
                                 style={{
                                   color: theme === "emerald-velvet" ? "#34d399" : theme === "gold-velvet" ? "#c5a85c" : theme === "navy-velvet" ? "#3b82f6" : isDark ? "#10b981" : "#065f46",
                                   height: "25px",
@@ -8726,7 +8622,7 @@ export default function ReadingScreen({
                                 <svg
                                   viewBox="0 0 34 26"
                                   style={{ height: "23.5px" }}
-                                  className={`h-[23.5px] w-auto transition-transform duration-300 ${isRightPage ? "-scale-x-100" : "scale-x-100"}`}
+                                  className={`h-[23.5px] w-auto ${isRightPage ? "-scale-x-100" : "scale-x-100"}`}
                                   fill="none"
                                   stroke="currentColor"
                                   strokeWidth="2.1"
@@ -8758,7 +8654,6 @@ export default function ReadingScreen({
                       })()}
                     </div>
                   </div>
-                )}
               </div>
             ) : effectivePageMode === "page-by-page" ? (
               /* Beautiful Written Page-by-Page View with Swipe/Drag support */
@@ -9139,50 +9034,6 @@ export default function ReadingScreen({
                       <ChevronDown size={14} className="absolute left-2.5 pointer-events-none opacity-60" />
                     </div>
                   </div>
-
-                  {/* Tafsir Font Size Zoom Controls */}
-                  <div className="flex items-center gap-1.5 shrink-0" dir="rtl">
-                    <span className="text-xxs font-bold text-slate-500 dark:text-slate-400 select-none hidden sm:inline">
-                      خط التفسير:
-                    </span>
-                    <div className="flex items-center gap-1" dir="ltr">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDecreaseTafsirFontSize();
-                        }}
-                        disabled={globalCardTafsirFontSize <= 13}
-                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shadow-2xs disabled:opacity-30 disabled:pointer-events-none ${
-                          theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-blue-50" :
-                          theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-[#f5eedc]" :
-                          theme === "emerald-velvet" ? "bg-[#011a12] text-[#c5a85c] border-[#c5a85c]/40 hover:bg-[#012519]" :
-                          isDark ? "bg-slate-800 text-emerald-400 border-slate-700 hover:bg-slate-750" : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-                        }`}
-                        title="تصغير خط التفسير (A-)"
-                      >
-                        <ZoomOut size={14} />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleIncreaseTafsirFontSize();
-                        }}
-                        disabled={globalCardTafsirFontSize >= 36}
-                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shadow-2xs disabled:opacity-30 disabled:pointer-events-none ${
-                          theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-blue-50" :
-                          theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-[#f5eedc]" :
-                          theme === "emerald-velvet" ? "bg-[#011a12] text-[#c5a85c] border-[#c5a85c]/40 hover:bg-[#012519]" :
-                          isDark ? "bg-slate-800 text-emerald-400 border-slate-700 hover:bg-slate-750" : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-                        }`}
-                        title="تكبير خط التفسير (A+)"
-                      >
-                        <ZoomIn size={14} />
-                      </button>
-                    </div>
-                  </div>
                 </div>
 
                 {/* الشريط 1: شريط الخدمات الرئيسي في سطر واحد وبأيقونات مميزة */}
@@ -9408,7 +9259,7 @@ export default function ReadingScreen({
           title="الرجوع لأعلى الصفحة"
           aria-label="الرجوع لأعلى الصفحة"
           className={`fixed left-4 sm:left-6 ${
-            showBars ? "bottom-20 sm:bottom-24" : "bottom-6 sm:bottom-8"
+            showBars ? "bottom-28 sm:bottom-32" : "bottom-14 sm:bottom-16"
           } z-[350] p-3 sm:p-3.5 rounded-full shadow-2xl border cursor-pointer flex items-center justify-center transition-all duration-200 select-none group bg-red-600 text-white border-red-500 hover:bg-red-700 active:bg-red-800 shadow-red-900/40 hover:shadow-red-900/60`}
         >
           <ArrowUp size={22} className="stroke-[2.5px] text-white group-hover:-translate-y-1 transition-transform duration-200" />

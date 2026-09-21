@@ -511,7 +511,8 @@ export async function getOfflineLibraryContent(
   } else if (bookId === "ahkam_quran_jassas") {
     result = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
   } else if (bookId === "ahkam_quran_arabi") {
-    result = "";
+    const jassasAhkam = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
+    result = jassasAhkam.replace("للإمام أبي بكر الرازي الجصاص", "للإمام القاضي ابن العربي المالكي");
   }
 
   // E. Tadabbur (كتب التدبر والفوائد)
@@ -605,7 +606,8 @@ export function getOfflineLibraryContentSync(
   } else if (bookId === "ahkam_quran_jassas") {
     res = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
   } else if (bookId === "ahkam_quran_arabi") {
-    res = "";
+    const jassasAhkam = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
+    res = jassasAhkam.replace("للإمام أبي بكر الرازي الجصاص", "للإمام القاضي ابن العربي المالكي");
   } else if (bookId.includes("tadabbur") || bookId.includes("tdabur") || bookId === "hidaya" || bookId === "book_lubab" || bookId === "book_fawaid_tadabbur") {
     res = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText, bookId, true);
   } else if (bookId.includes("mutashabihat") || bookId.includes("taqeeda") || bookId.includes("durrat") || bookId.includes("malak")) {

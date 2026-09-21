@@ -222,15 +222,21 @@ export interface TafsirBookItemToDownload {
 }
 
 export const TAFSIR_OFFLINE_PACKS: TafsirBookItemToDownload[] = [
-  // 1. Local bundled comprehensive Tafsirs
+  // 1. Local bundled comprehensive Tafsirs & Translations
   { id: "tafsir_mukhtasar", title: "المختصر في تفسير القرآن الكريم", edition: "mukhtasar_local", isLocal: true },
+  { id: "tafsir_aysar", title: "أيسر التفاسير لكلام العلي الكبير (الجزائري)", edition: "aysar_local", isLocal: true },
   { id: "translation_hilali_khan", title: "ترجمة محمد تقي الدين الهلالي ومحسن خان", edition: "english_local", isLocal: true },
   
   // 2. Authoritative full-Quran Tafsirs
   { id: "tafsir_muyassar", title: "التفسير الميسر (مجمع الملك فهد)", edition: "ar.muyassar", isLocal: false },
   { id: "tafsir_sadi", title: "تيسير الكريم الرحمن (تفسير السعدي)", edition: "ar.saadi", isLocal: false },
+  { id: "tafsir_baghawi", title: "معالم التنزيل (تفسير البغوي)", edition: "ar.baghawi", isLocal: false },
   { id: "tafsir_kathir", title: "تفسير القرآن العظيم (ابن كثير)", edition: "ar.ibnkathir", isLocal: false },
   { id: "tafsir_qurtubi", title: "الجامع لأحكام القرآن (القرطبي)", edition: "ar.qurtubi", isLocal: false },
+  { id: "tafsir_waseet", title: "التفسير الوسيط (طنطاوي)", edition: "ar.waseet", isLocal: false },
+  { id: "tafsir_jalalayn", title: "تفسير الجلالين", edition: "ar.jalalayn", isLocal: false },
+  { id: "translation_clear_quran", title: "ترجمة The Clear Quran (مصطفى خطّاب)", edition: "en.itani", isLocal: false },
+  { id: "translation_sahih_intl", title: "ترجمة صحيح إنترناشونال", edition: "en.sahih", isLocal: false },
 ];
 
 /**

@@ -10,6 +10,7 @@ function getAhkamJassasText(): string {
       const fs = require("fs");
       const path = require("path");
       const possiblePaths = [
+        path.join(process.cwd(), "src", "data", "02_shamela023579_أحكام_القرآن_للجصاص_ت_قمحاوي_الجصاص.txt"),
         path.join(process.cwd(), "src", "data", "al_ahkam_jassas.txt"),
         path.join(process.cwd(), "src", "data", "ahkam_jassas.txt")
       ];
@@ -63,20 +64,28 @@ export function getOfflineAhkamJassas(
 
   // 1. Check for explicit header marker: "سورة {surahNumber} - آية {ayahNumber}"
   const specificMarkerRegex = new RegExp(
-    `سورة\\s*${surahNumber}\\s*-\\s*آية\\s*${ayahNumber}\\b([\\s\\S]*?)(?=(?:سورة\\s*\\d+\\s*-\\s*آية\\s*\\d+)|(?:\\[سورة)|$)`,
-    "i"
+    `سورة\\s*${surahNumber}\\s*-\\s*آية\\s*${ayahNumber}(?:\\D|$)`
   );
-  const match = rawText.match(specificMarkerRegex);
-  if (match && match[1] && match[1].trim().length > 0) {
-    const result = `### 📖 أحكام القرآن — للإمام أبي بكر الرازي الجصاص (ت 370 هـ)
+  
+  // Find all sections or entries
+  const entries = rawText.split(/(?=\n\s*سورة\s*\d+\s*-\s*آية\s*\d+)/i);
+  for (const entry of entries) {
+    const trimmed = entry.trim();
+    if (specificMarkerRegex.test(trimmed)) {
+      // Remove the header line "سورة X - آية Y"
+      const content = trimmed.replace(/^سورة\s*\d+\s*-\s*آية\s*\d+[^\n]*\n?/i, "").trim();
+      if (content) {
+        const result = `### 📖 أحكام القرآن — للإمام أبي بكر الرازي الجصاص (ت 370 هـ)
 سورة ${surahName} [الآية: ${ayahNumber}]
 
-${match[1].trim()}`;
-    ahkamCache[cacheKey] = result;
-    return result;
+${content}`;
+        ahkamCache[cacheKey] = result;
+        return result;
+      }
+    }
   }
 
-  // 2. Check within surah block if formatted by surah section
+  // 2. Check within surah block if formatted by surah section [سورة ...]
   const cleanSurahName = normalize(surahName).replace(/^سوره\s*/, "");
   const surahSectionRegex = new RegExp(
     `\\[سورة\\s*([^\\]]+)\\]([\\s\\S]*?)(?=(?:\\[سورة)|$)`,
@@ -88,28 +97,28 @@ ${match[1].trim()}`;
     if (sTitle.includes(cleanSurahName) || cleanSurahName.includes(sTitle)) {
       const sectionContent = sMatch[2];
       
-      // Look for ayah within this section
+      // Look for ayah within this section with strict digit boundary
       const ayahRegex = new RegExp(
-        `(?:آية|الآية|\\()\\s*${ayahNumber}\\s*(?:\\)|:|-)?([\\s\\S]*?)(?=(?:(?:آية|الآية|\\()\\s*\\d+)|$)`,
+        `(?:^|\\n)\\s*(?:سورة\\s*\\d+\\s*-\\s*)?(?:آية|الآية|\\()\\s*${ayahNumber}(?!\\d)(?:\\)|:|-)?([\\s\\S]*?)(?=(?:\\n\\s*(?:سورة\\s*\\d+\\s*-\\s*)?(?:آية|الآية|\\()\\s*\\d+(?!\\d))|$)`,
         "i"
       );
       const aMatch = sectionContent.match(ayahRegex);
       if (aMatch && aMatch[0] && aMatch[0].trim().length > 10) {
-        const result = `### 📖 أحكام القرآن — للإمام أبي بكر الرازي الجصاص (ت 370 هـ)
+        const cleanAyahContent = aMatch[0].replace(/^(?:سورة\s*\d+\s*-\s*)?(?:آية|الآية|\()\s*\d+(?!\d)(?:\)|:|-)?\s*/i, "").trim();
+        if (cleanAyahContent) {
+          const result = `### 📖 أحكام القرآن — للإمام أبي بكر الرازي الجصاص (ت 370 هـ)
 سورة ${surahName} [الآية: ${ayahNumber}]
 
-${aMatch[0].trim()}`;
-        ahkamCache[cacheKey] = result;
-        return result;
+${cleanAyahContent}`;
+          ahkamCache[cacheKey] = result;
+          return result;
+        }
       }
     }
   }
 
-  // Default informative message for verses where Al-Jassas did not extract an independent legal ruling
-  const defaultNotice = `### 📖 أحكام القرآن — للإمام أبي بكر الرازي الجصاص (ت 370 هـ)
-سورة ${surahName} [الآية: ${ayahNumber}]
-
-اعتنى الإمام أبو بكر الجصاص رحمه الله في مصنفه «أحكام القرآن» بآيات الأحكام ومسائل الفقه واستنباط الفروع من نصوص التنزيل وبيان أصول مذهب الإمام أبي حنيفة وأصحابه، وهذه الآية الكريمة تندرج في سياق مقاصد السورة العامة والهدايات الإيمانية التي لم يُفرد لها حكماً فقهياً فرعياً مستقلاً في هذا الباب.`;
+  // Exact concise notice when the author did not mention or dedicate specific jurisprudence rulings to this verse
+  const defaultNotice = `لم يُفرد لها حكماً فقهياً فرعياً مستقلاً في هذا الباب.`;
 
   ahkamCache[cacheKey] = defaultNotice;
   return defaultNotice;

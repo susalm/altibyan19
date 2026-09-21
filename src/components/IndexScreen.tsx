@@ -5,7 +5,7 @@ import { juzList } from "../data/juzList";
 import { quartersList, QuarterInfo } from "../data/quartersData";
 import { quranSvgPageMetadata, getSurahStartPage } from "../data/quranSvgPageMetadata";
 import { motion } from "motion/react";
-import { Search, Heart, BookOpen, Layers, MapPin, Sparkles, X, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Heart, BookOpen, Layers, MapPin, Sparkles, X, ExternalLink, ChevronDown, ChevronUp, ArrowUp } from "lucide-react";
 import { translations } from "../data/translations";
 import { fetchAlquranCloud, fetchQuranSvg } from "../utils/quranApi";
 import { ensureQbsmlLoaded, getSurahHeaderGlyph, getJuzHeaderGlyph } from "../utils/qcf4Utils";
@@ -359,6 +359,23 @@ export default function IndexScreen({
 
   const rollScrollRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const handleContainerScroll = () => {
+    if (containerRef.current) {
+      setShowScrollTop(containerRef.current.scrollTop > 180);
+    }
+  };
+
+  const handleScrollToTop = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    }
+  };
 
   // Synchronize scrolling of the rolling page picker when page changes
   useEffect(() => {
@@ -522,12 +539,14 @@ export default function IndexScreen({
 
   return (
     <motion.div
+      ref={containerRef}
       id="index-screen-root"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.1, ease: "easeOut" }}
       onClick={(e) => e.stopPropagation()}
+      onScroll={handleContainerScroll}
       className={`w-full max-w-full h-full min-h-0 overflow-y-auto rounded-2xl border p-3 sm:p-4 ${
         isDark
           ? "bg-slate-950 border-slate-800 text-slate-100"
@@ -1176,6 +1195,28 @@ export default function IndexScreen({
           );
         })()}
       </div>
+
+      {/* Floating Scroll-to-Top Button for Index Page */}
+      {showScrollTop && (
+        <motion.button
+          id="index-scroll-to-top-button"
+          type="button"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleScrollToTop();
+          }}
+          title="الرجوع لأعلى الصفحة"
+          aria-label="الرجوع لأعلى الصفحة"
+          className="fixed left-5 sm:left-7 bottom-6 sm:bottom-8 z-[350] p-3 sm:p-3.5 rounded-full shadow-2xl border cursor-pointer flex items-center justify-center transition-all duration-200 select-none group bg-red-600 text-white border-red-500 hover:bg-red-700 active:bg-red-800 shadow-red-900/40 hover:shadow-red-900/60"
+        >
+          <ArrowUp size={22} className="stroke-[2.5px] text-white group-hover:-translate-y-1 transition-transform duration-200" />
+        </motion.button>
+      )}
     </motion.div>
   );
 }

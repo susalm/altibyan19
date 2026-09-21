@@ -361,6 +361,24 @@ export async function getAyahTranslationText(
     };
   }
 
+  // Direct QuranEnc fallback for high-reliability translations
+  try {
+    const encCandidate = normBook.replace(/^translation_/, "");
+    const encRes = await fetch(`https://quranenc.com/api/v1/translation/aya/${encodeURIComponent(encCandidate)}/${surahNumber}/${ayahNumberInSurah}`, {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (encRes.ok) {
+      const encData = await encRes.json();
+      if (encData?.result?.translation) {
+        return {
+          text: encData.result.translation,
+          footnotes: encData.result.footnotes || "",
+          isRtl
+        };
+      }
+    }
+  } catch {}
+
   // Graceful offline fallback for English translations
   if (lang === "en" || normBook.includes("english") || normBook.includes("hilali")) {
     const offlineEn = getOfflineEnglishTranslation(surahNumber, ayahNumberInSurah);
@@ -373,7 +391,7 @@ export async function getAyahTranslationText(
   }
 
   return {
-    text: "الترجمة قيد التحميل من خادم مصحف التبيان...",
+    text: "",
     isRtl: false
   };
 }

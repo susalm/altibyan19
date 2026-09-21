@@ -20,12 +20,40 @@ function getMuharrarAsbabText(): string {
   return "";
 }
 
-const normalize = (text: string) => {
-  return text
-    .replace(/[\u064B-\u065F]/g, "") // Remove diacritics
-    .replace(/[أإآء]/g, "ا")        // Normalize alef/hamza
-    .replace(/ة\b/g, "ه");          // Normalize ta marbuta
-};
+const normalizeName = (name: string) =>
+  name
+    .replace(/[\u064B-\u065F]/g, "")
+    .replace(/[أإآء]/g, "ا")
+    .replace(/ة\b/g, "ه")
+    .trim();
+
+let cachedSurahMap: Map<string, string> | null = null;
+
+function getSurahAsbabMap(): Map<string, string> {
+  if (cachedSurahMap) {
+    return cachedSurahMap;
+  }
+  const text = getMuharrarAsbabText();
+  const map = new Map<string, string>();
+  if (!text) {
+    cachedSurahMap = map;
+    return map;
+  }
+
+  const chunks = text.split(/\nسورة\s+/);
+  for (let i = 1; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const newlineIdx = chunk.indexOf("\n");
+    if (newlineIdx !== -1) {
+      const title = chunk.substring(0, newlineIdx).trim();
+      const body = chunk.substring(newlineIdx + 1);
+      map.set(normalizeName(title), body);
+    }
+  }
+
+  cachedSurahMap = map;
+  return map;
+}
 
 export function getOfflineAsbab(
   surahNumber: number,
@@ -36,89 +64,43 @@ export function getOfflineAsbab(
   const surahMeta = surahsList.find((s) => s.number === surahNumber);
   const surahName = surahNameInput || (surahMeta ? surahMeta.name : `سورة رقم ${surahNumber}`);
 
-  const muharrarAsbabText = getMuharrarAsbabText();
-  if (!muharrarAsbabText) {
-    return null;
-  }
+  const surahMap = getSurahAsbabMap();
+  const normSurahName = normalizeName(surahMeta ? surahMeta.name : surahName);
+  const surahSection = surahMap.get(normSurahName);
 
-  const content = muharrarAsbabText;
-  const cleanContent = normalize(content);
-
-  const surahKeys: { [key: number]: string } = {
-    2: "سورة البقرة",
-    3: "سورة ال عمران",
-    4: "سورة النساء",
-    5: "سورة المائدة",
-    6: "سورة الانعام",
-    7: "سورة الاعراف",
-    8: "سورة الانفال",
-    9: "سورة التوبة",
-    11: "سورة هود",
-    13: "سورة الرعد",
-    14: "سورة ابراهيم",
-    15: "سورة الحجر",
-    16: "سورة النحل",
-    18: "سورة الكهف",
-    19: "سورة مريم",
-    22: "سورة الحج",
-    23: "سورة المؤمنون",
-    24: "سورة النور",
-    25: "سورة الفرقان",
-    28: "سورة القصص",
-    29: "سورة العنكبوت",
-    30: "سورة الروم",
-    31: "سورة لقمان",
-    33: "سورة الاحزاب",
-    36: "سورة يس",
-    38: "سورة ص",
-    39: "سورة الزمر",
-    41: "سورة فصلت",
-    42: "سورة الشورى",
-    43: "سورة الزخرف",
-    44: "سورة الدخان",
-    46: "سورة الاحقاف",
-    48: "سورة الفتح",
-    61: "سورة الصف",
-    62: "سورة الجمعة",
-    63: "سورة المنافقون",
-    64: "سورة التغابن",
-    66: "سورة التحريم",
-    93: "سورة الضحى",
-    96: "سورة العلق",
-    97: "سورة القدر",
-    108: "سورة الكوثر",
-    111: "سورة المسد",
-    112: "سورة الاخلاص"
-  };
-
-  const key = surahKeys[surahNumber];
-  if (key) {
-    const normalizedKey = normalize(key);
-    const surahIndex = cleanContent.indexOf(normalizedKey);
-    if (surahIndex !== -1) {
-      let nextSurahIndex = cleanContent.length;
-      for (const k of Object.values(surahKeys)) {
-        const normK = normalize(k);
-        const idx = cleanContent.indexOf(normK, surahIndex + normalizedKey.length);
-        if (idx !== -1 && idx < nextSurahIndex) {
-          nextSurahIndex = idx;
-        }
+  if (surahSection) {
+    const itemRegex = /(?:\r?\n|^)(\d+\s*-\s*قال\s+الله\s+تعالى:[\s\S]*?)(?=(?:\r?\n\d+\s*-\s*قال\s+الله\s+تعالى:)|$)/g;
+    let match;
+    while ((match = itemRegex.exec(surahSection)) !== null) {
+      const itemText = match[1];
+      // 1. Direct match with paren: (14) or ( 14 )
+      const parenRegex = new RegExp(`\\(\\s*${ayahNumber}\\s*\\)`);
+      if (parenRegex.test(itemText)) {
+        return `### 📖 المصدر: كتاب المحرر في أسباب النزول (د. خالد المزيني)\n\n${itemText.trim()}`;
       }
-
-      const surahSection = content.substring(surahIndex, nextSurahIndex);
-      const itemRegex = /(?:\r?\n|^)(\d+\s*-\s*قال\s+الله\s+تعالى:[\s\S]*?)(?=(?:\r?\n\d+\s*-\s*قال\s+الله\s+تعالى:)|$)/g;
-      let match;
-      while ((match = itemRegex.exec(surahSection)) !== null) {
-        const itemText = match[1];
-        const parenRegex = new RegExp(`\\(\\s*${ayahNumber}\\s*\\)`);
-        if (parenRegex.test(itemText)) {
+      // 2. Range match: (11 - 12) or (142 - 144)
+      const rangeRegex = /\(\s*(\d+)\s*[-–]\s*(\d+)\s*\)/g;
+      let rMatch;
+      while ((rMatch = rangeRegex.exec(itemText)) !== null) {
+        const start = parseInt(rMatch[1], 10);
+        const end = parseInt(rMatch[2], 10);
+        if (ayahNumber >= start && ayahNumber <= end) {
           return `### 📖 المصدر: كتاب المحرر في أسباب النزول (د. خالد المزيني)\n\n${itemText.trim()}`;
         }
       }
+    }
 
-      const paragraphs = surahSection.split(/\r?\n\r?\n/);
-      for (const para of paragraphs) {
-        if (para.includes(`(${ayahNumber})`)) {
+    const paragraphs = surahSection.split(/\r?\n\r?\n/);
+    for (const para of paragraphs) {
+      if (para.includes(`(${ayahNumber})`)) {
+        return `### 📖 المصدر: كتاب المحرر في أسباب النزول (د. خالد المزيني)\n\n${para.trim()}`;
+      }
+      const rangeRegex = /\(\s*(\d+)\s*[-–]\s*(\d+)\s*\)/g;
+      let rMatch;
+      while ((rMatch = rangeRegex.exec(para)) !== null) {
+        const start = parseInt(rMatch[1], 10);
+        const end = parseInt(rMatch[2], 10);
+        if (ayahNumber >= start && ayahNumber <= end) {
           return `### 📖 المصدر: كتاب المحرر في أسباب النزول (د. خالد المزيني)\n\n${para.trim()}`;
         }
       }
