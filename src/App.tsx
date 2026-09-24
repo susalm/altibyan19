@@ -109,12 +109,42 @@ export default function App() {
   // Share Ayah Modal State
   const [shareAyahData, setShareAyahData] = useState<ShareAyahData | null>(null);
 
-  const handleOpenShareAyah = () => {
-    let targetSurahNum = 14;
-    let targetAyahNum = 40;
-    let targetMode: "single" | "range" | "page" = "range";
-    let targetRangeTo = 41;
-    let targetPageNum = 260;
+  const handleOpenShareAyah = (customData?: Partial<ShareAyahData>) => {
+    // 1. Immediately reset activeTab to "home" so that no full screen sheet (z-[490]) obscures the share modal!
+    if (activeTab !== "home") {
+      setActiveTab("home");
+    }
+
+    // 2. Ensure bottom/top bars timer is refreshed
+    triggerShowBars(5000);
+
+    // 3. If index screen is currently open, restore the last opened surah
+    if (activeSurahNumber === null) {
+      setActiveSurahNumber(lastOpenedSurah || 1);
+    }
+
+    // 4. If specific ayah/surah data was passed (e.g. from ReadingScreen):
+    if (customData && customData.ayah) {
+      const sNum = customData.surahNumber || activeSurahNumber || lastOpenedSurah || 1;
+      const sObj = surahsList.find((s) => s.number === sNum) || surahsList[0];
+      setShareAyahData({
+        mode: customData.mode || "single",
+        surahNumber: sNum,
+        surahName: customData.surahName || sObj.name,
+        ayah: customData.ayah,
+        ayahTo: customData.ayahTo,
+        pageNumber: customData.pageNumber || customData.ayah.page || initialPageNumber || 1,
+        isNavDefaultOpen: false,
+      });
+      return;
+    }
+
+    // 5. When opened directly from the bottom navigation bar:
+    let targetSurahNum = activeSurahNumber || lastOpenedSurah || 1;
+    let targetAyahNum = initialAyahNumber || lastOpenedAyah || 1;
+    let targetMode: "single" | "range" | "page" = "single";
+    let targetRangeTo = targetAyahNum;
+    let targetPageNum = initialPageNumber || 1;
 
     try {
       const savedAyahRaw = localStorage.getItem("quran_share_default_ayah_v3");
@@ -135,11 +165,11 @@ export default function App() {
         if (parsed.selectedPageNumber) targetPageNum = Number(parsed.selectedPageNumber);
       }
     } catch {
-      targetSurahNum = 14;
-      targetAyahNum = 40;
+      targetSurahNum = activeSurahNumber || lastOpenedSurah || 1;
+      targetAyahNum = initialAyahNumber || lastOpenedAyah || 1;
     }
 
-    const currentSurah = surahsList.find((s) => s.number === targetSurahNum) || surahsList.find((s) => s.number === 14) || surahsList[0];
+    const currentSurah = surahsList.find((s) => s.number === targetSurahNum) || surahsList.find((s) => s.number === 1) || surahsList[0];
 
     setShareAyahData({
       mode: targetMode,
@@ -148,6 +178,7 @@ export default function App() {
       ayah: {
         numberInSurah: targetAyahNum,
         text: "",
+        page: targetPageNum,
       },
       ayahTo: targetRangeTo,
       pageNumber: targetPageNum,
@@ -907,6 +938,7 @@ export default function App() {
                 }}
                 onActiveTabChange={setActiveTab}
                 onSyncPlaybackStates={setPlaybackSync}
+                onOpenShareAyah={handleOpenShareAyah}
               />
 
               <AnimatePresence>
@@ -1270,7 +1302,10 @@ export default function App() {
           {/* 5.5. Share Ayah Tab (على يمين أيقونة المكتبة في الواجهة العربية RTL) */}
           <button
             id="nav-tab-share-ayah"
-            onClick={handleOpenShareAyah}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenShareAyah();
+            }}
             title={t.shareAyah}
             className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer ${
               shareAyahData !== null

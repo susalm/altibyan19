@@ -89,6 +89,7 @@ interface ReadingScreenProps {
   onShowBarsChange?: (show: boolean) => void;
   onActiveTabChange?: (tab: "home" | "recitation" | "settings" | "khatmah" | "favorites" | "storage") => void;
   onSyncPlaybackStates?: (states: any) => void;
+  onOpenShareAyah?: (data: ShareAyahData) => void;
 }
 
 const toArabicNumerals = (num: number): string => {
@@ -2190,6 +2191,7 @@ export default function ReadingScreen({
   onShowBarsChange,
   onActiveTabChange,
   onSyncPlaybackStates,
+  onOpenShareAyah,
 }: ReadingScreenProps) {
   const effectivePageMode = settings.pageMode || "continuous";
   const currentSurahMeta = surahsList.find((s) => s.number === surahNumber);
@@ -2895,7 +2897,7 @@ export default function ReadingScreen({
   };
 
   const handleOpenShareAyah = (ayah: Ayah) => {
-    setShareAyahData({
+    const data: ShareAyahData = {
       mode: "single",
       ayah: {
         number: ayah.number,
@@ -2906,7 +2908,12 @@ export default function ReadingScreen({
       },
       surahName: currentSurahMeta?.name || `سورة ${surahNumber}`,
       surahNumber
-    });
+    };
+    if (onOpenShareAyah) {
+      onOpenShareAyah(data);
+    } else {
+      setShareAyahData(data);
+    }
   };
 
   const handleOpenAyahBookmarkMenu = (e: React.MouseEvent, ayah: Ayah) => {
@@ -3078,7 +3085,25 @@ export default function ReadingScreen({
     const aNum = ayah.numberInSurah;
     const sName = (ayah as any).surah?.name || currentSurahMeta?.name;
 
-    // 1. Direct check in IndexedDB offline cache
+    // Ensure authentic ayah text is displayed in the modal if it was placeholder
+    let realAyahText = ayah.text;
+    if (!realAyahText || realAyahText.startsWith("آية رقم")) {
+      const pageMatch = pageAyahs.find((a) => a.numberInSurah === aNum);
+      if (pageMatch?.text) {
+        realAyahText = pageMatch.text;
+        setTafsirModalAyah((prev) => prev ? { ...prev, text: realAyahText } : null);
+      }
+    }
+
+    // 1. Direct check for authentic local offline Muyassar dataset (100% offline & instant)
+    const directMuyassar = getOfflineMuyassarTafsir(sNum, aNum);
+    if (directMuyassar) {
+      setTafsirModalText(directMuyassar);
+      setTafsirModalLoading(false);
+      return;
+    }
+
+    // 2. Direct check in IndexedDB offline cache
     const cacheKey = `${sNum}:${aNum}:tafsir_muyassar`;
     try {
       const dbCached = await getFromLibraryCache(cacheKey);
@@ -3089,8 +3114,8 @@ export default function ReadingScreen({
       }
     } catch (_) {}
 
-    // 2. Direct check for local offline datasets (100% offline)
-    const offlineText = generateOfflineMuyassar(sNum, aNum, sName, ayah.text) ||
+    // 3. Direct check for other local offline datasets (100% offline)
+    const offlineText = generateOfflineMuyassar(sNum, aNum, sName, realAyahText) ||
                         getOfflineAysarTafsir(sNum, aNum) || 
                         getOfflineMukhtasarTafsir(sNum, aNum);
     if (offlineText) {
@@ -10303,14 +10328,11 @@ export default function ReadingScreen({
         {/* Al-Tafseer Al-Moyassar Popup Modal */}
         <AnimatePresence>
           {tafsirModalAyah && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
-                exit={{ opacity: 0 }}
+            <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 pointer-events-none">
+              {/* Backdrop without black background */}
+              <div
                 onClick={() => setTafsirModalAyah(null)}
-                className="fixed inset-0 bg-black/60 backdrop-blur-md"
+                className="fixed inset-0 bg-transparent pointer-events-auto cursor-pointer"
               />
 
               {/* Modal Dialog Content */}
@@ -10329,7 +10351,7 @@ export default function ReadingScreen({
                     setTafsirModalAyah(null);
                   }
                 }}
-                className={`relative w-full max-w-3xl md:w-[80%] mx-auto rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.35)] border flex flex-col overflow-hidden max-h-[80vh] text-right font-sans ${
+                className={`relative pointer-events-auto w-full max-w-3xl md:w-[80%] mx-auto rounded-3xl shadow-2xl border flex flex-col overflow-hidden max-h-[80vh] text-right font-sans ${
                   theme === "emerald-velvet"
                     ? "bg-[#011a12] border-[#c5a85c]/30 text-[#FAF8F5]"
                     : theme === "gold-velvet"
@@ -10352,7 +10374,7 @@ export default function ReadingScreen({
                   }`} />
                 </div>
 
-                {/* Header */}
+                {/* Header (Merged single line with Title, Surah & Ayah, Close button) */}
                 <div 
                   onPointerDown={(e) => {
                     const target = e.target as HTMLElement;
@@ -10360,11 +10382,11 @@ export default function ReadingScreen({
                       tafsirMoyassarDragControls.start(e);
                     }
                   }}
-                  className={`flex items-center justify-between px-6 py-4 border-b cursor-grab active:cursor-grabbing ${
+                  className={`flex items-center justify-between px-4 sm:px-6 py-3 border-b cursor-grab active:cursor-grabbing ${
                     theme === "emerald-velvet"
-                      ? "border-[#c5a85c]/10 bg-[#012519]"
+                      ? "border-[#c5a85c]/15 bg-[#012519]"
                       : theme === "gold-velvet"
-                        ? "border-[#c5a85c]/10 bg-[#fbf9f6]"
+                        ? "border-[#c5a85c]/15 bg-[#fbf9f6]"
                         : theme === "navy-velvet"
                           ? "border-slate-100 bg-slate-50"
                           : isDark
@@ -10372,20 +10394,36 @@ export default function ReadingScreen({
                             : "border-slate-100 bg-slate-50"
                   }`}
                 >
-                  <div className="flex items-center gap-2 flex-row-reverse">
-                    <BookOpenCheck 
-                      size={18} 
-                      className={
-                        theme === "gold-velvet" || theme === "emerald-velvet" ? "text-[#c5a85c]" :
-                        theme === "navy-velvet" ? "text-[#3F63C6]" :
-                        "text-emerald-600"
-                      } 
-                    />
-                    <h3 className="text-base font-bold font-sans">التفسير الميسر</h3>
+                  <div className="flex items-center gap-2 sm:gap-2.5 flex-row-reverse flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-row-reverse">
+                      <BookOpenCheck 
+                        size={18} 
+                        className={
+                          theme === "gold-velvet" || theme === "emerald-velvet" ? "text-[#c5a85c]" :
+                          theme === "navy-velvet" ? "text-[#3F63C6]" :
+                          "text-emerald-600"
+                        } 
+                      />
+                      <h3 className="text-sm sm:text-base font-bold font-sans">التفسير الميسر</h3>
+                    </div>
+                    <span className="opacity-30 select-none">•</span>
+                    <span className={`text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center ${
+                      theme === "emerald-velvet"
+                        ? "text-[#c5a85c] border-[#c5a85c]/25 bg-[#011a12]"
+                        : theme === "gold-velvet"
+                          ? "text-[#c5a85c] border-[#c5a85c]/25 bg-[#FFFDF5]"
+                          : theme === "navy-velvet"
+                            ? "text-[#3F63C6] border-[#3F63C6]/20 bg-white"
+                            : isDark
+                              ? "text-slate-200 border-slate-700 bg-slate-900"
+                              : "text-emerald-700 dark:text-emerald-300 border-emerald-500/20 bg-emerald-50"
+                    }`}>
+                      {(tafsirModalAyah as any).surah?.name || currentSurahMeta?.name} • الآية {toArabicNumerals(tafsirModalAyah.numberInSurah)}
+                    </span>
                   </div>
                   <button
                     onClick={() => setTafsirModalAyah(null)}
-                    className="p-1.5 rounded-full transition-colors bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer"
+                    className="p-1.5 rounded-full transition-colors bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer shrink-0"
                     title="إغلاق"
                   >
                     <X size={18} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
@@ -10393,35 +10431,7 @@ export default function ReadingScreen({
                 </div>
 
                 {/* Content Body */}
-                <div className="p-6 overflow-y-auto space-y-6 dir-rtl" style={{ direction: "rtl" }}>
-                  {/* Active Ayah text preview */}
-                  <div className={`p-4 rounded-2xl text-center border relative overflow-hidden ${
-                    theme === "emerald-velvet"
-                      ? "bg-[#011a12] border-[#c5a85c]/25"
-                      : theme === "gold-velvet"
-                        ? "bg-[#FFFDF5] border-[#c5a85c]/20"
-                        : theme === "navy-velvet"
-                          ? "bg-slate-50/50 border-slate-100"
-                          : isDark
-                            ? "bg-slate-950/40 border-slate-800/60"
-                            : "bg-emerald-50/[0.15] border-emerald-500/10"
-                  }`}>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border mb-2 inline-block ${
-                      theme === "emerald-velvet"
-                        ? "text-[#c5a85c] border-[#c5a85c]/25 bg-[#011a12]"
-                        : theme === "gold-velvet"
-                          ? "text-[#c5a85c] border-[#c5a85c]/25 bg-[#FFFDF5]"
-                          : theme === "navy-velvet"
-                            ? "text-[#3F63C6] border-[#3F63C6]/20 bg-slate-50"
-                            : "text-emerald-600 border-emerald-500/20 bg-emerald-500/5"
-                    }`}>
-                      {(tafsirModalAyah as any).surah?.name || currentSurahMeta?.name} • آية {toArabicNumerals(tafsirModalAyah.numberInSurah)}
-                    </span>
-                    <p className="font-quran text-xl sm:text-2xl leading-relaxed font-semibold text-center select-all">
-                      {tafsirModalAyah.text}
-                    </p>
-                  </div>
-
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-4 dir-rtl" style={{ direction: "rtl" }}>
                   {/* Tafsir content area */}
                   <div className="space-y-3">
                     {tafsirModalLoading ? (
@@ -10458,10 +10468,13 @@ export default function ReadingScreen({
                         </button>
                       </div>
                     ) : (
-                      <div className={`prose prose-sm max-w-none text-base leading-relaxed text-right ${
-                        isDark ? "text-slate-300" : "text-slate-700"
+                      <div className={`prose prose-sm max-w-none text-right ${
+                        isDark ? "text-slate-200" : "text-slate-800"
                       }`}>
-                        <p className="font-sans leading-loose text-justify text-base sm:text-lg">
+                        <p 
+                          className="font-amiri font-amiri-naskh leading-[2.3] text-justify text-lg sm:text-xl font-normal select-text"
+                          style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}
+                        >
                           {tafsirModalText}
                         </p>
                       </div>
@@ -10505,12 +10518,14 @@ export default function ReadingScreen({
         </AnimatePresence>
 
         {/* Share Ayah Modal */}
-        <ShareAyahModal
-          shareData={shareAyahData}
-          onClose={() => setShareAyahData(null)}
-          theme={theme}
-          isDark={isDark}
-        />
+        {shareAyahData !== null && (
+          <ShareAyahModal
+            shareData={shareAyahData}
+            onClose={() => setShareAyahData(null)}
+            theme={theme}
+            isDark={isDark}
+          />
+        )}
 
         {bookmarkMenu && (
           <div
@@ -10676,10 +10691,10 @@ export default function ReadingScreen({
                 dir="rtl"
                 style={{
                   position: "fixed",
-                  left: `${Math.max(10, Math.min(floatingAyahMenu.x - 145, window.innerWidth - 315))}px`,
+                  left: `${Math.max(10, Math.min(floatingAyahMenu.x - 175, window.innerWidth - 370))}px`,
                   top: `${floatingAyahMenu.y > 170 ? Math.max(16, floatingAyahMenu.y - 110) : Math.min(window.innerHeight - 170, floatingAyahMenu.y + 25)}px`,
                 }}
-                className={`rounded-3xl p-2.5 sm:p-3 shadow-2xl border backdrop-blur-xl flex flex-col gap-2 sm:gap-2.5 z-[460] select-none ${
+                className={`rounded-3xl p-2 sm:p-3 shadow-2xl border backdrop-blur-xl flex flex-col gap-2 sm:gap-2.5 z-[460] select-none ${
                   theme === "emerald-velvet"
                     ? "bg-[#012519]/95 border-[#c5a85c]/45 text-[#FAF8F5] shadow-black/70"
                     : theme === "gold-velvet"
@@ -10691,25 +10706,45 @@ export default function ReadingScreen({
                           : "bg-white/95 border-emerald-200 shadow-emerald-950/20 text-slate-900"
                 }`}
               >
-                {/* Main Action Icons Row - مكبر بنسبة 100% */}
-                <div className="flex items-center gap-2 sm:gap-2.5">
-                  {/* 1. Copy icon */}
+                {/* Main Action Icons Row */}
+                <div className="flex items-center gap-1.5 sm:gap-2.5">
+                  {/* 1. Tafsir Al-Muyassar icon */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ayahWithSurah = {
+                        ...floatingAyahMenu.ayah,
+                        surah: (floatingAyahMenu.ayah as any).surah || {
+                          number: floatingAyahMenu.surahNumber,
+                          name: floatingAyahMenu.surahName,
+                        },
+                      };
+                      setTafsirModalAyah(ayahWithSurah as Ayah);
+                      setFloatingAyahMenu(null);
+                    }}
+                    title="التفسير الميسر"
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
+                  >
+                    <BookOpen size={28} className="sm:w-[34px] sm:h-[34px]" />
+                  </button>
+
+                  {/* 2. Copy icon */}
                   <button
                     type="button"
                     onClick={handleFloatingCopyAyah}
                     title="نسخ الآية"
-                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 ${
+                    className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 ${
                       floatingCopied ? "bg-emerald-500/20 text-emerald-500" : ""
                     }`}
                   >
                     {floatingCopied ? (
-                      <Check size={34} className="text-emerald-500 stroke-[3px]" />
+                      <Check size={28} className="sm:w-[34px] sm:h-[34px] text-emerald-500 stroke-[3px]" />
                     ) : (
-                      <Copy size={34} />
+                      <Copy size={28} className="sm:w-[34px] sm:h-[34px]" />
                     )}
                   </button>
 
-                  {/* 2. Share icon */}
+                  {/* 3. Share icon */}
                   <button
                     type="button"
                     onClick={() => {
@@ -10717,19 +10752,19 @@ export default function ReadingScreen({
                       setFloatingAyahMenu(null);
                     }}
                     title="مشاركة الآية"
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
                   >
-                    <Share2 size={34} />
+                    <Share2 size={28} className="sm:w-[34px] sm:h-[34px]" />
                   </button>
 
-                  {/* 3. Bookmark / Tag icon (reveals markers list on click) */}
+                  {/* 4. Bookmark / Tag icon (reveals markers list on click) */}
                   <button
                     type="button"
                     onClick={() => {
                       setFloatingAyahMenu(prev => prev ? { ...prev, showBookmarksList: !prev.showBookmarksList } : null);
                     }}
                     title="وضع علامة"
-                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 ${
+                    className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 ${
                       floatingAyahMenu.showBookmarksList
                         ? (theme === "emerald-velvet" || theme === "gold-velvet" ? "bg-[#c5a85c]/25 text-[#c5a85c]" : "bg-emerald-500/20 text-emerald-500")
                         : bookmarks.some(b => b.surahNumber === floatingAyahMenu.surahNumber && b.ayahNumber === floatingAyahMenu.ayah.numberInSurah)
@@ -10738,12 +10773,12 @@ export default function ReadingScreen({
                     }`}
                   >
                     <BookmarkIcon
-                      size={34}
-                      className={bookmarks.some(b => b.surahNumber === floatingAyahMenu.surahNumber && b.ayahNumber === floatingAyahMenu.ayah.numberInSurah) ? "fill-current text-amber-500" : ""}
+                      size={28}
+                      className={`sm:w-[34px] sm:h-[34px] ${bookmarks.some(b => b.surahNumber === floatingAyahMenu.surahNumber && b.ayahNumber === floatingAyahMenu.ayah.numberInSurah) ? "fill-current text-amber-500" : ""}`}
                     />
                   </button>
 
-                  {/* 4. Note & Tadabbur icon */}
+                  {/* 5. Note & Tadabbur icon */}
                   <button
                     type="button"
                     onClick={() => {
@@ -10751,9 +10786,9 @@ export default function ReadingScreen({
                       setFloatingAyahMenu(null);
                     }}
                     title="كتابة ملاحظة وتدبر"
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
                   >
-                    <FileText size={34} />
+                    <FileText size={28} className="sm:w-[34px] sm:h-[34px]" />
                   </button>
                 </div>
 

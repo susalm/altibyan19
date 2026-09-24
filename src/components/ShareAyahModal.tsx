@@ -1121,10 +1121,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   // Surah & Ayah Selector State
   const [currentShareData, setCurrentShareData] = useState<ShareAyahData | null>(shareData);
-  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode || initialStyle.shareMode || "range");
-  const [rangeFrom, setRangeFrom] = useState<number>(() => shareData?.ayah?.numberInSurah || initialStyle.rangeFrom || 40);
-  const [rangeTo, setRangeTo] = useState<number>(() => shareData?.ayahTo || initialStyle.rangeTo || 41);
-  const [selectedPageNumber, setSelectedPageNumber] = useState<number>(() => shareData?.pageNumber || shareData?.ayah?.page || initialStyle.selectedPageNumber || 260);
+  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode || initialStyle.shareMode || "single");
+  const [rangeFrom, setRangeFrom] = useState<number>(() => shareData?.ayah?.numberInSurah || initialStyle.rangeFrom || 1);
+  const [rangeTo, setRangeTo] = useState<number>(() => shareData?.ayahTo || initialStyle.rangeTo || 1);
+  const [selectedPageNumber, setSelectedPageNumber] = useState<number>(() => shareData?.pageNumber || shareData?.ayah?.page || initialStyle.selectedPageNumber || 1);
   const [isLoadingVerse, setIsLoadingVerse] = useState<boolean>(false);
   const [isSurahDropdownOpen, setIsSurahDropdownOpen] = useState<boolean>(false);
   const [surahSearchQuery, setSurahSearchQuery] = useState<string>("");
@@ -1181,22 +1181,27 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       setWatermarkOffsetY(0);
       setWatermarkOffsetX(0);
 
+      // Set currentShareData immediately so the card renders instantly without waiting for network
+      setCurrentShareData({
+        ...shareData,
+        surahNumber: targetSurahNum,
+        surahName: targetSurahName,
+        mode: initialMode,
+        ayah: {
+          ...shareData.ayah,
+          numberInSurah: fromNum,
+          text: shareData.ayah?.text || "",
+          page: pageNum,
+        },
+        ayahTo: toNum,
+        pageNumber: pageNum,
+      });
+
       if (initialMode === "page") {
         handleChangePage(pageNum, false);
       } else if (initialMode === "range") {
         handleChangeRange(targetSurahNum, fromNum, toNum);
       } else {
-        // Single mode
-        setCurrentShareData({
-          ...shareData,
-          surahNumber: targetSurahNum,
-          surahName: targetSurahName,
-          mode: "single",
-          ayah: {
-            ...shareData.ayah,
-            numberInSurah: fromNum,
-          },
-        });
         if (!shareData.ayah?.text || shareData.isNavDefaultOpen) {
           handleChangeVerse(targetSurahNum, fromNum);
         }
@@ -1394,6 +1399,19 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setRangeTo(safeTo);
     setShareMode("range");
 
+    setCurrentShareData((prev) => ({
+      mode: "range",
+      surahNumber: targetSurah.number,
+      surahName: targetSurah.name,
+      ayah: {
+        numberInSurah: safeFrom,
+        text: (prev?.surahNumber === targetSurah.number && prev?.mode === "range" && prev?.ayah?.numberInSurah === safeFrom) ? prev.ayah.text : "",
+        page: prev?.ayah?.page || getSurahStartPage(newSurahNum),
+        juz: prev?.ayah?.juz,
+      },
+      ayahTo: safeTo,
+    }));
+
     setIsLoadingVerse(true);
     try {
       let combinedText = "";
@@ -1495,12 +1513,25 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       applyPageDefaults(safePage);
     }
 
+    const pageMeta = quranSvgPageMetadata.find((p) => p.page === safePage);
+    const surahNumber = pageMeta?.surahNumber || 1;
+    const surahName = pageMeta?.surahNameAr || "الفاتحة";
+
+    setCurrentShareData({
+      mode: "page",
+      surahNumber,
+      surahName,
+      pageNumber: safePage,
+      ayah: {
+        numberInSurah: 1,
+        text: "",
+        page: safePage,
+      },
+    });
+
     setIsLoadingVerse(true);
     try {
-      const pageMeta = quranSvgPageMetadata.find((p) => p.page === safePage);
       let combinedText = "";
-      const surahNumber = pageMeta?.surahNumber || 1;
-      const surahName = pageMeta?.surahNameAr || "الفاتحة";
 
       try {
         const res = await fetchAlquranCloud(`v1/page/${safePage}/quran-uthmani`);
@@ -2939,7 +2970,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     <AnimatePresence>
       <div
         id="share-ayah-modal-backdrop"
-        className="fixed inset-0 z-[350] w-full h-[100dvh] bg-black/95 flex flex-col items-stretch justify-start overflow-hidden p-0"
+        className="fixed inset-0 z-[9999] w-full h-[100dvh] bg-black/95 flex flex-col items-stretch justify-start overflow-hidden p-0"
         onClick={onClose}
       >
         <motion.div
@@ -2994,31 +3025,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       <span>معاينة البطاقة</span>
                     </span>
                   </div>
-
-                  {/* Make this card & ayahs default button */}
-                  <button
-                    id="share-ayah-set-default-card-btn"
-                    type="button"
-                    onClick={handleSaveAsDefault}
-                    title="اجعل هذه البطاقة بهذا التنسيق وبهذه الآيات هو الافتراضي عند فتح صفحة المشاركة"
-                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border shadow-sm ${
-                      isDefaultSaved
-                        ? "bg-emerald-500/25 border-emerald-500 text-emerald-400 font-bold"
-                        : `${tTheme.quickBtn} hover:border-[#c5a85c] text-[#c5a85c] hover:scale-105 active:scale-95`
-                    }`}
-                  >
-                    {isDefaultSaved ? (
-                      <>
-                        <Check size={13} className="text-emerald-400 stroke-[3px]" />
-                        <span>الافتراضي المعتمد ✓</span>
-                      </>
-                    ) : (
-                      <>
-                        <Star size={13} className="text-[#c5a85c] fill-[#c5a85c]/30" />
-                        <span>تعيين كافتراضي للفتح</span>
-                      </>
-                    )}
-                  </button>
                 </div>
 
                 <div
