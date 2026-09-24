@@ -1923,9 +1923,10 @@ export default function QuranWordSearchModal({
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-800/50 opacity-60 cursor-pointer"
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-red-500 dark:text-red-400 hover:text-red-600 cursor-pointer"
+                title="مسح"
               >
-                <X size={12} />
+                <X size={12} className="text-red-500 dark:text-red-400" />
               </button>
             )}
           </div>

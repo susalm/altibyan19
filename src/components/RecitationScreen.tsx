@@ -637,7 +637,7 @@ export default function RecitationScreen({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* 1. Surah Select */}
               <CustomDropdown
-                label="تحديد السورة المطلوبة:"
+                label="السورة:"
                 value={activeSurahNumber || playback?.currentSurahNumber || 1}
                 onChange={(val) => {
                   const num = Number(val);
@@ -661,7 +661,7 @@ export default function RecitationScreen({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className={`block text-[10px] font-bold ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                    اختيار القارئ:
+                    القارئ:
                   </label>
                   <button
                     type="button"
@@ -691,7 +691,7 @@ export default function RecitationScreen({
             <div className="space-y-1.5">
               <label className={`block text-[10px] font-bold flex items-center gap-1.5 ${isDark ? "text-slate-300" : "text-slate-500"}`}>
                 <Compass size={13} className={theme === "gold-velvet" || theme === "emerald-velvet" ? "text-[#c5a85c]" : isDark ? "text-emerald-400" : "text-emerald-500"} />
-                <span>اختر وضع الاستماع:</span>
+                <span>وضع الاستماع:</span>
               </label>
               <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border ${
                 theme === "emerald-velvet"
@@ -931,8 +931,8 @@ export default function RecitationScreen({
                   className={`w-full bg-transparent text-xs font-bold outline-none text-right ${isDark ? "placeholder-emerald-400/40 text-slate-100" : "placeholder-[#c5a85c]/50 text-slate-900"}`}
                 />
                 {reciterSearch && (
-                  <button type="button" onClick={() => setReciterSearch("")} className="text-slate-400 hover:text-slate-200">
-                    <X size={13} />
+                  <button type="button" onClick={() => setReciterSearch("")} className="text-red-500 dark:text-red-400 hover:text-red-600 p-0.5" title="مسح">
+                    <X size={13} className="text-red-500 dark:text-red-400" />
                   </button>
                 )}
               </div>

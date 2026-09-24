@@ -33,6 +33,7 @@ import {
   Lock,
   Unlock,
   ArrowLeftRight,
+  Star,
 } from "lucide-react";
 import { surahsList } from "../data/surahList";
 import { quranSvgPageMetadata, getSurahStartPage } from "../data/quranSvgPageMetadata";
@@ -77,6 +78,7 @@ export interface ShareAyahData {
   pageNumber?: number;
   surahName: string;
   surahNumber: number;
+  isNavDefaultOpen?: boolean;
 }
 
 interface ShareAyahModalProps {
@@ -520,8 +522,9 @@ export const ShareSurahHeaderFrame: React.FC<{
   );
 };
 
-export const LOCAL_SHARE_STYLE_KEY = "quran_share_default_style_v2";
-export const USER_CUSTOM_DEFAULT_STYLE_KEY = "quran_share_user_custom_default_v2";
+export const LOCAL_SHARE_STYLE_KEY = "quran_share_default_style_v3";
+export const USER_CUSTOM_DEFAULT_STYLE_KEY = "quran_share_user_custom_default_v3";
+export const DEFAULT_SHARE_AYAH_KEY = "quran_share_default_ayah_v3";
 
 export interface SavedShareStyle {
   bgCategory?: "gradient" | "solid" | "pattern" | "texture" | "none";
@@ -565,6 +568,14 @@ export interface SavedShareStyle {
   textOffsetX?: number;
   surahHeaderOffsetY?: number;
   surahHeaderOffsetX?: number;
+  // Card Ayahs Content & Mode Defaults:
+  shareMode?: "single" | "range" | "page";
+  defaultSurahNumber?: number;
+  defaultSurahName?: string;
+  defaultAyahNumber?: number;
+  rangeFrom?: number;
+  rangeTo?: number;
+  selectedPageNumber?: number;
 }
 
 export const DEFAULT_SHARE_STYLE: SavedShareStyle = {
@@ -609,15 +620,21 @@ export const DEFAULT_SHARE_STYLE: SavedShareStyle = {
   textOffsetX: 0,
   surahHeaderOffsetY: 0,
   surahHeaderOffsetX: 0,
+  shareMode: "range",
+  defaultSurahNumber: 14,
+  defaultSurahName: "ابراهيم",
+  defaultAyahNumber: 40,
+  rangeFrom: 40,
+  rangeTo: 41,
+  selectedPageNumber: 260,
 };
 
 export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedShareStyle {
   try {
     const customDefault = localStorage.getItem(USER_CUSTOM_DEFAULT_STYLE_KEY);
     const savedLocal = localStorage.getItem(LOCAL_SHARE_STYLE_KEY);
-    const legacyCustom = localStorage.getItem("quran_share_user_custom_default_v1");
-    const legacyLocal = localStorage.getItem("quran_share_default_style_v1");
-    const chosen = customDefault || savedLocal || legacyCustom || legacyLocal;
+    const legacyV2 = localStorage.getItem("quran_share_user_custom_default_v2") || localStorage.getItem("quran_share_default_style_v2");
+    const chosen = customDefault || savedLocal || legacyV2;
     if (chosen) {
       const parsed = JSON.parse(chosen);
       if (parsed && typeof parsed === "object") {
@@ -625,6 +642,15 @@ export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedSha
         if (parsed.gradientColor1 === "#2e0854" || parsed.gradientColor2 === "#6d156c") {
           parsed.gradientColor1 = DEFAULT_SHARE_STYLE.gradientColor1;
           parsed.gradientColor2 = DEFAULT_SHARE_STYLE.gradientColor2;
+        }
+        // If it was previous automatic default to Al-Fatiha (1:1-7), update to Ibrahim (14:40-41)
+        if (!customDefault && (parsed.defaultSurahNumber === 1 || !parsed.defaultSurahNumber)) {
+          parsed.defaultSurahNumber = 14;
+          parsed.defaultSurahName = "ابراهيم";
+          parsed.defaultAyahNumber = 40;
+          parsed.rangeFrom = 40;
+          parsed.rangeTo = 41;
+          parsed.selectedPageNumber = 260;
         }
         return { ...DEFAULT_SHARE_STYLE, ...parsed };
       }
@@ -991,66 +1017,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     } catch {}
   }, []);
 
-  // Explicit Save as Default Handler
-  const handleSaveAsDefault = () => {
-    try {
-      const currentFullStyle: SavedShareStyle = {
-        bgCategory,
-        gradientType,
-        gradientAngle,
-        radialSpread,
-        gradientColor1,
-        gradientColor2,
-        selectedSolidColor,
-        selectedPatternId,
-        showPattern,
-        patternOpacity,
-        patternColor,
-        selectedTextureId,
-        showTexture,
-        textureOpacity,
-        selectedAspectRatio,
-        customWidth,
-        customHeight,
-        selectedFrameStyle,
-        frameColor,
-        frameWidth,
-        frameInset,
-        selectedQuranFont,
-        textFontSize,
-        textShadowOpacity,
-        textAlign,
-        textColor,
-        surahHeaderColor,
-        logoColor,
-        showIstiadhah,
-        istiadhahColor,
-        istiadhahSize,
-        showSurahInfo,
-        showWatermark,
-        surahInfoOffsetY,
-        surahInfoOffsetX,
-        watermarkOffsetY,
-        watermarkOffsetX,
-        textOffsetY,
-        textOffsetX,
-        surahHeaderOffsetY,
-        surahHeaderOffsetX,
-      };
-      localStorage.setItem(LOCAL_SHARE_STYLE_KEY, JSON.stringify(currentFullStyle));
-      localStorage.setItem(USER_CUSTOM_DEFAULT_STYLE_KEY, JSON.stringify(currentFullStyle));
-      localStorage.setItem("quran_share_default_style_v1", JSON.stringify(currentFullStyle));
-      localStorage.setItem("quran_share_user_custom_default_v1", JSON.stringify(currentFullStyle));
-      setIsDefaultSaved(true);
-      setShareStatus("تم تعيين هذا التنسيق كافتراضي لجميع مشاركات الآيات القادمة بنجاح ✓");
-      setTimeout(() => {
-        setShareStatus(null);
-      }, 3500);
-    } catch (e) {
-      console.warn("Failed to save custom default share style:", e);
-    }
-  };
-
   // Auto-persist user's chosen default styling across shares
   useEffect(() => {
     try {
@@ -1155,10 +1121,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   // Surah & Ayah Selector State
   const [currentShareData, setCurrentShareData] = useState<ShareAyahData | null>(shareData);
-  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode || "single");
-  const [rangeFrom, setRangeFrom] = useState<number>(() => shareData?.ayah?.numberInSurah || 1);
-  const [rangeTo, setRangeTo] = useState<number>(() => shareData?.ayahTo || Math.min((shareData?.ayah?.numberInSurah || 1) + 2, 7));
-  const [selectedPageNumber, setSelectedPageNumber] = useState<number>(() => shareData?.pageNumber || shareData?.ayah?.page || 1);
+  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode || initialStyle.shareMode || "range");
+  const [rangeFrom, setRangeFrom] = useState<number>(() => shareData?.ayah?.numberInSurah || initialStyle.rangeFrom || 40);
+  const [rangeTo, setRangeTo] = useState<number>(() => shareData?.ayahTo || initialStyle.rangeTo || 41);
+  const [selectedPageNumber, setSelectedPageNumber] = useState<number>(() => shareData?.pageNumber || shareData?.ayah?.page || initialStyle.selectedPageNumber || 260);
   const [isLoadingVerse, setIsLoadingVerse] = useState<boolean>(false);
   const [isSurahDropdownOpen, setIsSurahDropdownOpen] = useState<boolean>(false);
   const [surahSearchQuery, setSurahSearchQuery] = useState<string>("");
@@ -1166,13 +1132,40 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   // Synchronize when shareData prop changes
   useEffect(() => {
     if (shareData) {
-      const initialMode = shareData.mode || "single";
+      let initialMode = shareData.mode || initialStyle.shareMode || "range";
+      let fromNum = shareData.ayah?.numberInSurah || initialStyle.rangeFrom || 40;
+      let toNum = shareData.ayahTo || initialStyle.rangeTo || 41;
+      let pageNum = shareData.pageNumber || shareData.ayah?.page || initialStyle.selectedPageNumber || 260;
+      let targetSurahNum = shareData.surahNumber || initialStyle.defaultSurahNumber || 14;
+      let targetSurahName = shareData.surahName || initialStyle.defaultSurahName || "ابراهيم";
+
+      // If opened generically from nav (isNavDefaultOpen) or no specific verse text passed:
+      if (shareData.isNavDefaultOpen) {
+        try {
+          const savedAyahRaw = localStorage.getItem(DEFAULT_SHARE_AYAH_KEY);
+          const savedStyleRaw = localStorage.getItem(USER_CUSTOM_DEFAULT_STYLE_KEY) || localStorage.getItem(LOCAL_SHARE_STYLE_KEY);
+          if (savedAyahRaw) {
+            const parsed = JSON.parse(savedAyahRaw);
+            if (parsed.mode) initialMode = parsed.mode;
+            if (parsed.surahNumber) targetSurahNum = Number(parsed.surahNumber);
+            if (parsed.ayahNumber) fromNum = Number(parsed.ayahNumber);
+            if (parsed.rangeTo) toNum = Number(parsed.rangeTo);
+            if (parsed.pageNumber) pageNum = Number(parsed.pageNumber);
+          } else if (savedStyleRaw) {
+            const parsed = JSON.parse(savedStyleRaw);
+            if (parsed.shareMode) initialMode = parsed.shareMode;
+            if (parsed.defaultSurahNumber) targetSurahNum = Number(parsed.defaultSurahNumber);
+            if (parsed.defaultAyahNumber) fromNum = Number(parsed.defaultAyahNumber);
+            if (parsed.rangeTo) toNum = Number(parsed.rangeTo);
+            if (parsed.selectedPageNumber) pageNum = Number(parsed.selectedPageNumber);
+          }
+          const foundSurah = surahsList.find((s) => s.number === targetSurahNum);
+          if (foundSurah) targetSurahName = foundSurah.name;
+        } catch {}
+      }
+
       setShareMode(initialMode);
       setQcf4Lines([]);
-      const fromNum = shareData.ayah?.numberInSurah || 1;
-      const toNum = shareData.ayahTo || Math.min(fromNum + 2, 7);
-      const pageNum = shareData.pageNumber || shareData.ayah?.page || 1;
-
       setRangeFrom(fromNum);
       setRangeTo(toNum);
       setSelectedPageNumber(pageNum);
@@ -1191,15 +1184,21 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       if (initialMode === "page") {
         handleChangePage(pageNum, false);
       } else if (initialMode === "range") {
-        handleChangeRange(shareData.surahNumber, fromNum, toNum);
+        handleChangeRange(targetSurahNum, fromNum, toNum);
       } else {
         // Single mode
         setCurrentShareData({
           ...shareData,
+          surahNumber: targetSurahNum,
+          surahName: targetSurahName,
           mode: "single",
+          ayah: {
+            ...shareData.ayah,
+            numberInSurah: fromNum,
+          },
         });
-        if (!shareData.ayah?.text) {
-          handleChangeVerse(shareData.surahNumber, fromNum);
+        if (!shareData.ayah?.text || shareData.isNavDefaultOpen) {
+          handleChangeVerse(targetSurahNum, fromNum);
         }
       }
     }
@@ -1222,6 +1221,89 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         s.englishName.toLowerCase().includes(q)
     );
   }, [surahSearchQuery]);
+
+  // Explicit Save as Default Handler (Saves both full styling and active card ayahs)
+  const handleSaveAsDefault = () => {
+    try {
+      const curSurahNum = activeData?.surahNumber || initialStyle.defaultSurahNumber || 1;
+      const curSurahName = activeData?.surahName || initialStyle.defaultSurahName || "الفاتحة";
+      const curAyahNum = activeData?.ayah?.numberInSurah || initialStyle.defaultAyahNumber || 1;
+
+      const currentFullStyle: SavedShareStyle = {
+        bgCategory,
+        gradientType,
+        gradientAngle,
+        radialSpread,
+        gradientColor1,
+        gradientColor2,
+        selectedSolidColor,
+        selectedPatternId,
+        showPattern,
+        patternOpacity,
+        patternColor,
+        selectedTextureId,
+        showTexture,
+        textureOpacity,
+        selectedAspectRatio,
+        customWidth,
+        customHeight,
+        selectedFrameStyle,
+        frameColor,
+        frameWidth,
+        frameInset,
+        selectedQuranFont,
+        textFontSize,
+        textShadowOpacity,
+        textAlign,
+        textColor,
+        surahHeaderColor,
+        logoColor,
+        showIstiadhah,
+        istiadhahColor,
+        istiadhahSize,
+        showSurahInfo,
+        showWatermark,
+        surahInfoOffsetY,
+        surahInfoOffsetX,
+        watermarkOffsetY,
+        watermarkOffsetX,
+        textOffsetY,
+        textOffsetX,
+        surahHeaderOffsetY,
+        surahHeaderOffsetX,
+        shareMode,
+        defaultSurahNumber: curSurahNum,
+        defaultSurahName: curSurahName,
+        defaultAyahNumber: curAyahNum,
+        rangeFrom,
+        rangeTo,
+        selectedPageNumber,
+      };
+
+      const defaultAyahConfig = {
+        mode: shareMode,
+        surahNumber: curSurahNum,
+        surahName: curSurahName,
+        ayahNumber: curAyahNum,
+        rangeFrom,
+        rangeTo,
+        pageNumber: selectedPageNumber,
+      };
+
+      localStorage.setItem(LOCAL_SHARE_STYLE_KEY, JSON.stringify(currentFullStyle));
+      localStorage.setItem(USER_CUSTOM_DEFAULT_STYLE_KEY, JSON.stringify(currentFullStyle));
+      localStorage.setItem("quran_share_default_style_v1", JSON.stringify(currentFullStyle));
+      localStorage.setItem("quran_share_user_custom_default_v1", JSON.stringify(currentFullStyle));
+      localStorage.setItem(DEFAULT_SHARE_AYAH_KEY, JSON.stringify(defaultAyahConfig));
+      setIsDefaultSaved(true);
+      setShareStatus("تم حفظ هذه البطاقة وهذا التنسيق وهذه الآيات كافتراضي لصفحة المشاركة بنجاح ✨");
+      setTimeout(() => {
+        setShareStatus(null);
+      }, 3500);
+    } catch (e) {
+      console.warn("Failed to save custom default share style:", e);
+    }
+  };
 
   const handleChangeVerse = async (newSurahNum: number, newAyahNum: number) => {
     const targetSurah = surahsList.find((s) => s.number === newSurahNum) || surahsList[0];
@@ -2822,11 +2904,29 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setIsMovementLocked(true);
     setActiveTab("typography");
 
+    const defaultMode = defaultToUse.shareMode || "range";
+    const defaultSurah = defaultToUse.defaultSurahNumber || 14;
+    const defaultFrom = defaultToUse.rangeFrom || 40;
+    const defaultTo = defaultToUse.rangeTo || 41;
+    setShareMode(defaultMode);
+    setRangeFrom(defaultFrom);
+    setRangeTo(defaultTo);
+    handleChangeRange(defaultSurah, defaultFrom, defaultTo);
+
     try {
       localStorage.setItem(LOCAL_SHARE_STYLE_KEY, JSON.stringify(DEFAULT_SHARE_STYLE));
       localStorage.setItem(USER_CUSTOM_DEFAULT_STYLE_KEY, JSON.stringify(DEFAULT_SHARE_STYLE));
       localStorage.setItem("quran_share_default_style_v1", JSON.stringify(DEFAULT_SHARE_STYLE));
       localStorage.setItem("quran_share_user_custom_default_v1", JSON.stringify(DEFAULT_SHARE_STYLE));
+      localStorage.setItem(DEFAULT_SHARE_AYAH_KEY, JSON.stringify({
+        mode: defaultMode,
+        surahNumber: defaultSurah,
+        surahName: defaultToUse.defaultSurahName || "ابراهيم",
+        ayahNumber: defaultFrom,
+        rangeFrom: defaultFrom,
+        rangeTo: defaultTo,
+        pageNumber: 260,
+      }));
     } catch {}
 
     setShareStatus("تمت استعادة التنسيق الافتراضي بنجاح");
@@ -2874,9 +2974,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               id="share-ayah-close-header-btn"
               onClick={onClose}
               title="إغلاق النافذة"
-              className={`p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center ${tTheme.closeBtn}`}
+              className="p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400"
             >
-              <X size={18} className="stroke-[2.5px]" />
+              <X size={18} className="stroke-[2.5px] text-red-500 dark:text-red-400" />
             </button>
           </div>
 
@@ -2894,6 +2994,31 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       <span>معاينة البطاقة</span>
                     </span>
                   </div>
+
+                  {/* Make this card & ayahs default button */}
+                  <button
+                    id="share-ayah-set-default-card-btn"
+                    type="button"
+                    onClick={handleSaveAsDefault}
+                    title="اجعل هذه البطاقة بهذا التنسيق وبهذه الآيات هو الافتراضي عند فتح صفحة المشاركة"
+                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border shadow-sm ${
+                      isDefaultSaved
+                        ? "bg-emerald-500/25 border-emerald-500 text-emerald-400 font-bold"
+                        : `${tTheme.quickBtn} hover:border-[#c5a85c] text-[#c5a85c] hover:scale-105 active:scale-95`
+                    }`}
+                  >
+                    {isDefaultSaved ? (
+                      <>
+                        <Check size={13} className="text-emerald-400 stroke-[3px]" />
+                        <span>الافتراضي المعتمد ✓</span>
+                      </>
+                    ) : (
+                      <>
+                        <Star size={13} className="text-[#c5a85c] fill-[#c5a85c]/30" />
+                        <span>تعيين كافتراضي للفتح</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div

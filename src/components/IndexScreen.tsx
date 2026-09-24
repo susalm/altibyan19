@@ -1196,27 +1196,7 @@ export default function IndexScreen({
         })()}
       </div>
 
-      {/* Floating Scroll-to-Top Button for Index Page */}
-      {showScrollTop && (
-        <motion.button
-          id="index-scroll-to-top-button"
-          type="button"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.92 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleScrollToTop();
-          }}
-          title="الرجوع لأعلى الصفحة"
-          aria-label="الرجوع لأعلى الصفحة"
-          className="fixed left-5 sm:left-7 bottom-6 sm:bottom-8 z-[350] p-3 sm:p-3.5 rounded-full shadow-2xl border cursor-pointer flex items-center justify-center transition-all duration-200 select-none group bg-red-600 text-white border-red-500 hover:bg-red-700 active:bg-red-800 shadow-red-900/40 hover:shadow-red-900/60"
-        >
-          <ArrowUp size={22} className="stroke-[2.5px] text-white group-hover:-translate-y-1 transition-transform duration-200" />
-        </motion.button>
-      )}
+
     </motion.div>
   );
 }

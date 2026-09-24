@@ -22,6 +22,8 @@ import { getOfflineSarf } from "./sarfBook";
 import { getOfflineTdabr } from "./tdabrBook";
 import { getOfflineMutashabihat } from "./mutashabihatBook";
 import { getOfflineAhkamJassas } from "./ahkamJassasBook";
+import tafsirMuyassarFullJson from "../data/tafsir_muyassar_full.json";
+import tafsirSadiFullJson from "../data/tafsir_sadi_full.json";
 
 // IndexedDB storage configuration for offline library books
 const DB_NAME = "tibyan_library_offline_db_v1";
@@ -320,7 +322,11 @@ export async function cleanupCorruptTafsirPacks(): Promise<void> {
               !val.includes("تفسير") &&
               !val.includes("معنى")));
 
-          if (isSynthetic || isCorruptPack) {
+          const isCorruptSaadi =
+            (key.endsWith(":tafsir_sadi") || key.endsWith(":ar.saadi")) &&
+            isCorruptAyahOnlyText(val);
+
+          if (isSynthetic || isCorruptPack || isCorruptSaadi) {
             cursor.delete();
             memoryBookCache.delete(key);
           }
@@ -343,10 +349,19 @@ function cleanAyahText(text?: string): string {
 }
 
 /**
- * Generates authentic Tafsir Al-Saadi content offline strictly from authentic sources - no synthetic AI content
+ * Generates authentic Tafsir Al-Saadi content offline strictly from authentic sources (6,236 verses)
  */
-export function generateOfflineSaadi(surahNum: number, ayahNum: number, surahName: string, ayahText?: string): string {
-  return "";
+export function getOfflineSaadiTafsir(surahNum: number, ayahNum: number): string | null {
+  const key = `${surahNum}:${ayahNum}`;
+  const val = (tafsirSadiFullJson as Record<string, string>)[key];
+  if (!val || typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (!trimmed || isCorruptAyahOnlyText(trimmed)) return null;
+  return trimmed;
+}
+
+export function generateOfflineSaadi(surahNum: number, ayahNum: number, _surahName?: string, _ayahText?: string): string {
+  return getOfflineSaadiTafsir(surahNum, ayahNum) || "";
 }
 
 /**
@@ -403,10 +418,16 @@ export function generateOfflineTranslation(surahNum: number, ayahNum: number, la
 }
 
 /**
- * Generates authentic Al-Tafsir Al-Muyassar (King Fahd Complex) offline
+ * Generates authentic Al-Tafsir Al-Muyassar (King Fahd Complex) offline (6,236 verses)
  */
-export function generateOfflineMuyassar(surahNum: number, ayahNum: number, surahName: string, ayahText?: string): string {
-  return "";
+export function getOfflineMuyassarTafsir(surahNum: number, ayahNum: number): string | null {
+  const key = `${surahNum}:${ayahNum}`;
+  const val = (tafsirMuyassarFullJson as Record<string, string>)[key];
+  return val && val.trim() ? val.trim() : null;
+}
+
+export function generateOfflineMuyassar(surahNum: number, ayahNum: number, _surahName?: string, _ayahText?: string): string {
+  return getOfflineMuyassarTafsir(surahNum, ayahNum) || "";
 }
 
 /**
@@ -441,9 +462,9 @@ export async function getOfflineLibraryContent(
   } else if (bookId === "tafsir_aysar") {
     result = getOfflineAysarTafsir(surahNumber, ayahNumber) || "";
   } else if (bookId === "tafsir_muyassar") {
-    result = "";
+    result = getOfflineMuyassarTafsir(surahNumber, ayahNumber) || "";
   } else if (bookId === "tafsir_sadi") {
-    result = "";
+    result = getOfflineSaadiTafsir(surahNumber, ayahNumber) || "";
   } else if (bookId === "tafsir_kathir" || bookId === "tafsir_ibnkathir") {
     result = "";
   } else if (bookId === "tafsir_tabari") {
@@ -518,10 +539,6 @@ export async function getOfflineLibraryContent(
   // E. Tadabbur (كتب التدبر والفوائد)
   else if (
     bookId === "book_tadabbur" ||
-    bookId === "book_tdabur1" ||
-    bookId === "book_tdabur2" ||
-    bookId === "book_tdabur3" ||
-    bookId === "book_tdabur4" ||
     bookId === "book_fawaid_tadabbur" ||
     bookId === "book_lubab" ||
     bookId === "hidaya"
@@ -580,9 +597,9 @@ export function getOfflineLibraryContentSync(
   } else if (bookId === "tafsir_aysar") {
     res = getOfflineAysarTafsir(surahNumber, ayahNumber) || "";
   } else if (bookId === "tafsir_muyassar") {
-    res = "";
+    res = getOfflineMuyassarTafsir(surahNumber, ayahNumber) || "";
   } else if (bookId === "tafsir_sadi") {
-    res = "";
+    res = getOfflineSaadiTafsir(surahNumber, ayahNumber) || "";
   } else if (bookId === "tafsir_kathir" || bookId === "tafsir_ibnkathir") {
     res = "";
   } else if (bookId === "tafsir_tabari") {
@@ -608,7 +625,7 @@ export function getOfflineLibraryContentSync(
   } else if (bookId === "ahkam_quran_arabi") {
     const jassasAhkam = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
     res = jassasAhkam.replace("للإمام أبي بكر الرازي الجصاص", "للإمام القاضي ابن العربي المالكي");
-  } else if (bookId.includes("tadabbur") || bookId.includes("tdabur") || bookId === "hidaya" || bookId === "book_lubab" || bookId === "book_fawaid_tadabbur") {
+  } else if (bookId.includes("tadabbur") || bookId === "hidaya" || bookId === "book_lubab" || bookId === "book_fawaid_tadabbur") {
     res = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText, bookId, true);
   } else if (bookId.includes("mutashabihat") || bookId.includes("taqeeda") || bookId.includes("durrat") || bookId.includes("malak")) {
     res = getOfflineMutashabihat(surahNumber, ayahNumber, surahName, ayahText, bookId);

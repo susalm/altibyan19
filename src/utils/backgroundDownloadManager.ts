@@ -20,19 +20,16 @@ import { ensureAllFontsOffline } from "./fontOfflineCache";
 import mukhtasarFullJson from "../data/mukhtasar_full.json";
 import aysarFullJson from "../data/aysar_full.json";
 import englishTranslationJson from "../data/english_translation.json";
+import tafsirMuyassarFullJson from "../data/tafsir_muyassar_full.json";
+import tafsirSadiFullJson from "../data/tafsir_sadi_full.json";
 
 // Complete list of library books and verse service packages
 export const CORE_LIBRARY_BOOK_IDS = [
-  // 1. كتب التفسير المعتمدة
-  "tafsir_mukhtasar",
+  // 1. كتب التفسير المعتمدة (الميسر والسعدي فقط)
   "tafsir_muyassar",
   "tafsir_sadi",
-  "tafsir_kathir",
-  "tafsir_tabari",
-  "tafsir_qurtubi",
-  "tafsir_baghawi",
 
-  // 2. ترجمة معاني القرآن المعتمدة
+  // 2. ترجمة معاني القرآن المعتمدة (تقي الدين الهلالي ومحسن خان فقط)
   "translation_hilali_khan",
 
   // 3. كتب اللغويات والإعراب والصرف والبلاغة
@@ -41,9 +38,7 @@ export const CORE_LIBRARY_BOOK_IDS = [
   "book_sarf",
   "book_balagha",
 
-  // 4. كتب علوم القرآن وأحكام القرآن وأسباب النزول
-  "ahkam_quran_jassas",
-  "ahkam_quran_arabi",
+  // 4. كتب علوم القرآن وأسباب النزول (أسباب النزول فقط)
   "muharrar_asbab",
   "asbab_nuzul",
 
@@ -222,21 +217,12 @@ export interface TafsirBookItemToDownload {
 }
 
 export const TAFSIR_OFFLINE_PACKS: TafsirBookItemToDownload[] = [
-  // 1. Local bundled comprehensive Tafsirs & Translations
-  { id: "tafsir_mukhtasar", title: "المختصر في تفسير القرآن الكريم", edition: "mukhtasar_local", isLocal: true },
-  { id: "tafsir_aysar", title: "أيسر التفاسير لكلام العلي الكبير (الجزائري)", edition: "aysar_local", isLocal: true },
+  // 1. ترجمة معاني القرآن الكريم (تقي الدين الهلالي ومحسن خان فقط)
   { id: "translation_hilali_khan", title: "ترجمة محمد تقي الدين الهلالي ومحسن خان", edition: "english_local", isLocal: true },
   
-  // 2. Authoritative full-Quran Tafsirs
-  { id: "tafsir_muyassar", title: "التفسير الميسر (مجمع الملك فهد)", edition: "ar.muyassar", isLocal: false },
-  { id: "tafsir_sadi", title: "تيسير الكريم الرحمن (تفسير السعدي)", edition: "ar.saadi", isLocal: false },
-  { id: "tafsir_baghawi", title: "معالم التنزيل (تفسير البغوي)", edition: "ar.baghawi", isLocal: false },
-  { id: "tafsir_kathir", title: "تفسير القرآن العظيم (ابن كثير)", edition: "ar.ibnkathir", isLocal: false },
-  { id: "tafsir_qurtubi", title: "الجامع لأحكام القرآن (القرطبي)", edition: "ar.qurtubi", isLocal: false },
-  { id: "tafsir_waseet", title: "التفسير الوسيط (طنطاوي)", edition: "ar.waseet", isLocal: false },
-  { id: "tafsir_jalalayn", title: "تفسير الجلالين", edition: "ar.jalalayn", isLocal: false },
-  { id: "translation_clear_quran", title: "ترجمة The Clear Quran (مصطفى خطّاب)", edition: "en.itani", isLocal: false },
-  { id: "translation_sahih_intl", title: "ترجمة صحيح إنترناشونال", edition: "en.sahih", isLocal: false },
+  // 2. تفاسير القرآن الكريم المعتمدة (التفسير الميسر وتفسير السعدي) - محليتان أوفلاين 100%
+  { id: "tafsir_muyassar", title: "التفسير الميسر (مجمع الملك فهد)", edition: "ar.muyassar", isLocal: true },
+  { id: "tafsir_sadi", title: "تيسير الكريم الرحمن (تفسير السعدي)", edition: "ar.saadi", isLocal: true },
 ];
 
 /**
@@ -260,6 +246,10 @@ export async function downloadTafsirBookToDevice(
         dict = mukhtasarFullJson as Record<string, string>;
       } else if (book.id === "tafsir_aysar") {
         dict = aysarFullJson as Record<string, string>;
+      } else if (book.id === "tafsir_muyassar") {
+        dict = tafsirMuyassarFullJson as Record<string, string>;
+      } else if (book.id === "tafsir_sadi") {
+        dict = tafsirSadiFullJson as Record<string, string>;
       } else if (book.id === "translation_hilali_khan" || book.id === "translation_mukhtasar_en") {
         dict = englishTranslationJson as Record<string, string>;
       }

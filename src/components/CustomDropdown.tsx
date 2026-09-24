@@ -268,10 +268,10 @@ export function CustomDropdown<T extends string | number>({
                     <button 
                       type="button" 
                       onClick={() => setSearch("")} 
-                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      className="p-1 text-red-500 dark:text-red-400 hover:text-red-600 cursor-pointer"
                       title="مسح البحث"
                     >
-                      <X size={13} />
+                      <X size={13} className="text-red-500 dark:text-red-400" />
                     </button>
                   )}
                 </div>

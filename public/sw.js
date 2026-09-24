@@ -27,7 +27,9 @@ const CORE_STATIC_ASSETS = [
   "/fonts/aref-ruqaa-bold.ttf",
   "/standalone-frame.svg",
   "/quran-soura-112.svg",
-  "/IMG_1767.png"
+  "/IMG_1767.png",
+  "/data/tafsir_muyassar.json",
+  "/data/tafsir_sadi.json"
 ];
 
 // Install: pre-cache core static assets and fonts

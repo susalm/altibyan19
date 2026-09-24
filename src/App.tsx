@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Bookmark, QuranSettings } from "./types";
 import IndexScreen from "./components/IndexScreen";
@@ -110,17 +110,48 @@ export default function App() {
   const [shareAyahData, setShareAyahData] = useState<ShareAyahData | null>(null);
 
   const handleOpenShareAyah = () => {
-    const surahNum = activeSurahNumber || Number(localStorage.getItem("quran_last_opened_surah")) || 1;
-    const ayahNum = initialAyahNumber || Number(localStorage.getItem("quran_last_opened_ayah")) || 1;
-    const currentSurah = surahsList.find((s) => s.number === surahNum) || surahsList[0];
+    let targetSurahNum = 14;
+    let targetAyahNum = 40;
+    let targetMode: "single" | "range" | "page" = "range";
+    let targetRangeTo = 41;
+    let targetPageNum = 260;
+
+    try {
+      const savedAyahRaw = localStorage.getItem("quran_share_default_ayah_v3");
+      const savedStyleRaw = localStorage.getItem("quran_share_user_custom_default_v3");
+      if (savedAyahRaw) {
+        const parsed = JSON.parse(savedAyahRaw);
+        if (parsed.surahNumber) targetSurahNum = Number(parsed.surahNumber);
+        if (parsed.ayahNumber) targetAyahNum = Number(parsed.ayahNumber);
+        if (parsed.mode) targetMode = parsed.mode;
+        if (parsed.rangeTo) targetRangeTo = Number(parsed.rangeTo);
+        if (parsed.pageNumber) targetPageNum = Number(parsed.pageNumber);
+      } else if (savedStyleRaw) {
+        const parsed = JSON.parse(savedStyleRaw);
+        if (parsed.defaultSurahNumber) targetSurahNum = Number(parsed.defaultSurahNumber);
+        if (parsed.defaultAyahNumber) targetAyahNum = Number(parsed.defaultAyahNumber);
+        if (parsed.shareMode) targetMode = parsed.shareMode;
+        if (parsed.rangeTo) targetRangeTo = Number(parsed.rangeTo);
+        if (parsed.selectedPageNumber) targetPageNum = Number(parsed.selectedPageNumber);
+      }
+    } catch {
+      targetSurahNum = 14;
+      targetAyahNum = 40;
+    }
+
+    const currentSurah = surahsList.find((s) => s.number === targetSurahNum) || surahsList.find((s) => s.number === 14) || surahsList[0];
 
     setShareAyahData({
+      mode: targetMode,
       surahNumber: currentSurah.number,
       surahName: currentSurah.name,
       ayah: {
-        numberInSurah: ayahNum,
+        numberInSurah: targetAyahNum,
         text: "",
       },
+      ayahTo: targetRangeTo,
+      pageNumber: targetPageNum,
+      isNavDefaultOpen: true,
     });
   };
 
@@ -139,18 +170,59 @@ export default function App() {
     }
   }, [activeSurahNumber, initialAyahNumber]);
 
-  // Top header and bottom menu visibility state (toggled on single click on page)
+  // Top header and bottom menu visibility state
   const [showBars, setShowBars] = useState<boolean>(true);
+  const autoHideBarsTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Trigger showing bars for 5 seconds then auto-hide when neither is clicked
+  const triggerShowBars = useCallback((duration = 5000) => {
+    setShowBars(true);
+    if (autoHideBarsTimerRef.current) {
+      clearTimeout(autoHideBarsTimerRef.current);
+    }
+    autoHideBarsTimerRef.current = setTimeout(() => {
+      // Don't auto-hide if user is actively interacting with an open drawer, bottom sheet or modal
+      const hasActiveModal = !!document.querySelector(
+        "#service-drawer-container, #ayah-bottom-sheet, .share-modal-container, [role='dialog']"
+      );
+      if (!hasActiveModal) {
+        setShowBars(false);
+      }
+    }, duration);
+  }, []);
+
+  // When switching active tabs, show bars for 5 seconds
+  useEffect(() => {
+    triggerShowBars(5000);
+  }, [activeTab, triggerShowBars]);
+
+  // Global click/tap listener across all pages
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // In all cases (clicking on the page to show, or clicking on the headers/drawers while using them):
+      // Keep headers visible and refresh the 5-second auto-hide timer!
+      triggerShowBars(5000);
+    };
+
+    window.addEventListener("click", handleGlobalClick, { capture: true, passive: true });
+
+    // Initial load: show for 5 seconds then auto-hide
+    triggerShowBars(5000);
+
+    return () => {
+      window.removeEventListener("click", handleGlobalClick, { capture: true });
+      if (autoHideBarsTimerRef.current) {
+        clearTimeout(autoHideBarsTimerRef.current);
+      }
+    };
+  }, [triggerShowBars]);
+
   const [scrollCapsuleToggleTrigger, setScrollCapsuleToggleTrigger] = useState<number>(0);
   const [mushafClickTrigger, setMushafClickTrigger] = useState<number>(0);
   const [isRecitationActive, setIsRecitationActive] = useState<boolean>(false);
-
-  // Keep bars visible when recitation is active or when switching active tabs
-  useEffect(() => {
-    if (isRecitationActive || activeTab !== "home") {
-      setShowBars(true);
-    }
-  }, [isRecitationActive, activeTab]);
 
   // AudioContext unlock on first user interaction to ensure recitation plays immediately
   useEffect(() => {
@@ -472,10 +544,9 @@ export default function App() {
 
   // Synchronize current page, surah, and verse from ReadingScreen
   const handlePageChange = useCallback((page: number, surah: number, startAyah: number, selectedAyahNumber?: number) => {
-    setInitialPageNumber(page);
-    setLastOpenedSurah(surah);
+    setLastOpenedSurah((prev) => (prev === surah ? prev : surah));
     const targetAyah = selectedAyahNumber || startAyah;
-    setLastOpenedAyah(targetAyah);
+    setLastOpenedAyah((prev) => (prev === targetAyah ? prev : targetAyah));
     try {
       localStorage.setItem("quran_last_opened_page", String(page));
       localStorage.setItem("quran_last_opened_surah", String(surah));
@@ -612,6 +683,7 @@ export default function App() {
       {(activeSurahNumber === null || activeTab === "settings") && (
         <header 
           id="global-nav-header" 
+          data-top-header="true"
           className={`fixed top-0 left-0 right-0 w-full h-14 z-[200] shadow-md select-none transition-all duration-300 transform ${
             showBars ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
           } ${
@@ -816,7 +888,7 @@ export default function App() {
                 onChangeTheme={handleChangeTheme}
                 onToggleDarkMode={handleToggleDarkMode}
                 showBars={showBars}
-                onToggleBars={() => setShowBars(prev => !prev)}
+                onToggleBars={() => triggerShowBars(5000)}
                 scrollCapsuleToggleTrigger={scrollCapsuleToggleTrigger}
                 mushafClickTrigger={mushafClickTrigger}
                 activeTab={activeTab}
@@ -829,7 +901,10 @@ export default function App() {
                 onChangeSurah={handleChangeSurah}
                 onPageChange={handlePageChange}
                 onRecitationStateChange={setIsRecitationActive}
-                onShowBarsChange={setShowBars}
+                onShowBarsChange={(show) => {
+                  if (show) triggerShowBars(5000);
+                  else setShowBars(false);
+                }}
                 onActiveTabChange={setActiveTab}
                 onSyncPlaybackStates={setPlaybackSync}
               />
@@ -872,7 +947,7 @@ export default function App() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[220] cursor-pointer"
+                        className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[480] cursor-pointer"
                         onClick={() => setActiveTab("home")}
                       />
 
@@ -884,7 +959,7 @@ export default function App() {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0 }}
                         onClick={(e) => e.stopPropagation()}
-                        className={`fixed inset-0 h-full w-full shadow-2xl flex flex-col z-[230] overflow-hidden ${
+                        className={`fixed inset-0 h-full w-full shadow-2xl flex flex-col z-[490] overflow-hidden ${
                           theme === "emerald-velvet"
                             ? "bg-[#011a12] text-[#FAF8F5]"
                             : theme === "gold-velvet"
@@ -897,7 +972,12 @@ export default function App() {
                         }`}
                       >
                         {/* Top Header Bar inside Full Screen Overlay */}
-                        <div className={`px-4 py-3 border-b flex items-center justify-between gap-2 shrink-0 ${
+                        <div 
+                          id="sheet-top-header"
+                          data-top-header="true"
+                          className={`app-sheet-top-header px-4 py-3 border-b flex items-center justify-between gap-2 shrink-0 transition-all duration-300 transform ${
+                            showBars ? "translate-y-0 opacity-100 max-h-16" : "-translate-y-full opacity-0 max-h-0 py-0 overflow-hidden pointer-events-none border-transparent"
+                          } ${
                           theme === "emerald-velvet"
                             ? "bg-[#012519] border-[#10b981]/30 text-[#FAF8F5]"
                             : theme === "navy-velvet"
@@ -916,11 +996,11 @@ export default function App() {
                             {activeTab === "storage" && <Download size={20} className={theme === "emerald-velvet" ? "text-[#34d399] shrink-0" : theme === "gold-velvet" ? "text-[#c5a85c] shrink-0" : isDark ? "text-emerald-300 shrink-0" : "text-[#34d399] shrink-0"} />}
                             {activeTab === "settings" && <Settings size={20} className={theme === "emerald-velvet" ? "text-[#34d399] shrink-0" : theme === "gold-velvet" ? "text-[#c5a85c] shrink-0" : isDark ? "text-emerald-300 shrink-0" : "text-emerald-400 shrink-0"} />}
                             <span className="truncate">
-                              {activeTab === "recitation" && "التلاوة والاستماع وقراء المصحف"}
-                              {activeTab === "khatmah" && "تنظيم ومتابعة الختمة"}
-                              {activeTab === "favorites" && "علاماتي المحفوظة والفواصل"}
-                              {activeTab === "storage" && "إدارة مساحة التخزين والتحميلات"}
-                              {activeTab === "settings" && "إعدادات المصحف والتطبيق"}
+                              {activeTab === "recitation" && "التلاوة"}
+                              {activeTab === "khatmah" && "الختمة"}
+                              {activeTab === "favorites" && "علاماتي"}
+                              {activeTab === "storage" && "التحميلات"}
+                              {activeTab === "settings" && "الإعدادات"}
                             </span>
                           </div>
 
@@ -987,10 +1067,10 @@ export default function App() {
                           {/* Close Button */}
                           <button
                             onClick={() => setActiveTab("home")}
-                            className="p-1.5 rounded-xl transition cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center"
+                            className="p-1.5 rounded-xl transition cursor-pointer bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-500 dark:text-red-400 flex items-center justify-center hover:scale-105 active:scale-95"
                             title="إغلاق و العودة للمصحف"
                           >
-                            <X size={20} />
+                            <X size={20} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
                           </button>
                         </div>
 
@@ -1069,8 +1149,9 @@ export default function App() {
       {/* Floating Bottom Navigation Tab Bar */}
       <nav 
         id="floating-bottom-menu" 
-        className={`fixed bottom-0 left-0 right-0 w-full z-[400] border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] rounded-t-2xl transition-all duration-300 transform ${
-          (showBars || shareAyahData !== null) ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
+        data-bottom-bar="true"
+        className={`fixed bottom-0 left-0 right-0 w-full z-[500] border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] rounded-t-2xl transition-all duration-300 transform ${
+          (showBars && shareAyahData === null) ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
         } ${
           theme === "emerald-velvet"
             ? "bg-[#012519] border-t border-[#10b981]/35 text-[#FAF8F5]"

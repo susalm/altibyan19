@@ -22,7 +22,7 @@ import { DEFAULT_BOOKS, MainCategory, LibraryBookItem } from "../data/booksData"
 import { ensureQbsmlLoaded, getSurahHeaderGlyph, getJuzHeaderGlyph, getBismillahGlyph } from "../utils/qcf4Utils";
 import { fetchAlquranCloud, fetchQuranSvg, fetchTafsirData } from "../utils/quranApi";
 import { getOfflineMutashabihat } from "../utils/mutashabihatBook";
-import { getOfflineTdabr } from "../utils/tdabrBook";
+import { getOfflineTdabr, parseTadabburSections } from "../utils/tdabrBook";
 import { getOfflineSarf } from "../utils/sarfBook";
 import { getOfflineGharib } from "../utils/gharibBook";
 import { getOfflineAsbab } from "../utils/asbabBook";
@@ -38,6 +38,8 @@ import {
   saveToLibraryCache,
   deleteFromLibraryCache,
   isCorruptAyahOnlyText,
+  getOfflineMuyassarTafsir,
+  getOfflineSaadiTafsir,
   generateOfflineMuyassar,
   generateOfflineAhkam,
   generateOfflineTranslation,
@@ -554,16 +556,34 @@ const isLinguisticsOrIrabMode = (mode: string): boolean => {
 
 const isGharibCardMode = isLinguisticsOrIrabMode;
 
+const isTadabburMode = (mode: string): boolean => {
+  if (
+    mode === "book_tadabbur" ||
+    mode === "tadabbur" ||
+    mode === "hidaya" ||
+    mode === "book_fawaid_tadabbur" ||
+    mode.startsWith("book_tdabur") ||
+    mode.startsWith("tdabur")
+  ) {
+    return true;
+  }
+  const b = DEFAULT_BOOKS.find(book => book.id === mode || book.apiType === mode);
+  return b?.mainCategory === "tadabbur" || b?.subCategory === "fawaid" || false;
+};
+
 const checkIsBalaghaTitle = (wStr: string): boolean => {
   const cleanW = wStr.replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim();
   return (
-    /^(?:سلامة\s+النظم|براعة\s+الربط|الإسناد\s+الخبري|أسلوب\s+|التوكيد\s+|الاستفهام\s+|الاستعارة\s+|الكناية\s+|التمثيل\s+|التصوير\s+|التدرج\s+|التقديم\s+|تقديم\s+|القصر\s+|الحصر\s+|الالتفات|الجناس|الطباق|المقابلة|الإيجاز|الإطناب|حسن\s+التعليل|رد\s+العجز|التضمين|المجاز|البيان|المعاني|البديع)/.test(cleanW) ||
+    /^(?:سلامة\s+النظم|براعة\s+الربط|الإسناد\s+الخبري|أسلوب\s+|التوكيد\s+|الاستفهام\s+|الاستعارة\s+|الكناية\s+|التمثيل\s+|التصوير\s+|التدرج\s+|التقديم\s+|تقديم\s+|القصر\s+|الحصر\s+|الالتفات|الجناس|الطباق|المقابلة|الإيجاز|الإطناب|حسن\s+التعليل|رد\s+العجز|التضمين|المجاز|البيان|المعاني|البديع|السر\s+|دلالة\s+|التعبير\s+|حذف\s+|ذكر\s+|إيثار\s+|فائدة\s+|وقفة\s+|لطيفة\s+|تناسب\s+|الجمع\s+|موقع\s+|تكرار\s+|إفراد\s+)/.test(cleanW) ||
     cleanW.includes("النظم") ||
     cleanW.includes("البلاغي") ||
     cleanW.includes("البلاغية") ||
     cleanW.includes("البياني") ||
     cleanW.includes("البيانية") ||
-    cleanW.includes("الربط")
+    cleanW.includes("الربط") ||
+    cleanW.includes("العنوان") ||
+    cleanW.includes("اللمسة") ||
+    cleanW.length >= 10
   );
 };
 
@@ -800,18 +820,18 @@ const parseGharibItems = parseLinguisticItems;
 
 const getBalaghaTitleColorClass = (t: string, dark: boolean): string => {
   if (t === "emerald-velvet") {
-    return "text-[#34d399]"; // Bright luminous emerald green on dark emerald
+    return "text-[#f87171]"; // Vivid crimson red on dark emerald
   }
   if (t === "gold-velvet") {
-    return "text-[#166534]"; // Medium vivid green on warm gold, distinct from black
+    return "text-[#b91c1c]"; // Rich deep burgundy red on warm gold
   }
   if (t === "navy-velvet") {
-    return "text-[#059669]"; // Lighter vivid emerald green on navy/white
+    return "text-[#ef4444]"; // Vivid bright red on navy
   }
   if (dark) {
-    return "text-[#4ade80]"; // Bright fresh green in dark mode for high contrast
+    return "text-[#f87171]"; // Vivid light red on dark mode
   }
-  return "text-[#15803d]"; // Lightened, clear, vibrant emerald green (distinct from black) in light mode
+  return "text-[#dc2626]"; // Vibrant red
 };
 
 const getLinguisticWordColorClass = (t: string, dark: boolean): string => {
@@ -960,8 +980,8 @@ const AyahWithTafsirCard = ({
   onOpenNote?: (ayah: Ayah) => void;
   hasNote?: boolean;
 }) => {
-  const currentAyahFontSize = globalAyahFontSize !== undefined && globalAyahFontSize >= 14 ? globalAyahFontSize : 26;
-  const currentTafsirFontSize = globalTafsirFontSize !== undefined ? globalTafsirFontSize : 13;
+  const currentAyahFontSize = globalAyahFontSize !== undefined && globalAyahFontSize >= 14 ? globalAyahFontSize : 14;
+  const currentTafsirFontSize = globalTafsirFontSize !== undefined ? globalTafsirFontSize : 10;
   const [dataCache, setDataCache] = useState<Record<string, string>>(() => {
     if (surahNumber === 1 && FATIHA_TAFSIR[ayah.numberInSurah]) {
       return { tafsir: FATIHA_TAFSIR[ayah.numberInSurah], translation: ayah.translationEn };
@@ -1027,12 +1047,46 @@ const AyahWithTafsirCard = ({
         }
 
         let directOfflineResult: string | null = null;
-        if (activeMode === "tafsir_mukhtasar") {
+        if (activeMode === "tafsir_muyassar") {
+          directOfflineResult = getOfflineMuyassarTafsir(surahNumber, ayah.numberInSurah) || generateOfflineMuyassar(surahNumber, ayah.numberInSurah, surahName, ayah.text);
+        } else if (activeMode === "tafsir_sadi") {
+          directOfflineResult = getOfflineSaadiTafsir(surahNumber, ayah.numberInSurah) || generateOfflineSaadi(surahNumber, ayah.numberInSurah, surahName, ayah.text);
+        } else if (activeMode === "tafsir_mukhtasar") {
           directOfflineResult = getOfflineMukhtasarTafsir(surahNumber, ayah.numberInSurah);
         } else if (activeMode === "tafsir_aysar") {
           directOfflineResult = getOfflineAysarTafsir(surahNumber, ayah.numberInSurah);
         } else if (activeMode === "gharib" || activeMode === "suraj_garib_quran") {
           directOfflineResult = getOfflineGharib(surahNumber, ayah.numberInSurah, surahName, ayah.text);
+        } else if (
+          activeMode === "book_irab" ||
+          activeMode === "book_sarf" ||
+          activeMode === "book_balagha" ||
+          activeMode === "eerab" ||
+          activeMode === "sarf" ||
+          activeMode === "balagha" ||
+          activeMode === "book_jadwal_safi"
+        ) {
+          directOfflineResult = getOfflineSarf(surahNumber, ayah.numberInSurah, surahName, ayah.text, activeMode, true);
+        } else if (
+          activeMode === "muharrar_asbab" ||
+          activeMode === "asbab_nuzool" ||
+          activeMode === "asbab_nuzul_wahidi" ||
+          activeMode === "asbab"
+        ) {
+          directOfflineResult = getOfflineAsbab(surahNumber, ayah.numberInSurah, surahName, ayah.text);
+        } else if (
+          activeMode === "book_tadabbur" ||
+          activeMode === "tadabbur"
+        ) {
+          directOfflineResult = getOfflineTdabr(surahNumber, ayah.numberInSurah, surahName, ayah.text, activeMode, true);
+        } else if (
+          activeMode === "user_notes_books" ||
+          activeMode === "user_notes_ayah" ||
+          activeMode === "notes" ||
+          activeMode === "taqeeda"
+        ) {
+          const savedNote = localStorage.getItem(`tebyan_ayah_note_${surahNumber}_${ayah.numberInSurah}`) || "";
+          directOfflineResult = savedNote || "لم تدون تقييداً أو فائدة لهذه الآية بعد. اضغط هنا لكتابة وحفظ تقييداتك الشخصية.";
         } else if (
           activeMode === "mutashabihat" ||
           activeMode === "book_mutashabihat_saghir" ||
@@ -1077,7 +1131,7 @@ const AyahWithTafsirCard = ({
           directOfflineResult = await getOfflineLibraryContent(surahNumber, ayah.numberInSurah, activeMode, surahName, ayah.text);
         }
 
-        if (directOfflineResult && isMounted) {
+        if (directOfflineResult && !isCorruptAyahOnlyText(directOfflineResult, ayah.text) && isMounted) {
           setDataCache(prev => ({
             ...prev,
             [activeMode]: directOfflineResult!
@@ -1279,8 +1333,8 @@ const AyahWithTafsirCard = ({
     cleaned = cleaned.replace(/^\*(?:إعداد|تأليف|المؤلف|إشراف|تحقيق|تنبيه توثيقي)[^*]*\*\s*$/gim, "");
     cleaned = cleaned.replace(/^(?:\*|_)?تنبيه توثيقي\s*[:：].*$/gim, "");
 
-    // 4. Remove noble ayah quotes & verse mentions (only for regular tafsir books, NOT for Linguistics & Irab)
-    if (!isLinguisticsOrIrabMode(mode)) {
+    // 4. Remove noble ayah quotes & verse mentions (only for regular tafsir books, NOT for Linguistics & Irab or Tadabbur)
+    if (!isLinguisticsOrIrabMode(mode) && !isTadabburMode(mode)) {
       cleaned = cleaned.replace(/^>\s*(?:\*\*)?(?:الآية(?:\s*الكريمة)?|الآيات)\s*(?:\*\*)?\s*[:：].*$/gim, "");
       cleaned = cleaned.replace(/^(?:\*\*)?(?:الآية(?:\s*الكريمة)?|الآيات)\s*(?:\*\*)?\s*[:：].*$/gim, "");
       cleaned = cleaned.replace(/^>\s*\{.*?\}\s*$/gm, "");
@@ -1294,34 +1348,39 @@ const AyahWithTafsirCard = ({
       cleaned = cleaned.replace(/^\[Sens en français\]\s*[:：]?\s*/gim, "");
     }
 
-    // 5. Remove artificial structural section subheadings
-    cleaned = cleaned.replace(/^(?:\*\*)?(?:بيان المعنى الإجمالي(?:\s*الميسر)?|البيان والمعنى الإجمالي|تفسير الآية الكريمة وبيان وجه النظم|معالم التنزيل وهدايات الآية الكريمة|المعنى الإجمالي ومقتضى الآية الكريمة|التحليل اللفظي والمعنى العام|البيان الشرعي والفقهي للآية الكريمة|بيان المعاني الإيمانية والمقاصدية|هداية الآيات ومقاصدها|وجوه التفسير والبيان العصري الميسر|المسائل الفقهية والأحكام المستنبطة من الآية|المسائل الفقهية والأصولية المقررة|القول في تأويل قوله تعالى في هذه الآية الكريمة|فوائد ومستنبطات الشيخ [^:\n]+|المعنى الإجمالي|شرح الكلمات وغريب الألفاظ|من هدايات الآيات والدروس المستفادة)\s*[:：]?(?:\*\*)?\s*$/gim, "");
+    // 5. Remove artificial structural section subheadings (skip for Tadabbur)
+    if (!isTadabburMode(mode)) {
+      cleaned = cleaned.replace(/^(?:\*\*)?(?:بيان المعنى الإجمالي(?:\s*الميسر)?|البيان والمعنى الإجمالي|تفسير الآية الكريمة وبيان وجه النظم|معالم التنزيل وهدايات الآية الكريمة|المعنى الإجمالي ومقتضى الآية الكريمة|التحليل اللفظي والمعنى العام|البيان الشرعي والفقهي للآية الكريمة|بيان المعاني الإيمانية والمقاصدية|هداية الآيات ومقاصدها|وجوه التفسير والبيان العصري الميسر|المسائل الفقهية والأحكام المستنبطة من الآية|المسائل الفقهية والأصولية المقررة|القول في تأويل قوله تعالى في هذه الآية الكريمة|فوائد ومستنبطات الشيخ [^:\n]+|المعنى الإجمالي|شرح الكلمات وغريب الألفاظ|من هدايات الآيات والدروس المستفادة)\s*[:：]?(?:\*\*)?\s*$/gim, "");
+    }
 
-    // 6. Remove known book title lines
-    DEFAULT_BOOKS.forEach(b => {
-      if (b.title) {
-        const escaped = b.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        cleaned = cleaned.replace(new RegExp(`^(?:###?\\s*|\\*\\*|📖\\s*)?${escaped}(?:\\s*\\([^)]*\\))?\\*?\\*?\\s*$`, "gim"), "");
-      }
-    });
+    // 6. Remove known book title lines (skip for Tadabbur so multi-book titles remain)
+    if (!isTadabburMode(mode)) {
+      DEFAULT_BOOKS.forEach(b => {
+        if (b.title) {
+          const escaped = b.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          cleaned = cleaned.replace(new RegExp(`^(?:###?\\s*|\\*\\*|📖\\s*)?${escaped}(?:\\s*\\([^)]*\\))?\\*?\\*?\\s*$`, "gim"), "");
+        }
+      });
 
-    // 7. Remove source / references lines and horizontal divider rules
-    cleaned = cleaned.replace(/^---+$/gm, "");
+      // 7. Remove source / references lines and horizontal divider rules
+      cleaned = cleaned.replace(/^---+$/gm, "");
+      cleaned = cleaned.replace(/^(?:\*\*)?التدبر(?:\*\*)?\s*[:：]?\s*$/gim, "");
+    }
     cleaned = cleaned.replace(/^.*تم استخراج.*(?:وقفة|وقفات)\s*تدبرية.*$/gim, "");
-    cleaned = cleaned.replace(/^(?:\*\*)?التدبر(?:\*\*)?\s*[:：]?\s*$/gim, "");
-    cleaned = cleaned.replace(/المصدر الأول\s*\(?tdabur1\.txt\)?/gi, "ليدبروا ١");
-    cleaned = cleaned.replace(/المصدر الثاني\s*\(?tdabur2\.txt\)?/gi, "ليدبروا ٢");
-    cleaned = cleaned.replace(/المصدر الثالث\s*\(?tdabur3\.txt\)?/gi, "ليدبروا ٣");
-    cleaned = cleaned.replace(/المصدر الرابع\s*\(?tdabur4\.txt\)?/gi, "ليدبروا ٤");
-    cleaned = cleaned.replace(/\(?tdabur1\.txt\)?/gi, "ليدبروا ١");
-    cleaned = cleaned.replace(/\(?tdabur2\.txt\)?/gi, "ليدبروا ٢");
-    cleaned = cleaned.replace(/\(?tdabur3\.txt\)?/gi, "ليدبروا ٣");
-    cleaned = cleaned.replace(/\(?tdabur4\.txt\)?/gi, "ليدبروا ٤");
+    if (!isTadabburMode(mode)) {
+      cleaned = cleaned.replace(/المجموعة الأولى/g, "ليدبروا ١");
+      cleaned = cleaned.replace(/المجموعة الثانية/g, "ليدبروا ٢");
+      cleaned = cleaned.replace(/المجموعة الثالثة/g, "ليدبروا ٣");
+      cleaned = cleaned.replace(/المجموعة الرابعة/g, "ليدبروا ٤");
+      cleaned = cleaned.replace(/المجموعة الخامسة/g, "ليدبروا ٥");
+    }
     cleaned = cleaned.replace(/`/g, "");
-    cleaned = cleaned.replace(/^(?:\*|_)?(?:\*\*)?(?:📚\s*)?(?:المصدر(?:\s*المعتمد)?|ماخذ|مرجع|المرجع|مصدر التفسير|مصدر الترجمة|Source|Sumber|উৎস)\s*[:：].*$/gim, "");
-    cleaned = cleaned.replace(/^\*(?:Reference|English Translation|English translation)\s*[:：].*$/gim, "");
-    cleaned = cleaned.replace(/^\*مستفاد من كتب.*\*$/gim, "");
-    cleaned = cleaned.replace(/^\*تيسير معاني القرآن الكريم.*\*$/gim, "");
+    if (!isTadabburMode(mode)) {
+      cleaned = cleaned.replace(/^(?:\*|_)?(?:\*\*)?(?:📚\s*)?(?:المصدر(?:\s*المعتمد)?|ماخذ|مرجع|المرجع|مصدر التفسير|مصدر الترجمة|Source|Sumber|উৎস)\s*[:：].*$/gim, "");
+      cleaned = cleaned.replace(/^\*(?:Reference|English Translation|English translation)\s*[:：].*$/gim, "");
+      cleaned = cleaned.replace(/^\*مستفاد من كتب.*\*$/gim, "");
+      cleaned = cleaned.replace(/^\*تيسير معاني القرآن الكريم.*\*$/gim, "");
+    }
 
     // 8. Remove blue square / decorative icons
     cleaned = cleaned.replace(/[🔹🔷🟦]/g, "");
@@ -1435,6 +1494,11 @@ const AyahWithTafsirCard = ({
         onTouchStart={(e) => onStartLongPress(e, ayah)}
         onTouchEnd={(e) => onCancelLongPress(e)}
         onTouchMove={(e) => onCheckLongPressMove(e)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onStartLongPress(e, ayah);
+        }}
         className={`w-full cursor-pointer transition-all duration-300 rounded-2xl border-2 overflow-hidden shadow-xs relative ${
           isActivePlaying 
             ? "ring-2 ring-emerald-500/80" 
@@ -1772,7 +1836,11 @@ const AyahWithTafsirCard = ({
             ) : isLinguisticsOrIrabMode(activeMode) ? (
               <div className="flex flex-col gap-3 py-1 font-amiri font-amiri-naskh" dir="rtl" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
                 {parseLinguisticItems(rawText).map((item, idx) => {
-                  const isBalaghaCard = (activeMode as string) === "balagha" || (activeMode as string) === "book_balagha";
+                  const isBalaghaCard = 
+                    (activeMode as string) === "balagha" || 
+                    (activeMode as string) === "book_balagha" ||
+                    (activeMode as string) === "book_lubab" ||
+                    DEFAULT_BOOKS.find(b => b.id === activeMode)?.subCategory === "balagha";
                   if (item.isHeader) {
                     return (
                       <div 
@@ -1795,7 +1863,7 @@ const AyahWithTafsirCard = ({
                     );
                   }
 
-                  const isBalaghaItem = isBalaghaCard || item.isBalaghaTitle;
+                  const isBalaghaItem = isBalaghaCard || item.isBalaghaTitle || checkIsBalaghaTitle(item.word);
                   const itemColorClass = isBalaghaItem 
                     ? getBalaghaTitleColorClass(theme, isDark) 
                     : getLinguisticWordColorClass(theme, isDark);
@@ -1831,7 +1899,7 @@ const AyahWithTafsirCard = ({
                           <span 
                             className={`font-bold inline-flex items-center gap-0.5 shrink-0 select-text font-amiri font-amiri-naskh ${getLinguisticWordColorClass(theme, isDark)}`}
                             style={{ 
-                              fontSize: `${Math.max(14, currentTafsirFontSize)}px`,
+                              fontSize: `${Math.max(10, currentTafsirFontSize)}px`,
                               fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
                             }}
                           >
@@ -1864,7 +1932,7 @@ const AyahWithTafsirCard = ({
                             <span 
                               className={`font-bold inline-flex items-center gap-0.5 shrink-0 select-text font-amiri font-amiri-naskh ${getLinguisticWordColorClass(theme, isDark)}`}
                               style={{ 
-                                fontSize: `${Math.max(14, currentTafsirFontSize)}px`,
+                                fontSize: `${Math.max(10, currentTafsirFontSize)}px`,
                                 fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
                               }}
                             >
@@ -1881,35 +1949,46 @@ const AyahWithTafsirCard = ({
                             </span>
                           )}
                         </div>
+                      ) : isBalaghaItem ? (
+                        <div className="flex flex-col gap-1.5 w-full font-amiri font-amiri-naskh" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
+                          {/* العنوان باللون الأخضر في سطر مستقل */}
+                          <div 
+                            className={`font-bold select-text font-amiri font-amiri-naskh leading-relaxed ${itemColorClass}`}
+                            style={{ 
+                              fontSize: `${Math.max(10, currentTafsirFontSize)}px`,
+                              fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
+                            }}
+                          >
+                            <span style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
+                              {item.word.replace(/\*/g, "").replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim()}
+                            </span>
+                          </div>
+                          {/* المعنى أو الشرح في سطر مستقل تحته */}
+                          <div 
+                            className="opacity-95 leading-[2.2] w-full font-amiri font-amiri-naskh" 
+                            style={{ 
+                              fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif",
+                              fontSize: `${currentTafsirFontSize}px`
+                            }}
+                          >
+                            {renderFormattedMeaningText(item.meaning, theme, isDark)}
+                          </div>
+                        </div>
                       ) : (
                         <div className="flex flex-wrap items-baseline gap-2 font-amiri font-amiri-naskh" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
-                          {isBalaghaItem ? (
-                            <span 
-                              className={`font-bold inline-flex items-center shrink-0 select-text font-amiri font-amiri-naskh ${itemColorClass}`}
-                              style={{ 
-                                fontSize: `${Math.max(14, currentTafsirFontSize)}px`,
-                                fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
-                              }}
-                            >
-                              <span style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
-                                {item.word.replace(/\*/g, "").replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim()}
-                              </span>
+                          <span 
+                            className={`font-bold inline-flex items-center gap-0.5 shrink-0 select-text font-amiri font-amiri-naskh ${itemColorClass}`}
+                            style={{ 
+                              fontSize: `${Math.max(10, currentTafsirFontSize)}px`,
+                              fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
+                            }}
+                          >
+                            <span className="font-bold select-none">(</span>
+                            <span style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
+                              {item.word.replace(/\*/g, "").replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim()}
                             </span>
-                          ) : (
-                            <span 
-                              className={`font-bold inline-flex items-center gap-0.5 shrink-0 select-text font-amiri font-amiri-naskh ${itemColorClass}`}
-                              style={{ 
-                                fontSize: `${Math.max(14, currentTafsirFontSize)}px`,
-                                fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
-                              }}
-                            >
-                              <span className="font-bold select-none">(</span>
-                              <span style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
-                                {item.word.replace(/\*/g, "").replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim()}
-                              </span>
-                              <span className="font-bold select-none">)</span>
-                            </span>
-                          )}
+                            <span className="font-bold select-none">)</span>
+                          </span>
                           <span className="font-bold opacity-40 select-none mx-0.5">:</span>
                           <span className="opacity-95 flex-1 min-w-[200px] font-amiri font-amiri-naskh" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
                             {renderFormattedMeaningText(item.meaning, theme, isDark)}
@@ -1920,7 +1999,120 @@ const AyahWithTafsirCard = ({
                   );
                 })}
               </div>
-            ) : (
+            ) : isTadabburMode(activeMode) ? (
+              (() => {
+                const sections = parseTadabburSections(cleanTafsirCardText(rawText, activeMode));
+
+                return (
+                  <div className="flex flex-col gap-4 py-1 font-amiri font-amiri-naskh" dir="rtl" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
+                    {sections.map((sec, sIdx) => {
+                      return (
+                        <div 
+                          key={sIdx}
+                          id={`tadabbur-card-${sIdx + 1}`}
+                          className={`p-3.5 sm:p-4 rounded-xl border shadow-xs transition-all ${
+                            theme === "emerald-velvet"
+                              ? "bg-[#012519]/80 border-[#c5a85c]/25 text-[#FAF8F5]"
+                              : theme === "gold-velvet"
+                                ? "bg-[#FAF8F5] border-[#c5a85c]/30 text-[#011c14]"
+                                : isDark
+                                  ? "bg-slate-900/60 border-slate-800 text-slate-100"
+                                  : "bg-slate-50/90 border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          {/* Card Number if multiple reflections */}
+                          {sections.length > 1 && (
+                            <div className="flex items-center gap-1.5 pb-2 mb-2 border-b border-current/10 text-xs font-bold opacity-75">
+                              <BookOpen size={12} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                              <span>وقفة تدبرية #{sIdx + 1}</span>
+                            </div>
+                          )}
+
+                      {/* Formatted Table: العنوان -> التدبر -> القائل -> المصدر */}
+                      <div className="overflow-hidden rounded-lg border border-current/15 bg-current/[0.015]">
+                        <table className="w-full text-right border-collapse table-fixed">
+                          <tbody>
+                            {/* Row 1: العنوان */}
+                            <tr className="border-b border-current/10 bg-current/[0.03]">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 bg-current/[0.04] border-l border-current/10 align-middle shrink-0">
+                                العنوان
+                              </th>
+                              <td 
+                                className="p-2.5 sm:p-3 font-bold text-emerald-800 dark:text-emerald-300"
+                                style={{
+                                  fontSize: `${Math.max(11, currentTafsirFontSize + 1)}px`,
+                                  fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
+                                }}
+                              >
+                                {sec.title}
+                              </td>
+                            </tr>
+
+                            {/* Row 2: التدبر */}
+                            <tr className="border-b border-current/10">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 bg-current/[0.04] border-l border-current/10 align-top shrink-0">
+                                التدبر
+                              </th>
+                              <td 
+                                className={`p-2.5 sm:p-3 leading-[2.2] whitespace-pre-line selection:bg-emerald-200 selection:text-slate-900 ${
+                                  theme === "emerald-velvet"
+                                    ? "text-[#FAF8F5]/95"
+                                    : theme === "gold-velvet"
+                                      ? "text-[#011c14]/95"
+                                      : isDark
+                                        ? "text-slate-100"
+                                        : "text-slate-800"
+                                }`}
+                                style={{ 
+                                  fontSize: `${currentTafsirFontSize}px`,
+                                  fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
+                                }}
+                              >
+                                {renderFormattedMeaningText(sec.content, theme, isDark)}
+                              </td>
+                            </tr>
+
+                            {/* Row 3: القائل */}
+                            <tr className="border-b border-current/10 bg-current/[0.02]">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-indigo-700 dark:text-indigo-400 bg-current/[0.04] border-l border-current/10 align-middle shrink-0">
+                                القائل
+                              </th>
+                              <td 
+                                className="p-2.5 sm:p-3 font-semibold text-indigo-900 dark:text-indigo-200"
+                                style={{
+                                  fontSize: `${currentTafsirFontSize}px`,
+                                  fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
+                                }}
+                              >
+                                {sec.author}
+                              </td>
+                            </tr>
+
+                            {/* Row 4: المصدر */}
+                            <tr className="bg-current/[0.03]">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-slate-600 dark:text-slate-400 bg-current/[0.04] border-l border-current/10 align-middle shrink-0">
+                                المصدر
+                              </th>
+                              <td 
+                                className="p-2.5 sm:p-3 opacity-90 text-slate-700 dark:text-slate-300"
+                                style={{
+                                  fontSize: `${currentTafsirFontSize}px`,
+                                  fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
+                                }}
+                              >
+                                {sec.bookName}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
+        ) : (
               <div 
                 className={`leading-[2.2] ${contentFont} ${isEnglish ? "" : "font-amiri font-amiri-naskh"} whitespace-pre-line selection:bg-emerald-200 selection:text-slate-900 ${
                   theme === "emerald-velvet"
@@ -1950,14 +2142,25 @@ const AyahWithTafsirCard = ({
 
 type TafsirMode = "tafsir_muyassar" | "tafsir_mukhtasar" | "tafsir_aysar" | "tafsir_tabari" | "tafsir_kathir" | "tafsir_qurtubi" | "tafsir_sadi" | "tafsir_baghawi" | "tafsir_suyuti" | "tafsir_ibn_atiyyah" | "tafsir_waseet" | "tafsir_waseet_tantawi" | "english" | "eerab" | "suraj_garib_quran" | "tafsir_ibnkathir" | "asbab_nuzool" | "balagha" | "sarf" | "hidaya" | "mutashabihat";
 
-const CONTINUOUS_SERVICES_LIST: { id: MainCategory; label: string; icon: any; desc: string }[] = [
-  { id: "tafsir", label: "التفاسير", icon: BookOpen, desc: "تفاسير القرآن الكريم المعتمدة" },
-  { id: "translations", label: "الترجمات", icon: Languages, desc: "ترجمات معاني القرآن الكريم المعتمدة" },
-  { id: "linguistics", label: "لغويات وإعراب", icon: Type, desc: "إعراب القرآن ومعاني المفردات" },
-  { id: "sciences", label: "علوم القرآن", icon: Layers, desc: "أسباب النزول والقراءات والنسخ" },
-  { id: "mutashabihat", label: "المتشابهات اللفظية", icon: GitCompare, desc: "توجيه وضبط المتشابهات اللفظية في القرآن الكريم" },
-  { id: "tadabbur", label: "تدبر", icon: Sparkles, desc: "كتاب ليدبروا آياته والفوائد التدبرية" },
-  { id: "notes", label: "التقييدات", icon: Feather, desc: "الملاحظات والفوائد الشخصية" },
+export interface ContinuousIconServiceItem {
+  id: string;
+  mainCategory: MainCategory;
+  label: string;
+  icon: any;
+  desc: string;
+}
+
+const CONTINUOUS_SERVICES_LIST: ContinuousIconServiceItem[] = [
+  { id: "tafsir_muyassar", mainCategory: "tafsir", label: "التفسير الميسر", icon: BookOpen, desc: "التفسير الميسر لمجمع الملك فهد" },
+  { id: "tafsir_sadi", mainCategory: "tafsir", label: "السعدي", icon: BookOpenCheck, desc: "تيسير الكريم الرحمن في تفسير كلام المنان للشيخ السعدي" },
+  { id: "translation_hilali_khan", mainCategory: "translations", label: "ترجمة", icon: Languages, desc: "ترجمة معاني القرآن الكريم لد. تقي الدين الهلالي ود. محسن خان" },
+  { id: "suraj_garib_quran", mainCategory: "linguistics", label: "غريب الآية", icon: FileText, desc: "بيان وتوضيح غريب مفردات الآية الكريمة" },
+  { id: "book_irab", mainCategory: "linguistics", label: "إعراب", icon: Type, desc: "إعراب الآية الكريمة وبيان وجه الإعراب" },
+  { id: "book_sarf", mainCategory: "linguistics", label: "صرف", icon: Layers, desc: "التحليل الصرفي لمفردات الآية الكريمة" },
+  { id: "book_balagha", mainCategory: "linguistics", label: "بلاغة", icon: Sparkles, desc: "البلاغة واللمسات البيانية في الآية" },
+  { id: "muharrar_asbab", mainCategory: "sciences", label: "أسباب النزول", icon: History, desc: "أسباب النزول المعتمدة للآيات" },
+  { id: "book_tadabbur", mainCategory: "tadabbur", label: "تدبر", icon: Heart, desc: "الوقفات واللطائف والفوائد التدبرية" },
+  { id: "notes", mainCategory: "notes", label: "التقييدات", icon: Feather, desc: "التقييدات والخواطر والملاحظات الشخصية" },
 ];
 
 export default function ReadingScreen({
@@ -2001,37 +2204,9 @@ export default function ReadingScreen({
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [continuousActiveService, setContinuousActiveService] = useState<MainCategory>("tafsir");
-  const [continuousActiveMode, setContinuousActiveMode] = useState<string>("tafsir_mukhtasar");
+  const [continuousActiveMode, setContinuousActiveMode] = useState<string>("tafsir_muyassar");
   const [userCustomTranslationBooks, setUserCustomTranslationBooks] = useState<LibraryBookItem[]>([]);
   const [isTranslationsCatalogOpen, setIsTranslationsCatalogOpen] = useState(false);
-
-  const continuousServiceBooks = useMemo(() => {
-    if (continuousActiveService === "notes") {
-      return [
-        { 
-          id: "notes", 
-          title: "تقييدات الآيات والملاحظات", 
-          author: "الملاحظات الشخصية", 
-          mainCategory: "notes" as MainCategory, 
-          subCategory: "ayah_notes" as any 
-        }
-      ];
-    }
-    const defaultList = DEFAULT_BOOKS.filter((b) => b.mainCategory === continuousActiveService);
-    if (continuousActiveService === "translations") {
-      const customAdded = userCustomTranslationBooks.filter(
-        cb => !defaultList.some(db => db.id === cb.id || db.apiType === cb.apiType)
-      );
-      return [...defaultList, ...customAdded];
-    }
-    return defaultList;
-  }, [continuousActiveService, userCustomTranslationBooks]);
-
-  useEffect(() => {
-    if (continuousServiceBooks.length > 0 && !continuousServiceBooks.some(b => b.id === continuousActiveMode)) {
-      setContinuousActiveMode(continuousServiceBooks[0].id);
-    }
-  }, [continuousServiceBooks, continuousActiveMode]);
 
   // Audio state
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
@@ -2116,6 +2291,17 @@ export default function ReadingScreen({
     left: number;
     align: "left" | "right" | "center";
   } | null>(null);
+
+  // Floating Ayah Context Menu state (on long-press without text phrases)
+  const [floatingAyahMenu, setFloatingAyahMenu] = useState<{
+    ayah: Ayah;
+    surahNumber: number;
+    surahName: string;
+    x: number;
+    y: number;
+    showBookmarksList?: boolean;
+  } | null>(null);
+  const [floatingCopied, setFloatingCopied] = useState<boolean>(false);
   
   // Notes / كناشات state (persistent)
   const [notes, setNotes] = useState<{ id: string; surahNumber: number; surahName: string; ayahNumber?: number; content: string; timestamp: string }[]>(() => {
@@ -2295,34 +2481,38 @@ export default function ReadingScreen({
   // Active highlighted Ayah for option tray and Tafsir
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
 
-  // Global Ayah font size (persisted for continuous reading mode and ayah cards)
+  // Global Ayah font size (persisted for continuous reading mode and ayah cards) - defaults to minimum pixel (14px)
   const [globalCardAyahFontSize, setGlobalCardAyahFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_ayah_font_size");
-      const parsed = saved ? Number(saved) : 26;
-      return parsed >= 14 ? parsed : 26;
+      if (!saved || saved === "26") return 14;
+      const parsed = Number(saved);
+      return parsed >= 14 ? parsed : 14;
     } catch {
-      return 26;
+      return 14;
     }
   });
 
-  // Global Tafsir font size (persisted for continuous cards and tafsir modals)
+  // Global Tafsir font size (persisted for continuous cards and tafsir modals) - defaults to minimum pixel (10px)
   const [globalCardTafsirFontSize, setGlobalCardTafsirFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_tafsir_font_size");
-      return saved ? Number(saved) : 13;
+      if (!saved || saved === "13") return 10;
+      const parsed = Number(saved);
+      return parsed >= 10 ? parsed : 10;
     } catch {
-      return 13;
+      return 10;
     }
   });
 
   const [selectedAyahFontSize, setSelectedAyahFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_ayah_font_size");
-      const parsed = saved ? Number(saved) : 26;
-      return parsed >= 14 ? parsed : 26;
+      if (!saved || saved === "26") return 14;
+      const parsed = Number(saved);
+      return parsed >= 14 ? parsed : 14;
     } catch {
-      return 26;
+      return 14;
     }
   });
 
@@ -2378,9 +2568,11 @@ export default function ReadingScreen({
   const [tafsirFontSize, setTafsirFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_tafsir_font_size");
-      return saved ? Number(saved) : 13;
+      if (!saved || saved === "13") return 10;
+      const parsed = Number(saved);
+      return parsed >= 10 ? parsed : 10;
     } catch {
-      return 13;
+      return 10;
     }
   });
 
@@ -2413,7 +2605,7 @@ export default function ReadingScreen({
 
   const handleDecreaseTafsirFontSize = () => {
     setTafsirFontSize(prev => {
-      const next = Math.max(13, prev - 2);
+      const next = Math.max(10, prev - 2);
       setGlobalCardTafsirFontSize(next);
       try {
         localStorage.setItem("quran_tafsir_font_size", String(next));
@@ -2635,7 +2827,7 @@ export default function ReadingScreen({
     } else if (onToggleBars) {
       onToggleBars();
     } else if (onShowBarsChange) {
-      onShowBarsChange(!showBars);
+      onShowBarsChange(true);
     }
   }, [showBars, showBottomSheet, onToggleBars, onShowBarsChange]);
 
@@ -2958,25 +3150,159 @@ export default function ReadingScreen({
   const longPressActiveRef = useRef<boolean>(false);
   const touchStartPosRef = useRef<{ x: number, y: number } | null>(null);
 
-  const startLongPressTimer = (_e: React.MouseEvent | React.TouchEvent, _ayah: Ayah) => {
+  const handleOpenFloatingAyahMenu = (ayah: Ayah, clientX?: number, clientY?: number) => {
+    const sNum = (ayah as any).surah?.number || surahNumber;
+    const sName = (ayah as any).surah?.name || currentSurahMeta?.name || `سورة ${sNum}`;
+    
+    let x = clientX ?? window.innerWidth / 2;
+    let y = clientY ?? window.innerHeight / 2;
+
+    if (clientX === undefined || clientY === undefined) {
+      const el = document.getElementById(`ayah-word-span-${ayah.numberInSurah}`) ||
+                 document.getElementById(`ayah-block-${ayah.numberInSurah}`);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        x = rect.left + rect.width / 2;
+        y = rect.top;
+      }
+    }
+
+    setFloatingAyahMenu({
+      ayah,
+      surahNumber: sNum,
+      surahName: sName,
+      x,
+      y,
+      showBookmarksList: false,
+    });
+  };
+
+  const handleFloatingCopyAyah = () => {
+    if (!floatingAyahMenu) return;
+    const { ayah, surahName, surahNumber: sNum } = floatingAyahMenu;
+    let cleanText = ayah.text || "";
+    if (sNum !== 1 && ayah.numberInSurah === 1) {
+      const bismillahTemplate = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
+      if (cleanText.startsWith(bismillahTemplate)) {
+        cleanText = cleanText.replace(bismillahTemplate, "").trim();
+      }
+    }
+    const fullText = `﴿ ${cleanText} ﴾ [سورة ${surahName} : ${ayah.numberInSurah}]`;
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullText).then(() => {
+        setFloatingCopied(true);
+        setTimeout(() => {
+          setFloatingCopied(false);
+          setFloatingAyahMenu(null);
+        }, 900);
+      }).catch(() => {
+        setFloatingCopied(true);
+        setTimeout(() => {
+          setFloatingCopied(false);
+          setFloatingAyahMenu(null);
+        }, 900);
+      });
+    } else {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = fullText;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        setFloatingCopied(true);
+        setTimeout(() => {
+          setFloatingCopied(false);
+          setFloatingAyahMenu(null);
+        }, 900);
+      } catch {}
+    }
+  };
+
+  const startLongPressTimer = (e: React.MouseEvent | React.TouchEvent, ayah: Ayah) => {
     if (longPressTimeoutRef.current) {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
     longPressActiveRef.current = false;
+
+    let clientX = 0;
+    let clientY = 0;
+    if ("touches" in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ("clientX" in e) {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    } else {
+      const target = e.target as HTMLElement;
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        clientX = rect.left + rect.width / 2;
+        clientY = rect.top;
+      }
+    }
+
+    touchStartPosRef.current = { x: clientX, y: clientY };
+
+    // If contextmenu (right-click), immediately open floating menu
+    if (e.type === "contextmenu") {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressActiveRef.current = true;
+      handleOpenFloatingAyahMenu(ayah, clientX, clientY);
+      return;
+    }
+
+    longPressTimeoutRef.current = setTimeout(() => {
+      longPressActiveRef.current = true;
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate(40);
+        } catch {}
+      }
+      handleOpenFloatingAyahMenu(ayah, clientX, clientY);
+    }, 450);
   };
 
-  const cancelLongPressTimer = (_e?: React.MouseEvent | React.TouchEvent) => {
+  const cancelLongPressTimer = (e?: React.MouseEvent | React.TouchEvent) => {
     if (longPressTimeoutRef.current) {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
+    }
+    if (longPressActiveRef.current) {
+      if (e) {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+      }
+      setTimeout(() => {
+        longPressActiveRef.current = false;
+      }, 150);
+      return true;
     }
     longPressActiveRef.current = false;
     return false;
   };
 
-  const checkLongPressMove = (_e?: React.MouseEvent | React.TouchEvent) => {
-    // No-op: long-press page opening disabled
+  const checkLongPressMove = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (!longPressTimeoutRef.current || !touchStartPosRef.current) return;
+    let currentX = 0;
+    let currentY = 0;
+    if (e && "touches" in e && e.touches.length > 0) {
+      currentX = e.touches[0].clientX;
+      currentY = e.touches[0].clientY;
+    } else if (e && "clientX" in e) {
+      currentX = (e as React.MouseEvent).clientX;
+      currentY = (e as React.MouseEvent).clientY;
+    }
+    const dx = Math.abs(currentX - touchStartPosRef.current.x);
+    const dy = Math.abs(currentY - touchStartPosRef.current.y);
+    if (dx > 12 || dy > 12) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+      longPressActiveRef.current = false;
+    }
   };
 
   const extractAyahFromSvgTarget = (target: SVGElement): Ayah | null => {
@@ -3011,6 +3337,16 @@ export default function ReadingScreen({
       startLongPressTimer(e, ayah);
     }
     handleMouseDown(e);
+  };
+
+  const handleSvgContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as SVGElement;
+    const ayah = extractAyahFromSvgTarget(target);
+    if (ayah) {
+      e.preventDefault();
+      e.stopPropagation();
+      startLongPressTimer(e, ayah);
+    }
   };
 
   const handleSvgMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -3123,6 +3459,8 @@ export default function ReadingScreen({
   const [prevPage, setPrevPage] = useState<number>(1);
   const [direction, setDirection] = useState<"next" | "prev">("next");
 
+  const prevReportedPageSyncRef = useRef<{ page: number; surah: number; ayah?: number } | null>(null);
+
   useEffect(() => {
     setSliderPage(currentPage);
     if (currentPage) {
@@ -3132,7 +3470,11 @@ export default function ReadingScreen({
         if (pageRange) {
           localStorage.setItem("quran_last_opened_surah", String(pageRange.surahNumber));
           localStorage.setItem("quran_last_opened_ayah", String(pageRange.startAyah));
-          onPageChange?.(currentPage, pageRange.surahNumber, pageRange.startAyah, selectedAyah?.numberInSurah);
+          const prev = prevReportedPageSyncRef.current;
+          if (!prev || prev.page !== currentPage || prev.surah !== pageRange.surahNumber || prev.ayah !== selectedAyah?.numberInSurah) {
+            prevReportedPageSyncRef.current = { page: currentPage, surah: pageRange.surahNumber, ayah: selectedAyah?.numberInSurah };
+            onPageChange?.(currentPage, pageRange.surahNumber, pageRange.startAyah, selectedAyah?.numberInSurah);
+          }
         } else {
           const pageMeta = quranSvgPageMetadata.find(p => p.page === currentPage);
           if (pageMeta) {
@@ -3155,7 +3497,11 @@ export default function ReadingScreen({
         localStorage.setItem("quran_last_opened_ayah", String(aNum));
       } catch {}
       const pageInfo = getAyahsForPage(currentPage);
-      onPageChange?.(currentPage, sNum, pageInfo ? pageInfo.startAyah : aNum, aNum);
+      const prev = prevReportedPageSyncRef.current;
+      if (!prev || prev.page !== currentPage || prev.surah !== sNum || prev.ayah !== aNum) {
+        prevReportedPageSyncRef.current = { page: currentPage, surah: sNum, ayah: aNum };
+        onPageChange?.(currentPage, sNum, pageInfo ? pageInfo.startAyah : aNum, aNum);
+      }
     }
   }, [selectedAyah]);
 
@@ -3742,7 +4088,6 @@ export default function ReadingScreen({
       if (tafsirModalAyah) setTafsirModalAyah(null);
       if (showSettingsDrawerState) setShowSettingsDrawerState(false);
       if (showWordSearchModalState) setShowWordSearchModalState(false);
-      if (activeTab && activeTab !== "home") onActiveTabChange?.("home");
     }
   }, [serviceDrawerTab]);
 
@@ -3753,7 +4098,6 @@ export default function ReadingScreen({
       if (showWordSearchModalState) setShowWordSearchModalState(false);
       if (showReciterPanel) setShowReciterPanel(false);
       if (tafsirModalAyah) setTafsirModalAyah(null);
-      if (activeTab && activeTab !== "home") onActiveTabChange?.("home");
     }
   }, [selectedAyah, showBottomSheet]);
 
@@ -3763,7 +4107,6 @@ export default function ReadingScreen({
       if (showReciterPanel) setShowReciterPanel(false);
       if (showWordSearchModalState) setShowWordSearchModalState(false);
       if (tafsirModalAyah) setTafsirModalAyah(null);
-      if (activeTab && activeTab !== "home") onActiveTabChange?.("home");
     }
   }, [showSettingsDrawerState]);
 
@@ -3773,7 +4116,6 @@ export default function ReadingScreen({
       if (showSettingsDrawerState) setShowSettingsDrawerState(false);
       if (showWordSearchModalState) setShowWordSearchModalState(false);
       if (tafsirModalAyah) setTafsirModalAyah(null);
-      if (activeTab && activeTab !== "home" && activeTab !== "recitation") onActiveTabChange?.("home");
     }
   }, [showReciterPanel]);
 
@@ -3783,7 +4125,6 @@ export default function ReadingScreen({
       if (showSettingsDrawerState) setShowSettingsDrawerState(false);
       if (showReciterPanel) setShowReciterPanel(false);
       if (tafsirModalAyah) setTafsirModalAyah(null);
-      if (activeTab && activeTab !== "home") onActiveTabChange?.("home");
     }
   }, [showWordSearchModalState]);
 
@@ -3793,7 +4134,6 @@ export default function ReadingScreen({
       if (showSettingsDrawerState) setShowSettingsDrawerState(false);
       if (showReciterPanel) setShowReciterPanel(false);
       if (showWordSearchModalState) setShowWordSearchModalState(false);
-      if (activeTab && activeTab !== "home") onActiveTabChange?.("home");
     }
   }, [tafsirModalAyah]);
 
@@ -3804,7 +4144,6 @@ export default function ReadingScreen({
       if (showReciterPanel) setShowReciterPanel(false);
       if (showWordSearchModalState) setShowWordSearchModalState(false);
       if (tafsirModalAyah) setTafsirModalAyah(null);
-      if (activeTab && activeTab !== "home") onActiveTabChange?.("home");
     }
   }, [shareAyahData]);
 
@@ -3863,65 +4202,6 @@ export default function ReadingScreen({
     }
   }, [isIndexOpen]);
 
-  // Auto-hide top header and bottom menu after 5 seconds of inactivity across all reading modes
-  useEffect(() => {
-    if (!showBars || activeTab !== "home" || isIndexOpen) {
-      return;
-    }
-
-    // Do not auto-hide if a drawer/modal/menu is open requiring user attention
-    if (
-      showSettingsDrawerState ||
-      showWordSearchModalState ||
-      showReciterPanel ||
-      showBottomSheet ||
-      tafsirModalAyah ||
-      shareAyahData ||
-      bookmarkMenu ||
-      showAddNoteForm ||
-      showAddBookmarkForm ||
-      serviceDrawerTab !== null
-    ) {
-      return;
-    }
-
-    let timer: NodeJS.Timeout | null = null;
-
-    const resetTimer = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        onShowBarsChange?.(false);
-      }, 5000);
-    };
-
-    resetTimer();
-
-    const activityEvents = ["scroll", "wheel", "touchmove", "keydown"];
-    activityEvents.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }));
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      activityEvents.forEach((ev) => window.removeEventListener(ev, resetTimer));
-    };
-  }, [
-    showBars,
-    activeTab,
-    isIndexOpen,
-    effectivePageMode,
-    surahNumber,
-    currentPage,
-    showSettingsDrawerState,
-    showWordSearchModalState,
-    showReciterPanel,
-    showBottomSheet,
-    tafsirModalAyah,
-    shareAyahData,
-    bookmarkMenu,
-    showAddNoteForm,
-    showAddBookmarkForm,
-    serviceDrawerTab,
-    onShowBarsChange,
-  ]);
 
   const activeFontClass = 
     settings.quranFont === "amiri" ? "font-amiri" :
@@ -4347,7 +4627,7 @@ export default function ReadingScreen({
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         const parentAyah = ayahs.find(a => a.numberInSurah === targetAyahNum);
         if (parentAyah) {
-          setSelectedAyah(parentAyah);
+          setSelectedAyah(prev => (prev && prev.numberInSurah === parentAyah.numberInSurah ? prev : parentAyah));
         }
         return true;
       }
@@ -5001,9 +5281,9 @@ export default function ReadingScreen({
       }
     }
 
-    // Handle Tadabbur directly from local offline book "Tdabr.txt"
-    if (mode === "hidaya" || (mode as string) === "tadabbur" || (mode as string) === "book_tadabbur" || (mode as string) === "book_fawaid_tadabbur" || (mode as string) === "tdabur1" || (mode as string) === "tdabur2" || (mode as string) === "tdabur3" || (mode as string) === "tdabur4" || (mode as string) === "book_tdabur1" || (mode as string) === "book_tdabur2" || (mode as string) === "book_tdabur3" || (mode as string) === "book_tdabur4" || (mode as string) === "book_lubab") {
-      const localTdabr = getOfflineTdabr(sNum, aNum, sName, ayah.text, mode as string, false);
+    // Handle Tadabbur directly from local offline multi-book engine
+    if (isTadabburMode(mode as string)) {
+      const localTdabr = getOfflineTdabr(sNum, aNum, sName, ayah.text, mode as string, true);
       if (localTdabr) {
         setTafsirResponse(localTdabr);
         setTafsirLoading(false);
@@ -5051,8 +5331,19 @@ export default function ReadingScreen({
 
     // Handle Tafsir Muyassar directly from local offline dataset (100% offline)
     if (mode === "tafsir_muyassar") {
-      const localTafsir = generateOfflineMuyassar(sNum, aNum, sName, ayah.text) || getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineAysarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, ayah.text);
+      const localTafsir = getOfflineMuyassarTafsir(sNum, aNum) || generateOfflineMuyassar(sNum, aNum, sName, ayah.text) || getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineAysarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, ayah.text);
       if (localTafsir) {
+        setTafsirResponse(localTafsir);
+        setTafsirLoading(false);
+        saveToLibraryCache(cacheKey, localTafsir).catch(() => {});
+        return;
+      }
+    }
+
+    // Handle Tafsir Saadi directly from local offline dataset (100% offline)
+    if (mode === "tafsir_sadi") {
+      const localTafsir = getOfflineSaadiTafsir(sNum, aNum) || generateOfflineSaadi(sNum, aNum, sName, ayah.text);
+      if (localTafsir && !isCorruptAyahOnlyText(localTafsir, ayah.text)) {
         setTafsirResponse(localTafsir);
         setTafsirLoading(false);
         saveToLibraryCache(cacheKey, localTafsir).catch(() => {});
@@ -5184,8 +5475,8 @@ export default function ReadingScreen({
         offlineResult = getOfflineAsbab(sNum, aNum, sName, ayah.text);
       } else if (mode === "suraj_garib_quran" || (mode as string) === "gharib" || (mode as string) === "siraj_garib_quran") {
         offlineResult = getOfflineGharib(sNum, aNum, sName, ayah.text);
-      } else if (mode === "hidaya" || (mode as string) === "tadabbur") {
-        offlineResult = getOfflineTdabr(sNum, aNum, sName, ayah.text, undefined, false);
+      } else if (isTadabburMode(mode as string)) {
+        offlineResult = getOfflineTdabr(sNum, aNum, sName, ayah.text, mode as string, true);
       } else if (mode === "english" || (mode as string).startsWith("translation")) {
         offlineResult = getOfflineEnglishTranslation(sNum, aNum) || generateOfflineTranslation(sNum, aNum, mode as string);
       }
@@ -5491,8 +5782,8 @@ export default function ReadingScreen({
         }
       }
 
-      if (mode === "hidaya" || (mode as string) === "tadabbur") {
-        const fallbackTdabr = getOfflineTdabr(sNum, aNum, sName, ayah.text, undefined, false);
+      if (isTadabburMode(mode as string)) {
+        const fallbackTdabr = getOfflineTdabr(sNum, aNum, sName, ayah.text, mode as string, true);
         if (fallbackTdabr) {
           setTafsirResponse(fallbackTdabr);
           setTafsirError(null);
@@ -5757,6 +6048,7 @@ export default function ReadingScreen({
       {/* Top Header Controls with back button and global bookmark */}
       <div 
         id="reading-header" 
+        data-top-header="true"
         onClick={(e) => e.stopPropagation()}
         className={`fixed top-0 left-0 right-0 w-full h-14 z-[350] shadow-md select-none transition-all duration-300 transform ${
           showBars || serviceDrawerTab !== null ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
@@ -6966,15 +7258,10 @@ export default function ReadingScreen({
                 </h3>
                 <button 
                   onClick={() => setShowMyFilesDrawer(false)}
-                  className={`p-1.5 rounded-full transition-all cursor-pointer ${
-                    theme === "emerald-velvet"
-                      ? "hover:bg-[#34d399]/15 text-[#34d399] hover:text-[#FAF8F5]"
-                      : theme === "gold-velvet"
-                        ? "hover:bg-[#c5a85c]/15 text-[#c5a85c] hover:text-[#011c14]"
-                        : "hover:bg-slate-200 dark:hover:bg-slate-850 text-slate-400"
-                  }`}
+                  className="p-1.5 rounded-full transition-all cursor-pointer bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400"
+                  title="إغلاق"
                 >
-                  <X size={15} />
+                  <X size={16} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
                 </button>
               </div>
 
@@ -8451,8 +8738,10 @@ export default function ReadingScreen({
                                       }
                                       handleAyahClick(matchingAyah);
                                     } else {
-                                      if (onShowBarsChange) {
-                                        onShowBarsChange(!showBars);
+                                      if (onToggleBars) {
+                                        onToggleBars();
+                                      } else if (onShowBarsChange) {
+                                        onShowBarsChange(true);
                                       }
                                     }
                                   }}
@@ -8885,6 +9174,18 @@ export default function ReadingScreen({
                               }}
                               onTouchEnd={(e) => cancelLongPressTimer(e)}
                               onTouchMove={(e) => checkLongPressMove(e)}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const standardAyah: Ayah = {
+                                  number: ayah.number,
+                                  numberInSurah: ayah.numberInSurah,
+                                  text: ayah.text,
+                                  translationEn: ayah.translationEn,
+                                  page: currentPage,
+                                };
+                                startLongPressTimer(e, standardAyah);
+                              }}
                               className={`inline transition-all duration-205 cursor-pointer rounded-lg px-2 py-1 ${
                                 isPlayingNow
                                   ? (theme === "navy-velvet" ? "bg-[#3F63C6]/20 text-[#3F63C6] ring-1 ring-[#3F63C6]/40 shadow-xs font-semibold" : theme === "gold-velvet" ? "bg-emerald-200/35 text-[#012c1e] ring-1 ring-emerald-400/45 shadow-xs font-semibold" : isDark ? "bg-emerald-950/40 text-emerald-300 ring-1 ring-emerald-800/40 shadow-md font-medium" : "bg-emerald-100/40 text-emerald-950 ring-1 ring-emerald-300/40 shadow-xs font-medium")
@@ -8954,94 +9255,116 @@ export default function ReadingScreen({
                 }}
                 dir="rtl"
               >
-                {/* Top Header Box Merging Surah & Ayah Dropdowns */}
-                <div className="w-full mx-auto flex items-center justify-between gap-2 mb-4 select-none flex-wrap relative z-40" dir="rtl">
-                  {/* Integrated Surah & Ayah Selectors */}
-                  <div className="flex items-center gap-2 grow sm:grow-0">
-                    {/* Element 1: Surah Dropdown / Modal Trigger */}
-                    <div className="flex items-center shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setIsContinuousSurahModalOpen(!isContinuousSurahModalOpen)}
-                        className={`cursor-pointer px-3 py-1.5 rounded-xl border transition-all duration-200 outline-none shadow-2xs flex items-center gap-1.5 ${
-                          theme === "navy-velvet"
-                            ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
-                            : theme === "gold-velvet"
-                              ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
-                              : theme === "emerald-velvet"
-                                ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
-                                : isDark
-                                  ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
-                                  : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-                        }`}
-                        title="اختر السورة"
-                      >
-                        <span className="text-xl sm:text-2xl font-normal leading-none select-none" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
-                          {getSurahHeaderGlyph(surahNumber, surahsList.find(s => s.number === surahNumber)?.name) || surahsList.find(s => s.number === surahNumber)?.name}
-                        </span>
-                        <ChevronDown size={14} className="opacity-70" />
-                      </button>
+                {/* Placeholder spacer to preserve layout rhythm */}
+                <div className="w-full mb-3 h-10 sm:h-11 pointer-events-none select-none" />
 
-                      <SurahSelectModal
-                        isOpen={isContinuousSurahModalOpen}
-                        onClose={() => setIsContinuousSurahModalOpen(false)}
-                        selectedSurahNumber={surahNumber}
-                        onSelectSurah={(sNum) => {
-                          if (onChangeSurah) {
-                            onChangeSurah(sNum, 1);
-                          }
-                        }}
-                        isDark={isDark}
-                        theme={theme || "light"}
-                      />
-                    </div>
+                {/* Top Floating Box with Surah & Ayah Selectors (عائم وظاهر في وضع القراءة فقط، ومخفي في صفحة علاماتي والفهرس والأدراج) */}
+                {activeTab === "home" && !isIndexOpen && serviceDrawerTab === null && (
+                <div 
+                  id="floating-surah-ayah-picker"
+                  onClick={(e) => e.stopPropagation()}
+                  className={`fixed ${showBars ? "top-16" : "top-3 sm:top-4"} left-3 sm:left-6 z-[360] inline-flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md shadow-xl border transition-all duration-300 select-none ${
+                    theme === "navy-velvet"
+                      ? "bg-white/95 border-[#3F63C6]/35 shadow-[#3F63C6]/20 text-slate-900"
+                      : theme === "gold-velvet"
+                        ? "bg-[#FFFDF5]/95 border-[#c5a85c]/50 shadow-[#c5a85c]/25 text-[#011c14]"
+                        : theme === "emerald-velvet"
+                          ? "bg-[#012519]/95 border-[#34d399]/50 shadow-black/50 text-[#FAF8F5]"
+                          : isDark
+                            ? "bg-slate-900/95 border-slate-700 shadow-black/60 text-slate-100"
+                            : "bg-white/95 border-emerald-300 shadow-emerald-950/15 text-slate-900"
+                  }`}
+                  style={{ direction: "rtl" }}
+                >
+                  {/* Element 1: Surah Dropdown / Modal Trigger */}
+                  <div className="flex items-center shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsContinuousSurahModalOpen(!isContinuousSurahModalOpen);
+                      }}
+                      className={`cursor-pointer px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border transition-all duration-200 outline-none shadow-2xs flex items-center gap-1.5 ${
+                        theme === "navy-velvet"
+                          ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
+                          : theme === "gold-velvet"
+                            ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
+                            : theme === "emerald-velvet"
+                              ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
+                              : isDark
+                                ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
+                                : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
+                      }`}
+                      title="اختر السورة"
+                    >
+                      <span className="text-lg sm:text-2xl font-normal leading-none select-none" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
+                        {getSurahHeaderGlyph(surahNumber, surahsList.find(s => s.number === surahNumber)?.name) || surahsList.find(s => s.number === surahNumber)?.name}
+                      </span>
+                      <ChevronDown size={14} className="opacity-70" />
+                    </button>
 
-                    {/* Element 2: Ayah Dropdown */}
-                    <div className="relative flex items-center shrink-0">
-                      <select
-                        value={selectedAyah?.numberInSurah || initialAyahNumber || 1}
-                        onChange={(e) => {
-                          const aNum = parseInt(e.target.value, 10);
-                          if (onChangeSurah) {
-                            onChangeSurah(surahNumber, aNum);
+                    <SurahSelectModal
+                      isOpen={isContinuousSurahModalOpen}
+                      onClose={() => setIsContinuousSurahModalOpen(false)}
+                      selectedSurahNumber={surahNumber}
+                      onSelectSurah={(sNum) => {
+                        if (onChangeSurah) {
+                          onChangeSurah(sNum, 1);
+                        }
+                      }}
+                      isDark={isDark}
+                      theme={theme || "light"}
+                    />
+                  </div>
+
+                  {/* Element 2: Ayah Dropdown */}
+                  <div className="relative flex items-center shrink-0">
+                    <select
+                      value={selectedAyah?.numberInSurah || initialAyahNumber || 1}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        const aNum = parseInt(e.target.value, 10);
+                        if (onChangeSurah) {
+                          onChangeSurah(surahNumber, aNum);
+                        }
+                        setTimeout(() => {
+                          const elem = document.getElementById(`ayah-block-${aNum}`) || document.getElementById(`ayah-word-span-${aNum}`);
+                          if (elem) {
+                            elem.scrollIntoView({ behavior: "smooth", block: "center" });
                           }
-                          setTimeout(() => {
-                            const elem = document.getElementById(`ayah-block-${aNum}`) || document.getElementById(`ayah-word-span-${aNum}`);
-                            if (elem) {
-                              elem.scrollIntoView({ behavior: "smooth", block: "center" });
-                            }
-                          }, 150);
-                        }}
-                        className={`appearance-none cursor-pointer pl-7 pr-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 outline-none shadow-2xs ${
-                          theme === "navy-velvet"
-                            ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
-                            : theme === "gold-velvet"
-                              ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
-                              : theme === "emerald-velvet"
-                                ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
-                                : isDark
-                                  ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
-                                  : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-                        }`}
-                        title="اختر الآية"
-                      >
-                        {Array.from({ length: currentSurahMeta?.numberOfAyahs || 286 }).map((_, i) => (
-                          <option key={i + 1} value={i + 1} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-slate-100">
-                            آية {toArabicNumerals(i + 1)}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={14} className="absolute left-2.5 pointer-events-none opacity-60" />
-                    </div>
+                        }, 150);
+                      }}
+                      className={`appearance-none cursor-pointer pl-6 pr-2.5 sm:pl-7 sm:pr-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 outline-none shadow-2xs ${
+                        theme === "navy-velvet"
+                          ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
+                          : theme === "gold-velvet"
+                            ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
+                            : theme === "emerald-velvet"
+                              ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
+                              : isDark
+                                ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
+                                : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
+                      }`}
+                      title="اختر الآية"
+                    >
+                      {Array.from({ length: currentSurahMeta?.numberOfAyahs || 286 }).map((_, i) => (
+                        <option key={i + 1} value={i + 1} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-slate-100">
+                          آية {toArabicNumerals(i + 1)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="absolute left-2 sm:left-2.5 pointer-events-none opacity-60" />
                   </div>
                 </div>
+                )}
 
-                {/* الشريط 1: شريط الخدمات الرئيسي في سطر واحد وبأيقونات مميزة */}
+                {/* شريط الأيقونات الموحد المباشر (بدون تفريعات): التفسير الميسر ، السعدي ، ترجمة ، غريب الآية ، إعراب ، صرف ، بلاغة ، أسباب النزول ، تدبر ، التقييدات */}
                 <div 
                   id="library-services-horizontal-bar"
                   dir="rtl"
                   style={{ direction: "rtl" }}
-                  className={`w-full mx-auto mb-2.5 flex items-center justify-start sm:justify-between gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-2xl border shadow-2xs overflow-x-auto scrollbar-none flex-nowrap whitespace-nowrap select-none ${
+                  className={`w-full mx-auto mb-6 flex items-center justify-start gap-1 sm:gap-1.5 p-1.5 rounded-2xl border shadow-2xs overflow-x-auto scrollbar-none flex-nowrap whitespace-nowrap select-none ${
                     theme === "navy-velvet"
                       ? "bg-[#F0F5FE] border-[#3F63C6]/25 text-slate-900"
                       : theme === "gold-velvet"
@@ -9054,7 +9377,7 @@ export default function ReadingScreen({
                   }`}
                 >
                   {CONTINUOUS_SERVICES_LIST.map((service) => {
-                    const isActive = continuousActiveService === service.id;
+                    const isActive = continuousActiveMode === service.id;
                     const ServiceIcon = service.icon;
                     return (
                       <button
@@ -9062,16 +9385,11 @@ export default function ReadingScreen({
                         id={`service-tab-${service.id}`}
                         type="button"
                         onClick={() => {
-                          setContinuousActiveService(service.id);
-                          const catBooks = DEFAULT_BOOKS.filter((b) => b.mainCategory === service.id);
-                          if (catBooks.length > 0) {
-                            setContinuousActiveMode(catBooks[0].id);
-                          } else if (service.id === "notes") {
-                            setContinuousActiveMode("notes");
-                          }
+                          setContinuousActiveMode(service.id);
+                          setContinuousActiveService(service.mainCategory);
                         }}
                         title={service.desc}
-                        className={`flex-1 min-w-max sm:min-w-0 py-2 px-2.5 sm:px-3 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 select-none ${
+                        className={`flex-1 min-w-max py-2 px-3 sm:px-3.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 select-none ${
                           isActive
                             ? theme === "navy-velvet"
                               ? "bg-[#3F63C6] text-white shadow-xs scale-[1.01]"
@@ -9092,81 +9410,6 @@ export default function ReadingScreen({
                       </button>
                     );
                   })}
-                </div>
-
-                {/* الشريط 2: شريط الكتب والمراجع المتخصصة للخدمة المختارة في سطر واحد أفقي */}
-                <div 
-                  id="library-horizontal-books-bar"
-                  dir="rtl"
-                  style={{ direction: "rtl" }}
-                  className={`w-full mx-auto mb-6 flex items-center gap-1.5 sm:gap-2 p-1.5 rounded-2xl border shadow-2xs overflow-x-auto scrollbar-none flex-nowrap whitespace-nowrap select-none ${
-                    theme === "navy-velvet"
-                      ? "bg-white/90 border-[#3F63C6]/20"
-                      : theme === "gold-velvet"
-                        ? "bg-[#FAF2DF]/40 border-[#c5a85c]/25"
-                        : theme === "emerald-velvet"
-                          ? "bg-[#012519]/40 border-emerald-300/30"
-                          : isDark
-                            ? "bg-slate-900/60 border-slate-800"
-                            : "bg-white/90 border-slate-200"
-                  }`}
-                >
-                  {continuousServiceBooks.map((book) => {
-                    const isSelected = continuousActiveMode === book.id;
-                    return (
-                      <button
-                        key={book.id}
-                        type="button"
-                        onClick={() => setContinuousActiveMode(book.id)}
-                        title={book.author ? `${book.title} - ${book.author}` : book.title}
-                        className={`py-2 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 select-none ${
-                          isSelected
-                            ? theme === "navy-velvet"
-                              ? "bg-[#3F63C6] text-white shadow-xs font-black scale-[1.01]"
-                              : theme === "gold-velvet"
-                                ? "bg-[#c5a85c] text-[#011c14] shadow-xs font-black scale-[1.01]"
-                                : theme === "emerald-velvet"
-                                  ? "bg-[#34d399] text-[#011a12] shadow-xs font-black scale-[1.01]"
-                                  : isDark
-                                    ? "bg-emerald-500 text-slate-950 shadow-xs font-black scale-[1.01]"
-                                    : "bg-emerald-700 text-white shadow-xs font-black scale-[1.01]"
-                            : isDark
-                              ? "bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60"
-                              : theme === "navy-velvet"
-                                ? "bg-white text-slate-800 hover:bg-slate-50 border border-slate-200"
-                                : theme === "gold-velvet"
-                                  ? "bg-white text-amber-950 hover:bg-amber-50 border border-[#c5a85c]/30"
-                                  : theme === "emerald-velvet"
-                                    ? "bg-white text-emerald-950 hover:bg-emerald-50 border border-emerald-200"
-                                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
-                        }`}
-                      >
-                        <span>{book.title}</span>
-                      </button>
-                    );
-                  })}
-
-                  {continuousActiveService === "translations" && (
-                    <button
-                      type="button"
-                      onClick={() => setIsTranslationsCatalogOpen(true)}
-                      title="تصفح جميع لغات العالم وتراجم القرآن الكريم المعتمدة (90+ لغة)"
-                      className={`py-2 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 border border-dashed select-none shadow-2xs ${
-                        theme === "navy-velvet"
-                          ? "border-[#3F63C6]/60 text-[#3F63C6] hover:bg-blue-50/80 bg-white/70"
-                          : theme === "gold-velvet"
-                            ? "border-[#c5a85c]/60 text-[#8c6b23] hover:bg-[#f5eedc]/80 bg-[#FAF5E6]/70"
-                            : theme === "emerald-velvet"
-                              ? "border-[#34d399]/60 text-[#34d399] hover:bg-[#012519]/80 bg-[#011a12]/60"
-                              : isDark
-                                ? "border-emerald-500/50 text-emerald-400 hover:bg-slate-800 bg-slate-800/50"
-                                : "border-emerald-600/50 text-emerald-700 hover:bg-emerald-50 bg-white/70"
-                      }`}
-                    >
-                      <Globe size={15} className="shrink-0" />
-                      <span>المزيد من لغات العالم...</span>
-                    </button>
-                  )}
                 </div>
 
                 {surahNumber !== 9 && surahNumber !== 1 && (
@@ -9245,8 +9488,8 @@ export default function ReadingScreen({
       {/* Centered Floating Panels for AI Tafsir */}
       {/* Floating Bubble Toolbar removed per user request */}
 
-      {/* Floating Scroll-to-Top Button for Library Page (Bottom-Left Corner) */}
-      {effectivePageMode === "continuous" && (
+      {/* Floating Scroll-to-Top Button - خاص بصفحة المكتبة فقط ومخفي في الفهرس وصفحات المصحف وعلاماتي والأدراج */}
+      {effectivePageMode === "continuous" && !isIndexOpen && serviceDrawerTab === null && activeTab === "home" && (
         <motion.button
           id="library-scroll-to-top-button"
           type="button"
@@ -9259,8 +9502,8 @@ export default function ReadingScreen({
           title="الرجوع لأعلى الصفحة"
           aria-label="الرجوع لأعلى الصفحة"
           className={`fixed left-4 sm:left-6 ${
-            showBars ? "bottom-28 sm:bottom-32" : "bottom-14 sm:bottom-16"
-          } z-[350] p-3 sm:p-3.5 rounded-full shadow-2xl border cursor-pointer flex items-center justify-center transition-all duration-200 select-none group bg-red-600 text-white border-red-500 hover:bg-red-700 active:bg-red-800 shadow-red-900/40 hover:shadow-red-900/60`}
+            showBars ? "bottom-36 sm:bottom-40" : "bottom-24 sm:bottom-28"
+          } z-[350] p-3 sm:p-3.5 rounded-full shadow-2xl border cursor-pointer flex items-center justify-center transition-all duration-200 select-none group bg-red-600 text-white border-red-400 hover:bg-red-700 active:bg-red-800 shadow-red-900/40 hover:shadow-red-900/60`}
         >
           <ArrowUp size={22} className="stroke-[2.5px] text-white group-hover:-translate-y-1 transition-transform duration-200" />
         </motion.button>
@@ -9404,13 +9647,10 @@ export default function ReadingScreen({
                         onActiveTabChange?.("home");
                       }
                     }}
-                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                      theme === "navy-velvet" || theme === "gold-velvet" || !isDark
-                        ? "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                        : "text-slate-400 hover:text-white hover:bg-white/5"
-                    }`}
+                    className="p-1.5 rounded-lg transition-colors cursor-pointer bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400"
+                    title="إغلاق"
                   >
-                    <X size={16} />
+                    <X size={16} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
                   </button>
                 </div>
               </div>
@@ -9838,9 +10078,10 @@ export default function ReadingScreen({
               </div>
               <button
                 onClick={() => setRecitationError(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors cursor-pointer"
+                className="text-red-500 dark:text-red-400 hover:text-red-600 p-1 rounded-md transition-colors cursor-pointer"
+                title="إغلاق"
               >
-                <X size={14} />
+                <X size={14} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
               </button>
             </motion.div>
           )}
@@ -10144,13 +10385,10 @@ export default function ReadingScreen({
                   </div>
                   <button
                     onClick={() => setTafsirModalAyah(null)}
-                    className={`p-1.5 rounded-full transition-colors ${
-                      isDark 
-                        ? "hover:bg-slate-800 text-slate-400 hover:text-slate-200" 
-                        : "hover:bg-slate-100 text-slate-500 hover:text-slate-800"
-                    }`}
+                    className="p-1.5 rounded-full transition-colors bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer"
+                    title="إغلاق"
                   >
-                    <X size={18} />
+                    <X size={18} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
                   </button>
                 </div>
 
@@ -10418,6 +10656,174 @@ export default function ReadingScreen({
           </div>
         )}
 
+        {/* Floating Ayah Long-Press Context Menu (قائمة عائمة عند الضغط مطولاً على الآية مكبرة بنسبة 100% مع أسماء العلامات) */}
+        <AnimatePresence>
+          {floatingAyahMenu && (
+            <div
+              className="fixed inset-0 z-[450] select-none pointer-events-auto"
+              onClick={() => setFloatingAyahMenu(null)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setFloatingAyahMenu(null);
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85, y: -6 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                onClick={(e) => e.stopPropagation()}
+                dir="rtl"
+                style={{
+                  position: "fixed",
+                  left: `${Math.max(10, Math.min(floatingAyahMenu.x - 145, window.innerWidth - 315))}px`,
+                  top: `${floatingAyahMenu.y > 170 ? Math.max(16, floatingAyahMenu.y - 110) : Math.min(window.innerHeight - 170, floatingAyahMenu.y + 25)}px`,
+                }}
+                className={`rounded-3xl p-2.5 sm:p-3 shadow-2xl border backdrop-blur-xl flex flex-col gap-2 sm:gap-2.5 z-[460] select-none ${
+                  theme === "emerald-velvet"
+                    ? "bg-[#012519]/95 border-[#c5a85c]/45 text-[#FAF8F5] shadow-black/70"
+                    : theme === "gold-velvet"
+                      ? "bg-[#FFFDF5]/95 border-[#c5a85c]/50 text-[#011c14] shadow-amber-950/25"
+                      : theme === "navy-velvet"
+                        ? "bg-white/95 border-[#3F63C6]/35 text-slate-900 shadow-[#3F63C6]/25"
+                        : isDark
+                          ? "bg-slate-900/95 border-slate-700 text-slate-100 shadow-black/70"
+                          : "bg-white/95 border-emerald-200 shadow-emerald-950/20 text-slate-900"
+                }`}
+              >
+                {/* Main Action Icons Row - مكبر بنسبة 100% */}
+                <div className="flex items-center gap-2 sm:gap-2.5">
+                  {/* 1. Copy icon */}
+                  <button
+                    type="button"
+                    onClick={handleFloatingCopyAyah}
+                    title="نسخ الآية"
+                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 ${
+                      floatingCopied ? "bg-emerald-500/20 text-emerald-500" : ""
+                    }`}
+                  >
+                    {floatingCopied ? (
+                      <Check size={34} className="text-emerald-500 stroke-[3px]" />
+                    ) : (
+                      <Copy size={34} />
+                    )}
+                  </button>
+
+                  {/* 2. Share icon */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleOpenShareAyah(floatingAyahMenu.ayah);
+                      setFloatingAyahMenu(null);
+                    }}
+                    title="مشاركة الآية"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
+                  >
+                    <Share2 size={34} />
+                  </button>
+
+                  {/* 3. Bookmark / Tag icon (reveals markers list on click) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFloatingAyahMenu(prev => prev ? { ...prev, showBookmarksList: !prev.showBookmarksList } : null);
+                    }}
+                    title="وضع علامة"
+                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 ${
+                      floatingAyahMenu.showBookmarksList
+                        ? (theme === "emerald-velvet" || theme === "gold-velvet" ? "bg-[#c5a85c]/25 text-[#c5a85c]" : "bg-emerald-500/20 text-emerald-500")
+                        : bookmarks.some(b => b.surahNumber === floatingAyahMenu.surahNumber && b.ayahNumber === floatingAyahMenu.ayah.numberInSurah)
+                          ? "text-amber-500"
+                          : ""
+                    }`}
+                  >
+                    <BookmarkIcon
+                      size={34}
+                      className={bookmarks.some(b => b.surahNumber === floatingAyahMenu.surahNumber && b.ayahNumber === floatingAyahMenu.ayah.numberInSurah) ? "fill-current text-amber-500" : ""}
+                    />
+                  </button>
+
+                  {/* 4. Note & Tadabbur icon */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleOpenAyahNoteModal(floatingAyahMenu.ayah);
+                      setFloatingAyahMenu(null);
+                    }}
+                    title="كتابة ملاحظة وتدبر"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
+                  >
+                    <FileText size={34} />
+                  </button>
+                </div>
+
+                {/* Sub-row: Bookmarks / Markers List مع إظهار أسماء أنواع العلامات */}
+                {floatingAyahMenu.showBookmarksList && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="pt-2 mt-1 border-t border-current/15 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 px-1"
+                  >
+                    {[
+                      { id: "reading", name: "تلاوة", dot: "bg-red-500", ring: "ring-red-400", title: "علامة التلاوة" },
+                      { id: "memorization", name: "حفظ", dot: "bg-sky-400", ring: "ring-sky-300", title: "علامة الحفظ" },
+                      { id: "revision", name: "مراجعة", dot: "bg-emerald-400", ring: "ring-emerald-300", title: "علامة المراجعة" },
+                      { id: "contemplation", name: "تدبر", dot: "bg-purple-500", ring: "ring-purple-400", title: "علامة التدبر" }
+                    ].map((cat) => {
+                      const isCurrent = bookmarks.some(
+                        b => b.surahNumber === floatingAyahMenu.surahNumber &&
+                             b.ayahNumber === floatingAyahMenu.ayah.numberInSurah &&
+                             b.category === cat.id
+                      );
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            if (isCurrent) {
+                              onToggleBookmark(floatingAyahMenu.surahNumber, floatingAyahMenu.surahName, floatingAyahMenu.ayah.numberInSurah);
+                            } else {
+                              onToggleBookmark(floatingAyahMenu.surahNumber, floatingAyahMenu.surahName, floatingAyahMenu.ayah.numberInSurah, cat.id as any);
+                            }
+                            setFloatingAyahMenu(null);
+                          }}
+                          title={cat.title}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border transition-all cursor-pointer active:scale-95 ${
+                            isCurrent 
+                              ? `ring-2 ring-offset-1 ${cat.ring} border-current/35 bg-black/5 dark:bg-white/10 font-black` 
+                              : "border-current/15 hover:border-current/30 hover:bg-black/5 dark:hover:bg-white/5 font-bold"
+                          }`}
+                        >
+                          <span className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full shadow-md ${cat.dot} flex items-center justify-center shrink-0`}>
+                            {isCurrent && <Check size={12} className="text-white stroke-[3px]" />}
+                          </span>
+                          <span className="text-xs sm:text-sm">{cat.name}</span>
+                        </button>
+                      );
+                    })}
+
+                    {bookmarks.some(b => b.surahNumber === floatingAyahMenu.surahNumber && b.ayahNumber === floatingAyahMenu.ayah.numberInSurah) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onToggleBookmark(floatingAyahMenu.surahNumber, floatingAyahMenu.surahName, floatingAyahMenu.ayah.numberInSurah);
+                          setFloatingAyahMenu(null);
+                        }}
+                        title="حذف العلامة"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-rose-500 hover:bg-rose-500/10 border border-rose-500/30 transition-all cursor-pointer active:scale-95"
+                      >
+                        <Trash2 size={16} />
+                        <span>حذف</span>
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* Ayah Note Drawer (ملاحظة على الآية) */}
         <AnimatePresence>
           {ayahNoteModal && (
@@ -10537,10 +10943,10 @@ export default function ReadingScreen({
                     <button
                       type="button"
                       onClick={() => setAyahNoteModal(null)}
-                      className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer opacity-75 hover:opacity-100"
+                      className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 transition-colors cursor-pointer"
                       title="إغلاق"
                     >
-                      <X size={18} />
+                      <X size={18} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
                     </button>
                   </div>
                 </div>
@@ -10548,19 +10954,47 @@ export default function ReadingScreen({
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-4 custom-scrollbar">
                   {/* Ayah Snippet preview */}
-                  <div className={`p-4 rounded-2xl border text-center text-sm sm:text-base font-serif leading-loose shadow-xs ${
-                    theme === "emerald-velvet"
-                      ? "bg-[#01140e] border-[#c5a85c]/20 text-[#FAF8F5]"
-                      : theme === "gold-velvet"
-                        ? "bg-[#FAF5E6] border-[#c5a85c]/25 text-[#011c14]"
-                        : theme === "navy-velvet"
-                          ? "bg-slate-50 border-slate-200 text-slate-800"
-                          : isDark
-                            ? "bg-slate-950/70 border-slate-800 text-slate-200"
-                            : "bg-emerald-50/60 border-emerald-100 text-emerald-950"
-                  }`} style={{ fontFamily: "'UthmanicHafs', 'Amiri', serif" }}>
-                    {ayahNoteModal.ayah.text}
-                  </div>
+                  {(() => {
+                    let cleanNoteAyahText = ayahNoteModal.ayah.text || "";
+                    if (ayahNoteModal.surahNumber !== 1 && ayahNoteModal.ayah.numberInSurah === 1) {
+                      const bismillahTemplate = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
+                      if (cleanNoteAyahText.startsWith(bismillahTemplate)) {
+                        cleanNoteAyahText = cleanNoteAyahText.replace(bismillahTemplate, "").trim();
+                      }
+                    }
+
+                    return (
+                      <div 
+                        className={`p-4 sm:p-5 rounded-2xl border text-center leading-loose shadow-xs break-normal select-text ${
+                          theme === "emerald-velvet"
+                            ? "bg-[#01140e] border-[#c5a85c]/20 text-[#FAF8F5]"
+                            : theme === "gold-velvet"
+                              ? "bg-[#FAF5E6] border-[#c5a85c]/25 text-[#011c14]"
+                              : theme === "navy-velvet"
+                                ? "bg-slate-50 border-slate-200 text-slate-800"
+                                : isDark
+                                  ? "bg-slate-950/70 border-slate-800 text-slate-200"
+                                  : "bg-emerald-50/60 border-emerald-100 text-emerald-950"
+                        }`} 
+                        dir="rtl"
+                        style={{ 
+                          fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif",
+                          wordBreak: "keep-all",
+                          overflowWrap: "normal"
+                        }}
+                      >
+                        <Qcf4VerseText
+                          surah={ayahNoteModal.surahNumber}
+                          ayah={ayahNoteModal.ayah.numberInSurah}
+                          page={ayahNoteModal.ayah.page}
+                          fallbackText={cleanNoteAyahText}
+                          fontSize="20px"
+                          theme={theme}
+                          isDark={isDark}
+                        />
+                      </div>
+                    );
+                  })()}
 
                   {/* Textarea Area */}
                   <div className="flex-1 flex flex-col gap-2 min-h-0">

@@ -843,9 +843,10 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
         {searchQuery && (
           <button 
             onClick={() => setSearchQuery("")}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100 p-1 cursor-pointer"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-red-500 dark:text-red-400 hover:text-red-600 p-1 cursor-pointer"
+            title="مسح"
           >
-            <X size={16} />
+            <X size={16} className="text-red-500 dark:text-red-400" />
           </button>
         )}
       </div>

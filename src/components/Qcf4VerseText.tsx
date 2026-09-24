@@ -119,7 +119,7 @@ export const Qcf4VerseText: React.FC<Qcf4VerseTextProps> = ({
         highlight ? (isDark ? "bg-emerald-500/30 text-emerald-200 rounded px-1" : "bg-amber-400/30 rounded px-1") : ""
       }`}
       dir="rtl"
-      style={{ fontSize }}
+      style={{ fontSize, wordBreak: "keep-all", overflowWrap: "normal" }}
     >
       {displayedWords.map((w, idx) => (
         <span
@@ -128,8 +128,10 @@ export const Qcf4VerseText: React.FC<Qcf4VerseTextProps> = ({
             fontFamily: `${w.font || font}, 'Amiri', serif`,
             lineHeight: 1.5,
             color: w.type !== "end" && textColor ? textColor : undefined,
+            whiteSpace: "nowrap",
+            display: "inline-block",
           }}
-          className={w.type === "end" ? `${endColorClass} font-semibold` : (textColor ? "" : (theme === "emerald-velvet" ? "text-[#FAF8F5]" : isDark ? "text-slate-100" : "text-slate-900"))}
+          className={w.type === "end" ? `${endColorClass} font-semibold shrink-0` : (textColor ? "shrink-0" : (theme === "emerald-velvet" ? "text-[#FAF8F5] shrink-0" : isDark ? "text-slate-100 shrink-0" : "text-slate-900 shrink-0"))}
         >
           {w.char}
         </span>

@@ -113,7 +113,7 @@ export default function TranslationsCatalogModal({
       title: book.title,
       author: book.description || book.title,
       mainCategory: "translations",
-      subCategory: "world_translations",
+      subCategory: "english_translations",
       apiType: book.key,
       isDownloaded: true
     };
@@ -182,10 +182,11 @@ export default function TranslationsCatalogModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-black/10 transition-all cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 transition-all cursor-pointer"
             aria-label="إغلاق"
+            title="إغلاق"
           >
-            <X size={18} />
+            <X size={18} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
           </button>
         </div>
 

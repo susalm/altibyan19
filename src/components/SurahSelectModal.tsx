@@ -130,9 +130,10 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="text-slate-400 hover:text-slate-600 mr-1 cursor-pointer"
+                className="text-red-500 dark:text-red-400 hover:text-red-600 mr-1 cursor-pointer p-0.5"
+                title="مسح"
               >
-                <X size={12} />
+                <X size={12} className="text-red-500 dark:text-red-400" />
               </button>
             )}
           </div>

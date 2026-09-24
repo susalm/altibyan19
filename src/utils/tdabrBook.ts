@@ -1,17 +1,26 @@
 import { surahsList } from "../data/surahList";
-import { lyadabbarooGems } from "../data/lyadabbarooBookGems";
-import { TdabrText as tdabrRawText } from "../data/TdabrData";
-import { tdabur1Text } from "../data/tdabur1Data";
-import { tdabur2Text } from "../data/tdabur2Data";
-import { tdabur3Text } from "../data/tdabur3Data";
-import { tdabur4Text } from "../data/tdabur4Data";
+import { lyadabbarooGroup1Text } from "../data/lyadabbarooGroup1Data";
+import { lyadabbarooGroup2Text } from "../data/lyadabbarooGroup2Data";
+import { lyadabbarooGroup3Text } from "../data/lyadabbarooGroup3Data";
+import { lyadabbarooGroup4Text } from "../data/lyadabbarooGroup4Data";
+import { lyadabbarooGroup5Text } from "../data/lyadabbarooGroup5Data";
 import { Srf1Text } from "../data/Srf1Data";
 import { Srf2Text } from "../data/Srf2Data";
+import {
+  generateAllBooksTadabbur,
+  formatMultiBookTadabbur,
+  parseTadabburSections,
+  TadabburBookSection
+} from "./tdabrMultiBook";
+
+export { parseTadabburSections, formatMultiBookTadabbur };
+export type { TadabburBookSection };
 
 export interface TdabrInsight {
   title?: string;
   ayahText?: string;
   tadabburText: string;
+  author?: string;
   source: string;
   surahNumber?: number;
   ayahNumber?: number;
@@ -31,21 +40,21 @@ function cleanArabic(str: string): string {
 }
 
 function matchSurahNames(surahNum: number, canonicalName: string, lineSurahStr: string): boolean {
-  const cNorm = cleanArabic(canonicalName);
-  const lNorm = cleanArabic(lineSurahStr);
+  const cNorm = cleanArabic(canonicalName).replace(/^ال/, "");
+  const lNorm = cleanArabic(lineSurahStr).replace(/^ال/, "");
   if (!cNorm || !lNorm) return false;
   if (cNorm === lNorm) return true;
-
-  const cNoAl = cNorm.replace(/^ال/, "");
-  const lNoAl = lNorm.replace(/^ال/, "");
-  if (cNoAl && lNoAl && cNoAl === lNoAl) return true;
 
   if (surahNum === 9 && (lNorm.includes("براءه") || lNorm.includes("توبه"))) return true;
   if (surahNum === 17 && (lNorm.includes("اسراء") || lNorm.includes("بني اسرائيل"))) return true;
   if (surahNum === 76 && (lNorm.includes("انسان") || lNorm.includes("دهر"))) return true;
   if (surahNum === 94 && (lNorm.includes("شرح") || lNorm.includes("انشراح"))) return true;
+  if (surahNum === 112 && (lNorm.includes("اخلاص") || lNorm.includes("توحيد"))) return true;
 
-  return lNorm.includes(cNoAl) || cNorm.includes(lNoAl);
+  if (cNorm.length > 2 && lNorm.length > 2) {
+    return lNorm.includes(cNorm) || cNorm.includes(lNorm);
+  }
+  return false;
 }
 
 function parseHeader(header: string): { surahIdent: string | number; ayahStart: number; ayahEnd: number } | null {
@@ -75,11 +84,14 @@ export function parseTdabrSource(
   sourceText: string,
   surahNumber: number,
   ayahNumber: number,
-  surahName: string,
+  surahNameInput: string,
   sourceLabel: string
 ): TdabrInsight[] {
   const results: TdabrInsight[] = [];
   if (!sourceText) return results;
+
+  const surahMeta = surahsList.find((s) => s.number === surahNumber);
+  const surahName = surahNameInput || (surahMeta ? surahMeta.name : "");
 
   const blocks = sourceText.split(/\[([^\]]+)\]/);
   for (let i = 1; i < blocks.length; i += 2) {
@@ -87,51 +99,53 @@ export function parseTdabrSource(
     const body = blocks[i + 1] || "";
 
     const parsed = parseHeader(header);
-    if (parsed) {
-      const isAyahInRange = ayahNumber >= parsed.ayahStart && ayahNumber <= parsed.ayahEnd;
-      let isSurahMatch = false;
+    if (!parsed) continue;
 
-      if (typeof parsed.surahIdent === "number") {
-        isSurahMatch = parsed.surahIdent === surahNumber;
-      } else {
-        isSurahMatch = matchSurahNames(surahNumber, surahName, parsed.surahIdent);
+    let isMatch = false;
+    if (typeof parsed.surahIdent === "number") {
+      isMatch = parsed.surahIdent === surahNumber;
+    } else {
+      isMatch = matchSurahNames(surahNumber, surahName, parsed.surahIdent);
+    }
+
+    if (!isMatch) continue;
+
+    if (ayahNumber < parsed.ayahStart || ayahNumber > parsed.ayahEnd) {
+      continue;
+    }
+
+    // Extract title, ayah, and tadabbur text from block lines
+    let title = "";
+    let ayahText = "";
+    let tadabburText = "";
+
+    const lines = body.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      if (trimmed.startsWith("العنوان:")) {
+        title = trimmed.replace("العنوان:", "").trim();
+      } else if (trimmed.startsWith("الآية:") || trimmed.startsWith("الاية:")) {
+        ayahText = trimmed.replace(/^(?:الآية|الاية):/, "").trim();
+      } else if (trimmed.startsWith("التدبر:") || trimmed.startsWith("الوقفة:")) {
+        tadabburText = trimmed.replace(/^(?:التدبر|الوقفة):/, "").trim();
+      } else if (trimmed.startsWith("المصدر:") || trimmed.startsWith("===")) {
+        continue;
+      } else if (!tadabburText && !trimmed.startsWith("العنوان:")) {
+        tadabburText += (tadabburText ? " " : "") + trimmed;
       }
+    }
 
-      if (isAyahInRange && isSurahMatch) {
-        let title = "";
-        let aText = "";
-        let tadabburText = "";
-
-        const lines = body.split(/\r?\n/);
-        for (const line of lines) {
-          if (line.startsWith("العنوان:")) {
-            title = line.replace("العنوان:", "").trim();
-          } else if (line.startsWith("الآية:")) {
-            aText = line.replace("الآية:", "").trim();
-          } else if (line.startsWith("التدبر:")) {
-            tadabburText = line.replace("التدبر:", "").trim();
-          } else if (
-            line.trim() &&
-            !tadabburText &&
-            !title &&
-            !line.startsWith("===") &&
-            !line.startsWith("المصدر:")
-          ) {
-            tadabburText += line.trim() + " ";
-          }
-        }
-
-        if (tadabburText.trim()) {
-          results.push({
-            title: title || undefined,
-            ayahText: aText || undefined,
-            tadabburText: tadabburText.trim(),
-            source: sourceLabel,
-            surahNumber,
-            ayahNumber
-          });
-        }
-      }
+    if (tadabburText) {
+      results.push({
+        title: title || undefined,
+        ayahText: ayahText || undefined,
+        tadabburText,
+        source: sourceLabel,
+        surahNumber,
+        ayahNumber
+      });
     }
   }
 
@@ -139,7 +153,8 @@ export function parseTdabrSource(
 }
 
 /**
- * Aggregates all available Tadabbur pearls from all datasets for a given ayah.
+ * Aggregates all available Tadabbur pearls from the 5 canonical volumes of «ليدبروا آياته»
+ * for a given ayah, returning every reflection found in the sources.
  */
 export function getAllTdabrInsights(
   surahNumber: number,
@@ -152,69 +167,83 @@ export function getAllTdabrInsights(
 
   const allInsights: TdabrInsight[] = [];
 
-  // 1. Check Lyadabbaroo Gems
-  const matchedGems = lyadabbarooGems.filter(
-    (g) => g.surahNumber === surahNumber && g.ayahNumber === ayahNumber
-  );
-  const partSource = surahNumber <= 6 ? "ليدبروا ١" : surahNumber <= 18 ? "ليدبروا ٢" : surahNumber <= 39 ? "ليدبروا ٣" : "ليدبروا ٤";
-  for (const g of matchedGems) {
-    allInsights.push({
-      title: g.title,
-      ayahText: g.ayahText || ayahText,
-      tadabburText: g.tadabburText,
-      source: partSource,
+  // Group 1 (المجموعة الأولى: الفاتحة إلى الأنعام)
+  if (lyadabbarooGroup1Text) {
+    const parsed1 = parseTdabrSource(
+      lyadabbarooGroup1Text,
       surahNumber,
-      ayahNumber
-    });
-  }
-
-  // 2. Check TdabrText (ليدبروا آياته العام)
-  if (tdabrRawText) {
-    const parsed = parseTdabrSource(tdabrRawText, surahNumber, ayahNumber, surahName, partSource);
-    for (const item of parsed) {
-      allInsights.push(item);
-    }
-  }
-
-  // 3. Check Part 1 (tdabur1.txt - الفاتحة إلى الأنعام)
-  if (tdabur1Text) {
-    const parsed1 = parseTdabrSource(tdabur1Text, surahNumber, ayahNumber, surahName, "ليدبروا ١");
+      ayahNumber,
+      surahName,
+      "كتاب «ليدبروا آياته» - المجموعة الأولى"
+    );
     for (const item of parsed1) {
       allInsights.push(item);
     }
   }
 
-  // 4. Check Part 2 (tdabur2.txt - الأعراف إلى الكهف)
-  if (tdabur2Text) {
-    const parsed2 = parseTdabrSource(tdabur2Text, surahNumber, ayahNumber, surahName, "ليدبروا ٢");
+  // Group 2 (المجموعة الثانية: الأعراف إلى الكهف)
+  if (lyadabbarooGroup2Text) {
+    const parsed2 = parseTdabrSource(
+      lyadabbarooGroup2Text,
+      surahNumber,
+      ayahNumber,
+      surahName,
+      "كتاب «ليدبروا آياته» - المجموعة الثانية"
+    );
     for (const item of parsed2) {
       allInsights.push(item);
     }
   }
 
-  // 5. Check Part 3 (tdabur3.txt - مريم إلى الزمر)
-  if (tdabur3Text) {
-    const parsed3 = parseTdabrSource(tdabur3Text, surahNumber, ayahNumber, surahName, "ليدبروا ٣");
+  // Group 3 (المجموعة الثالثة: مريم إلى الزمر)
+  if (lyadabbarooGroup3Text) {
+    const parsed3 = parseTdabrSource(
+      lyadabbarooGroup3Text,
+      surahNumber,
+      ayahNumber,
+      surahName,
+      "كتاب «ليدبروا آياته» - المجموعة الثالثة"
+    );
     for (const item of parsed3) {
       allInsights.push(item);
     }
   }
 
-  // 6. Check Part 4 (tdabur4.txt - غافر إلى الناس)
-  if (tdabur4Text) {
-    const parsed4 = parseTdabrSource(tdabur4Text, surahNumber, ayahNumber, surahName, "ليدبروا ٤");
+  // Group 4 (المجموعة الرابعة: غافر إلى الحديد)
+  if (lyadabbarooGroup4Text) {
+    const parsed4 = parseTdabrSource(
+      lyadabbarooGroup4Text,
+      surahNumber,
+      ayahNumber,
+      surahName,
+      "كتاب «ليدبروا آياته» - المجموعة الرابعة"
+    );
     for (const item of parsed4) {
       allInsights.push(item);
     }
   }
 
-  // Deduplicate and combine source labels if texts are identical
+  // Group 5 (المجموعة الخامسة: المجادلة إلى الناس)
+  if (lyadabbarooGroup5Text) {
+    const parsed5 = parseTdabrSource(
+      lyadabbarooGroup5Text,
+      surahNumber,
+      ayahNumber,
+      surahName,
+      "كتاب «ليدبروا آياته» - المجموعة الخامسة"
+    );
+    for (const item of parsed5) {
+      allInsights.push(item);
+    }
+  }
+
+  // Deduplicate strictly identical texts while keeping distinct insights across groups
   const uniqueInsights: TdabrInsight[] = [];
   for (const item of allInsights) {
     const cleanItemText = cleanArabic(item.tadabburText);
     const existing = uniqueInsights.find((u) => {
       const cleanExistingText = cleanArabic(u.tadabburText);
-      return cleanExistingText === cleanItemText || cleanExistingText.includes(cleanItemText) || cleanItemText.includes(cleanExistingText);
+      return cleanExistingText === cleanItemText;
     });
 
     if (existing) {
@@ -236,81 +265,6 @@ export function getAllTdabrInsights(
 }
 
 /**
- * Generates rich, authentic contemplation pearls (وقفات تدبرية)
- * inspired by the verse's keywords, themes, and Surah guidance.
- */
-export function generateSmartOfflineTadabbur(
-  surahNumber: number,
-  ayahNumber: number,
-  surahName?: string,
-  ayahText?: string
-): TdabrInsight[] {
-  const sMeta = surahsList.find((s) => s.number === surahNumber);
-  const sName = surahName || sMeta?.name || `السورة ${surahNumber}`;
-  const rawText = ayahText || "";
-  const cleaned = cleanArabic(rawText);
-
-  const insights: TdabrInsight[] = [];
-
-  // Insight 1: المقصد الإيماني والهداية المركزية
-  let insight1Text = `هذه الآية الكريمة من سورة (${sName}) ترسم للمؤمن معلماً إيمانياً جليلاً؛ فكل كلمة في النظم القرآني مقصودة لبناء اليقين وتزكية النفس، وتذكير العبد بحقه سبحانه في الطاعة والتعظيم، واستشعار معيته في كل شأن.`;
-  if (cleaned.includes("الله") || cleaned.includes("الرحمن") || cleaned.includes("رب")) {
-    insight1Text = `تتجلى في هذه الآية الكريمة عظمة الربوبية وأسماء الله الحسنى وصفاته العلى؛ فالمؤمن حين يتلوها يمتلئ قلبه تعظيماً لله وحباً له، موقناً بأنه المدبر لكل أمر والرحيم بعباده، فيثمر ذلك طمأنينة النفس وصدق الالتجاء إليه.`;
-  } else if (cleaned.includes("امنوا") || cleaned.includes("متقين") || cleaned.includes("صالحات")) {
-    insight1Text = `نداء إيماني عظيم يخاطب جوهر القلب؛ يربط بين حقيقة الإيمان والعمل الصالح، مبيناً أن التقوى ليست مجرد دعوى، بل هي سلوك عملي ومراقبة دائمة للخالق في السر والعلن.`;
-  } else if (cleaned.includes("صبر") || cleaned.includes("شكر") || cleaned.includes("توكل")) {
-    insight1Text = `قاعدة إيمانية تربوية في تهذيب النفس؛ تدعو العبد إلى الثبات واليقين وحسن التوكل على الله، مع استحضار أن عواقب الصبر والشكر هي الفلاح والرفعة في الدارين.`;
-  } else if (cleaned.includes("غفور") || cleaned.includes("رحيم") || cleaned.includes("توب") || cleaned.includes("استغفر")) {
-    insight1Text = `باب عظيم من أبواب الرجاء والأمل في سعة رحمة الله ومغفرته؛ يفتح للعبد آفاق التوبة والإنابة، ويبين أن الله سبحانه يفرح بتوبة عبده ويغفر الذنوب جميعاً لمن استغفر وأناب.`;
-  }
-
-  insights.push({
-    title: "المقصد الإيماني والهداية المركزية للآية",
-    ayahText: rawText,
-    tadabburText: insight1Text,
-    source: "ليدبروا آياته - مركز تدبر للدراسات / قبسات من هدايات الآيات",
-    surahNumber,
-    ayahNumber
-  });
-
-  // Insight 2: لطيفة قرآنية ولمسة بيانية
-  let insight2Text = `التعبير القرآني في هذه الآية محكم بأدق الألفاظ؛ فتقديم المفردات وتناسق الفواصل يحرك الوجدان ويوجه الفكر للتأمل في دقائق الحكمة الإلهية وما أودع الله في كتابه من هدايات وشفاء لما في الصدور.`;
-  if (cleaned.includes("قل")) {
-    insight2Text = `تصدير الآية بالأمر (قُلْ) يحمل دلالة على التلقين والتبليغ التام؛ فالنبي صلى الله عليه وسلم والأمة من بعده مأمورون بتبليغ هذا الحق الصادع بثبات وعزة دون تردد.`;
-  } else if (cleaned.includes("اهدنا") || cleaned.includes("ربنا") || cleaned.includes("دعوا")) {
-    insight2Text = `في صيغة التضرع والافتقار إلى الله سر من أسرار العبودية؛ فالعبد مهما بلغ من العلم والعمل لا غنى له عن هداية الله وتثبيته في كل طرفة عين.`;
-  } else if (cleaned.includes("نور") || cleaned.includes("ظلمات") || cleaned.includes("حق")) {
-    insight2Text = `المقابلة القرآنية بين مسالك الهدى والضلال ترسم صورة واضحة لا غبش فيها، وتجعل صاحب البصيرة يستبصر طريقه بنور الوحي المنزل.`;
-  }
-
-  insights.push({
-    title: "لطيفة قرآنية وإشراقة تدبرية",
-    ayahText: rawText,
-    tadabburText: insight2Text,
-    source: "جامع لطائف التدبر القرآني - د. محمد بن عبد العزيز الخضيري",
-    surahNumber,
-    ayahNumber
-  });
-
-  // Insight 3: المسلك العملي والتطبيق التربوي
-  let insight3Text = `كيف أعمل بهذه الآية؟
-1. تكرار تلاوة الآية بتأنٍ واستحضار معانيها في صلاتي وأورادي اليومية.
-2. محاسبة النفس على ضوء هدي الآية، وجعلها ميزاناً يوجه القرارات والمعاملات.
-3. التخلق بما دعت إليه الآية من خصال الخير والبر والمسارعة في مرضاة الله.`;
-
-  insights.push({
-    title: "المسلك العملي والتربوي (كيف نعيش بالآية)",
-    ayahText: rawText,
-    tadabburText: insight3Text,
-    source: "المسار العملي لتدبر القرآن الكريم",
-    surahNumber,
-    ayahNumber
-  });
-
-  return insights;
-}
-
-/**
  * Returns comprehensive formatted Tadabbur text for an Ayah,
  * combining all available sources or providing deep thematic reflection.
  */
@@ -324,35 +278,6 @@ export function getOfflineTdabr(
 ): string | null {
   const surahMeta = surahsList.find((s) => s.number === surahNumber);
   const surahName = surahNameInput || (surahMeta ? surahMeta.name : "");
-
-  // If specific single source requested (e.g. from Tafsir Library filter)
-  if (bookType === "book_tdabur1" || bookType === "tdabur1") {
-    const parsed = parseTdabrSource(tdabur1Text, surahNumber, ayahNumber, surahName, "ليدبروا ١");
-    if (parsed.length > 0) {
-      return formatInsights(parsed, surahName, ayahNumber, ayahText);
-    }
-  }
-
-  if (bookType === "book_tdabur2" || bookType === "tdabur2") {
-    const parsed = parseTdabrSource(tdabur2Text, surahNumber, ayahNumber, surahName, "ليدبروا ٢");
-    if (parsed.length > 0) {
-      return formatInsights(parsed, surahName, ayahNumber, ayahText);
-    }
-  }
-
-  if (bookType === "book_tdabur3" || bookType === "tdabur3" || bookType === "rdabur3") {
-    const parsed = parseTdabrSource(tdabur3Text, surahNumber, ayahNumber, surahName, "ليدبروا ٣");
-    if (parsed.length > 0) {
-      return formatInsights(parsed, surahName, ayahNumber, ayahText);
-    }
-  }
-
-  if (bookType === "book_tdabur4" || bookType === "tdabur4") {
-    const parsed = parseTdabrSource(tdabur4Text, surahNumber, ayahNumber, surahName, "ليدبروا ٤");
-    if (parsed.length > 0) {
-      return formatInsights(parsed, surahName, ayahNumber, ayahText);
-    }
-  }
 
   // Check كتاب الجدول (Srf1Text & Srf2Data) if requested for Lubab
   if (bookType === "book_lubab") {
@@ -407,59 +332,17 @@ export function getOfflineTdabr(
     return null;
   }
 
-  // General Tadabbur: Collect ALL specific insights from ALL available sources
-  let allInsights = getAllTdabrInsights(surahNumber, ayahNumber, surahName, ayahText);
+  // General Tadabbur: Collect ALL insights for this ayah from the 5 canonical collections
+  const allInsights = getAllTdabrInsights(surahNumber, ayahNumber, surahName, ayahText);
 
-  if (allInsights.length > 0) {
-    return formatInsights(allInsights, surahName, ayahNumber, ayahText)?.replace(/\*{1,3}/g, "") || null;
-  }
+  // Generate multi-book insights incorporating all 5 groups
+  const multiBookInsights = generateAllBooksTadabbur(
+    surahNumber,
+    ayahNumber,
+    surahName,
+    ayahText,
+    allInsights
+  );
 
-  if (allowHeuristicFallback) {
-    allInsights = generateSmartOfflineTadabbur(surahNumber, ayahNumber, surahName, ayahText);
-    return formatInsights(allInsights, surahName, ayahNumber, ayahText)?.replace(/\*{1,3}/g, "") || null;
-  }
-
-  return null;
-}
-
-function formatInsights(
-  insights: TdabrInsight[],
-  _surahName?: string,
-  _ayahNumber?: number,
-  _ayahText?: string
-): string {
-  if (!insights || insights.length === 0) return "";
-
-  return insights
-    .map((item) => {
-      // Clean up whitespace within the insight text
-      let text = (item.tadabburText || "")
-        .replace(/\r?\n+/g, " ")
-        .replace(/\s{2,}/g, " ")
-        .trim();
-
-      // Ensure source label is cleaned from technical file names to "ليدبروا ١..٤"
-      let source = (item.source || "").trim();
-      source = source
-        .replace(/المصدر الأول\s*\(?tdabur1\.txt\)?/gi, "ليدبروا ١")
-        .replace(/المصدر الثاني\s*\(?tdabur2\.txt\)?/gi, "ليدبروا ٢")
-        .replace(/المصدر الثالث\s*\(?tdabur3\.txt\)?/gi, "ليدبروا ٣")
-        .replace(/المصدر الرابع\s*\(?tdabur4\.txt\)?/gi, "ليدبروا ٤")
-        .replace(/\(?tdabur1\.txt\)?/gi, "ليدبروا ١")
-        .replace(/\(?tdabur2\.txt\)?/gi, "ليدبروا ٢")
-        .replace(/\(?tdabur3\.txt\)?/gi, "ليدبروا ٣")
-        .replace(/\(?tdabur4\.txt\)?/gi, "ليدبروا ٤")
-        .replace(/`/g, "")
-        .trim();
-
-      // Format source suffix nicely
-      let sourceSuffix = "";
-      if (source && !text.includes(source)) {
-        sourceSuffix = ` (${source})`;
-      }
-
-      return `• ${text}${sourceSuffix}`.trim();
-    })
-    .filter(Boolean)
-    .join("\n\n");
+  return formatMultiBookTadabbur(multiBookInsights, surahName, ayahNumber, ayahText)?.replace(/\*{1,3}/g, "") || null;
 }

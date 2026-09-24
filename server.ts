@@ -9,25 +9,18 @@ import { quranEerabData } from "./src/data/quran_eerab";
 import { getOfflineMutashabihat } from "./src/utils/mutashabihatBook";
 import { getOfflineTdabr } from "./src/utils/tdabrBook";
 import { getOfflineSarf } from "./src/utils/sarfBook";
-import { getOfflineMukhtasarTafsir, getOfflineMukhtasarTafsirFallback } from "./src/utils/mukhtasarBook";
-import { getOfflineAysarTafsir, getOfflineAysarTafsirFallback } from "./src/utils/aysarBook";
 import { 
-  generateOfflineTabari, 
-  generateOfflineBaghawi, 
-  generateOfflineQurtubi, 
+  getOfflineSaadiTafsir,
   generateOfflineSaadi, 
-  generateOfflineIbnKathir, 
-  generateOfflineWaseet,
   generateOfflineMuyassar,
   isCorruptAyahOnlyText
 } from "./src/utils/libraryOfflineEngine";
 import { getOfflineEnglishTranslation } from "./src/utils/englishTranslation";
-import { getOfflineAhkamJassas } from "./src/utils/ahkamJassasBook";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Health check endpoint for platform monitoring
 app.get("/api/health", (req, res) => {
@@ -641,6 +634,18 @@ app.get("/api/tafsir/book-pack/:edition", async (req: express.Request, res: expr
 
     const targetEdition = editionMap[rawEdition] || rawEdition;
 
+    // Authentic local pack for Tafsir Al-Saadi (never fetch corrupt alquran.cloud ar.saadi)
+    if (targetEdition === "ar.saadi" || targetEdition === "tafsir_sadi") {
+      const saadiFile = path.join(process.cwd(), "src", "data", "tafsir_sadi_full.json");
+      if (fs.existsSync(saadiFile)) {
+        try {
+          const parsed = JSON.parse(fs.readFileSync(saadiFile, "utf-8"));
+          bookPackMemoryCache.set(targetEdition, parsed);
+          return res.json({ success: true, edition: targetEdition, count: Object.keys(parsed).length, data: parsed });
+        } catch (_) {}
+      }
+    }
+
     // 1. Check in-memory cache
     if (bookPackMemoryCache.has(targetEdition)) {
       const data = bookPackMemoryCache.get(targetEdition)!;
@@ -737,27 +742,15 @@ app.get("/api/tafsir/book-pack/:edition", async (req: express.Request, res: expr
 
 // Mapping of all library books to their authentic titles and authors
 const KNOWN_BOOKS_MAP: Record<string, { title: string; author: string }> = {
+  // تفاسير القرآن الكريم المعتمدة (الميسر والسعدي فقط)
   tafsir_muyassar: { title: "التفسير الميسر", author: "مجمع الملك فهد لطباعة المصحف الشريف" },
-  tafsir_mukhtasar: { title: "المختصر في التفسير", author: "مركز تفسير للدراسات القرآنية" },
-  tafsir_aysar: { title: "أيسر التفاسير لكلام العلي الكبير", author: "الشيخ أبو بكر الجزائري" },
   tafsir_sadi: { title: "تيسير الكريم الرحمن في تفسير كلام المنان (تفسير السعدي)", author: "الشيخ عبد الرحمن بن ناصر السعدي" },
-  tafsir_waseet_tantawi: { title: "التفسير الوسيط للقرآن الكريم", author: "د. محمد سيد طنطاوي" },
-  tafsir_waseet: { title: "التفسير الوسيط للقرآن الكريم", author: "د. محمد سيد طنطاوي" },
-  tafsir_ibn_juzi: { title: "التسهيل لعلوم التنزيل (تفسير ابن جزي)", author: "الإمام ابن جزي الأندلسي" },
-  tafsir_nukat: { title: "النكت والعيون (تفسير الماوردي)", author: "الإمام أبو الحسن الماوردي" },
-  tafsir_kathir: { title: "تفسير القرآن العظيم (تفسير ابن كثير)", author: "الحافظ ابن كثير" },
-  tafsir_ibnkathir: { title: "تفسير القرآن العظيم (تفسير ابن كثير)", author: "الحافظ ابن كثير" },
-  tafsir_tabari: { title: "جامع البيان في تأويل آي القرآن (تفسير الطبري)", author: "الإمام محمد بن جرير الطبري" },
-  tafsir_qurtubi: { title: "الجامع لأحكام القرآن (تفسير القرطبي)", author: "الإمام أبو عبد الله القرطبي" },
-  tafsir_baghawi: { title: "معالم التنزيل (تفسير البغوي)", author: "الإمام الحسين بن مسعود البغوي" },
-  tafsir_suyuti: { title: "تفسير السيوطي (الدر المنثور في التفسير بالمأثور وتفسير الجلالين)", author: "الإمام جلال الدين السيوطي" },
-  tafsir_ibn_atiyyah: { title: "المحرر الوجيز في تفسير الكتاب العزيز (تفسير ابن عطية)", author: "الإمام ابن عطية الأندلسي" },
-  tafsir_ibn_ashur: { title: "التحرير والتنوير", author: "الشيخ محمد الطاهر بن عاشور" },
-  tafsir_shawkani: { title: "فتح القدير الجامع بين فني الرواية والدراية", author: "الإمام محمد بن علي الشوكاني" },
-  tafsir_baidawi: { title: "أنوار التنزيل وأسرار التأويل (تفسير البيضاوي)", author: "القاضي ناصر الدين البيضاوي" },
-  tafsir_razi: { title: "مفاتيح الغيب (التفسير الكبير)", author: "الإمام فخر الدين الرازي" },
-  tafsir_manar: { title: "تفسير المنار", author: "الشيخ محمد رشيد رضا" },
-  tafsir_jalalayn: { title: "تفسير الجلالين", author: "جلال الدين المحلي وجلال الدين السيوطي" },
+
+  // ترجمة معاني القرآن الكريم (تقي الدين الهلالي ومحسن خان فقط)
+  translation_hilali_khan: { title: "ترجمة د. تقي الدين الهلالي ومحسن خان", author: "د. محمد تقي الدين الهلالي ود. محمد محسن خان" },
+  english_hilali_khan: { title: "ترجمة د. تقي الدين الهلالي ومحسن خان", author: "د. محمد تقي الدين الهلالي ود. محمد محسن خان" },
+
+  // لغويات وإعراب وصرف وبلاغة
   suraj_garib_quran: { title: "السراج في بيان غريب القرآن", author: "د. محمد بن عبد العزيز الخضيري" },
   siraj_garib_quran: { title: "السراج في بيان غريب القرآن", author: "د. محمد بن عبد العزيز الخضيري" },
   garib_quran_dinawari: { title: "تفسير غريب القرآن", author: "ابن قتيبة الدينوري" },
@@ -766,10 +759,12 @@ const KNOWN_BOOKS_MAP: Record<string, { title: string; author: string }> = {
   book_jadwal_safi: { title: "جدول الإعراب والصرف", author: "الشيخ محمود الصافي" },
   book_sarf: { title: "التحليل الصرفي للآيات", author: "الشيخ محمود الصافي" },
   book_balagha: { title: "بلاغة القرآن الكريم واللمسات البيانية", author: "الشيخ محمود الصافي" },
-  ahkam_quran_arabi: { title: "أحكام القرآن", author: "الإمام القاضي أبو بكر بن العربي" },
-  ahkam_quran_jassas: { title: "أحكام القرآن", author: "الإمام أبو بكر الجصاص الحنفي" },
+
+  // علوم القرآن: أسباب النزول فقط
   asbab_nuzul_wahidi: { title: "المحرر في أسباب النزول", author: "د. خالد بن سليمان المزيني" },
   muharrar_asbab: { title: "المحرر في أسباب النزول", author: "د. خالد بن سليمان المزيني" },
+
+  // تدبر ومتشابهات
   book_tadabbur: { title: "ليدبروا آياته", author: "مركز تدبر للدراسات القرآنية" },
   book_fawaid_tadabbur: { title: "الفوائد والوقوفات التدبرية", author: "مكتبة الهدايات القرآنية" },
   book_lubab: { title: "اللباب واللمسات البيانية", author: "ابن عادل والدكتور فاضل السامرائي" },
@@ -811,45 +806,15 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       }
     }
 
-    // 1. Authentic classical tafsir books fetching from verified endpoints and sources
+    // 1. Authentic classical tafsir books fetching (الميسر والسعدي فقط)
     const authenticApis: Record<string, { quranComId?: number; quranTafseerId?: number; alquranCloudEdition?: string; name: string }> = {
       tafsir_muyassar: { quranComId: 16, quranTafseerId: 1, alquranCloudEdition: "ar.muyassar", name: "التفسير الميسر (مجمع الملك فهد)" },
       tafsir_sadi: { quranComId: 91, quranTafseerId: 3, alquranCloudEdition: "ar.saadi", name: "تيسير الكريم الرحمن في تفسير كلام المنان (تفسير السعدي)" },
-      tafsir_kathir: { quranComId: 14, quranTafseerId: 4, alquranCloudEdition: "ar.ibnkathir", name: "تفسير القرآن العظيم (تفسير ابن كثير)" },
-      tafsir_ibnkathir: { quranComId: 14, quranTafseerId: 4, alquranCloudEdition: "ar.ibnkathir", name: "تفسير القرآن العظيم (تفسير ابن كثير)" },
-      tafsir_tabari: { quranComId: 15, quranTafseerId: 8, name: "جامع البيان عن تأويل آي القرآن (تفسير الطبري)" },
-      tafsir_qurtubi: { quranComId: 90, quranTafseerId: 7, alquranCloudEdition: "ar.qurtubi", name: "الجامع لأحكام القرآن (تفسير القرطبي)" },
-      tafsir_baghawi: { quranComId: 94, quranTafseerId: 6, name: "معالم التنزيل (تفسير البغوي)" },
-      tafsir_suyuti: { quranTafseerId: 2, alquranCloudEdition: "ar.jalalayn", name: "تفسير السيوطي (الدر المنثور وتفسير الجلالين)" },
-      tafsir_waseet_tantawi: { quranComId: 93, quranTafseerId: 5, alquranCloudEdition: "ar.waseet", name: "التفسير الوسيط للقرآن الكريم (د. محمد سيد طنطاوي)" },
-      tafsir_waseet: { quranComId: 93, quranTafseerId: 5, alquranCloudEdition: "ar.waseet", name: "التفسير الوسيط للقرآن الكريم (د. محمد سيد طنطاوي)" },
-      tafsir_jalalayn: { quranTafseerId: 2, alquranCloudEdition: "ar.jalalayn", name: "تفسير الجلالين (المحلي والسيوطي)" },
     };
 
     const translationApis: Record<string, { quranEncKey?: string; alquranCloudEdition?: string; quranComId?: number; name: string }> = {
-      english_rwwad: { quranEncKey: "english_rwwad", alquranCloudEdition: "en.sahih", quranComId: 20, name: "رواد الترجمة (الإنجليزية)" },
-      english_saheeh: { quranEncKey: "english_saheeh", alquranCloudEdition: "en.sahih", quranComId: 20, name: "صحيح إنترناشونال" },
-      english_hilali_khan: { quranEncKey: "english_hilali_khan", alquranCloudEdition: "en.hilali", quranComId: 203, name: "الهلالي ومحسن خان" },
-      translation_hilali_khan: { quranEncKey: "english_hilali_khan", alquranCloudEdition: "en.hilali", quranComId: 203, name: "ترجمة د. الهلالي ومحسن خان" },
-      french_rashid: { quranEncKey: "french_rashid", alquranCloudEdition: "fr.hamidullah", quranComId: 31, name: "الفرنسية (رشيد معاش)" },
-      spanish_garcia: { quranEncKey: "spanish_garcia", alquranCloudEdition: "es.garcia", quranComId: 83, name: "الإسبانية (عيسى غارسيا)" },
-      german_bubenheim: { quranEncKey: "german_bubenheim", alquranCloudEdition: "de.bubenheim", quranComId: 27, name: "الألمانية (بوبنهايم)" },
-      urdu_junagarhi: { quranEncKey: "urdu_junagarhi", alquranCloudEdition: "ur.jalandhry", quranComId: 234, name: "الأردية (جوناكارهي)" },
-      turkish_shaban: { quranEncKey: "turkish_shaban", alquranCloudEdition: "tr.diyanet", quranComId: 77, name: "التركية (شعبان بريش)" },
-      indonesian_affairs: { quranEncKey: "indonesian_affairs", alquranCloudEdition: "id.indonesian", quranComId: 33, name: "الإندونيسية (الشؤون الدينية)" },
-      russian_kuliev: { quranEncKey: "russian_mokhtasar", alquranCloudEdition: "ru.kuliev", quranComId: 45, name: "الروسية (إلمير كولييف)" },
-      english: { quranEncKey: "english_rwwad", alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
-      translation: { quranEncKey: "english_rwwad", alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
-      "en.sahih": { quranEncKey: "english_saheeh", alquranCloudEdition: "en.sahih", quranComId: 20, name: "English Translation (Sahih International)" },
-      "en.pickthall": { alquranCloudEdition: "en.pickthall", quranComId: 19, name: "English Translation (Pickthall)" },
-      "en.itani": { alquranCloudEdition: "en.itani", quranComId: 85, name: "English Translation (Clear Quran)" },
-      translation_mukhtasar_en: { alquranCloudEdition: "en.itani", quranComId: 85, name: "المختصر في تفسير القرآن الكريم (الترجمة الإنجليزية - مركز تفسير / مستودع susalm/mushaf-altibyan- tafsir-mcp-main)" },
-      translation_clear_quran: { alquranCloudEdition: "en.itani", quranComId: 85, name: "الترجمة الميسرة بالإنجليزية (The Clear Quran - Dr. Mustafa Khattab / مستودع susalm/mushaf-altibyan-)" },
-      translation_sahih_intl: { quranEncKey: "english_saheeh", alquranCloudEdition: "en.sahih", quranComId: 20, name: "ترجمة صحيح انترناشونال (Sahih International / مستودع susalm/mushaf-altibyan-)" },
-      translation_mukhtasar_bn: { alquranCloudEdition: "bn.bengali", quranComId: 213, name: "المختصر في تفسير القرآن الكريم (الترجمة البنغالية - مركز تفسير / مستودع susalm/mushaf-altibyan-)" },
-      translation_french: { quranEncKey: "french_rashid", alquranCloudEdition: "fr.hamidullah", quranComId: 31, name: "الترجمة الفرنسية لمعاني القرآن الكريم (Muhammad Hamidullah / مستودع susalm/mushaf-altibyan-)" },
-      translation_urdu: { quranEncKey: "urdu_junagarhi", alquranCloudEdition: "ur.jalandhry", quranComId: 234, name: "الترجمة الأردية لمعاني القرآن الكريم (Fateh Muhammad Jalandhry / مستودع susalm/mushaf-altibyan-)" },
-      translation_indonesian: { quranEncKey: "indonesian_affairs", alquranCloudEdition: "id.indonesian", quranComId: 33, name: "الترجمة الإندونيسية لمعاني القرآن الكريم (Kemenag / مستودع susalm/mushaf-altibyan-)" },
+      english_hilali_khan: { quranEncKey: "english_hilali_khan", alquranCloudEdition: "en.hilali", quranComId: 203, name: "ترجمة د. تقي الدين الهلالي ومحسن خان" },
+      translation_hilali_khan: { quranEncKey: "english_hilali_khan", alquranCloudEdition: "en.hilali", quranComId: 203, name: "ترجمة د. تقي الدين الهلالي ومحسن خان" },
     };
 
     const isTranslation = 
@@ -1010,77 +975,6 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       });
     }
 
-    if (type === "tafsir_mukhtasar" || type === "tafsir-mukhtasar") {
-      // 1. Try local offline dataset
-      const localMukhtasar = getOfflineMukhtasarTafsir(Number(surahNumber), Number(ayahNumber));
-      if (localMukhtasar) {
-        return res.json({
-          result: localMukhtasar,
-          source: "المختصر في تفسير القرآن الكريم - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
-        });
-      }
-
-      // 2. Fetch directly from susalm/mushaf-altibyan- repository on GitHub (tafsir-mcp-main)
-      const repoUrls = [
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir/mukhtasar/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir/${type}/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/mcp/mukhtasar/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/data/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir_mukhtasar/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir/${surahNumber}/${ayahNumber}.json`
-      ];
-
-      for (const repoUrl of repoUrls) {
-        try {
-          const ghRes = await fetch(repoUrl);
-          if (ghRes.ok) {
-            const data = await ghRes.json();
-            const textVal = data.text || data.result || data.tafsir || data.content;
-            if (textVal) {
-              return res.json({
-                result: textVal,
-                source: "المختصر في تفسير القرآن الكريم - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
-              });
-            }
-          }
-        } catch (e) {
-          // continue
-        }
-      }
-    }
-
-    if (type === "tafsir_aysar" || type === "tafsir-aysar") {
-      const localAysar = getOfflineAysarTafsir(Number(surahNumber), Number(ayahNumber));
-      if (localAysar) {
-        return res.json({
-          result: localAysar,
-          source: "أيسر التفاسير لكلام العلي الكبير - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
-        });
-      }
-
-      // Try fetching from susalm repo
-      const aysarUrls = [
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir/aysar/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir_aysar/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/data/aysar/${surahNumber}/${ayahNumber}.json`
-      ];
-      for (const u of aysarUrls) {
-        try {
-          const ghRes = await fetch(u);
-          if (ghRes.ok) {
-            const data = await ghRes.json();
-            const textVal = data.text || data.result || data.tafsir || data.content;
-            if (textVal) {
-              return res.json({
-                result: textVal,
-                source: "أيسر التفاسير لكلام العلي الكبير - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
-              });
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
     if (type === "tafsir_muyassar") {
       try {
         const response = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/ar.muyassar`);
@@ -1094,6 +988,17 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
         }
       } catch (e) {
         console.warn("Failed to fetch static Tafsir Muyassar:", e);
+      }
+    }
+
+    if (type === "tafsir_sadi" || type === "ar.saadi") {
+      const localSaadi = getOfflineSaadiTafsir(Number(surahNumber), Number(ayahNumber));
+      if (localSaadi && !isCorruptAyahOnlyText(localSaadi, ayahText)) {
+        tafsirMemoryCache.set(cacheKey, { result: localSaadi, source: "تيسير الكريم الرحمن في تفسير كلام المنان (تفسير السعدي)" });
+        return res.json({
+          result: localSaadi,
+          source: "تيسير الكريم الرحمن في تفسير كلام المنان (تفسير السعدي)"
+        });
       }
     }
 
@@ -1213,14 +1118,6 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       }
     }
 
-    if (type === "ahkam_quran_jassas" || type === "ahkam" || type === "ahkam_jassas") {
-      const localAhkam = getOfflineAhkamJassas(Number(surahNumber), Number(ayahNumber), surahName, ayahText);
-      if (localAhkam) {
-        tafsirMemoryCache.set(cacheKey, { result: localAhkam });
-        return res.json({ result: localAhkam });
-      }
-    }
-
     if (type === "book_jadwal_safi" || type === "book_irab" || type === "book_sarf" || type === "book_balagha" || type === "eerab" || type === "sarf" || type === "balagha") {
       const localSarf = getOfflineSarf(Number(surahNumber), Number(ayahNumber), surahName, ayahText, type, false);
       if (localSarf) {
@@ -1257,10 +1154,9 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       type === "book_lubab"
     ) {
       const localTdabr = getOfflineTdabr(Number(surahNumber), Number(ayahNumber), surahName, ayahText, type, false);
-      if (localTdabr) {
-        tafsirMemoryCache.set(cacheKey, { result: localTdabr });
-        return res.json({ result: localTdabr });
-      }
+      const safeTdabr = localTdabr || `العنوان: توثيق مصادر التدبر\nالتدبر: لم يرد نص تدبري مسجل لهذه الآية الكريمة في مصادر وكتب التدبر المعتمدة المتوفرة حالياً (مركز تدبر - ليدبروا آياته).\nالقائل: مركز تدبر للدراسات والبحوث القرآنية\nالمصدر: كتاب «ليدبروا آياته»`;
+      tafsirMemoryCache.set(cacheKey, { result: safeTdabr });
+      return res.json({ result: safeTdabr });
     }
 
     // 3. Classical scholarly knowledge extraction using verified Gemini AI
@@ -1892,11 +1788,9 @@ app.get("/api/v1/projects", (req: express.Request, res: express.Response) => {
 });
 
 async function startServer() {
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Quran Companion Server] Running locally on http://localhost:${PORT}`);
-  });
+  const isProd = process.env.NODE_ENV === "production" || fs.existsSync(path.join(process.cwd(), "dist", "index.html"));
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProd) {
     // Vite Dev Mode setup
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -1911,6 +1805,11 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  const listenPort = Number(PORT) || 3000;
+  app.listen(listenPort, "0.0.0.0", () => {
+    console.log(`[Quran Companion Server] Running on http://0.0.0.0:${listenPort} (mode: ${isProd ? "production" : "development"})`);
+  });
 }
 
 startServer();

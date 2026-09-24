@@ -3,13 +3,13 @@ export type MainCategory = "tafsir" | "translations" | "linguistics" | "sciences
 
 // Sub-categories per main category
 export type SubCategory = 
-  | "mukhtasarat" | "mutawassitat" | "mutawwalat" // for tafsir
-  | "english_translations" | "world_translations" // for translations
+  | "mukhtasarat" | "mutawassitat" // for tafsir (الميسر، السعدي)
+  | "english_translations"        // for translations (تقي الدين الهلالي ومحسن خان)
   | "garib" | "irab" | "sarf" | "balagha" | "maani" // for linguistics
-  | "ahkam" | "asbab"                             // for sciences
-  | "mutashabihat_kutub"                          // for mutashabihat
-  | "fawaid"                                      // for tadabbur
-  | "books_notes" | "ayah_notes";                // for notes
+  | "asbab"                       // for sciences (أسباب النزول)
+  | "mutashabihat_kutub"          // for mutashabihat
+  | "fawaid"                      // for tadabbur
+  | "books_notes" | "ayah_notes"; // for notes
 
 export interface LibraryBookItem {
   id: string;
@@ -23,9 +23,9 @@ export interface LibraryBookItem {
   sizeMB?: number;
 }
 
-// Catalog of default library books
+// Catalog of default library books (مقتصرة بدقة على ما طلبه المستخدم: الميسر والسعدي، ترجمة الهلالي ومحسن خان، أسباب النزول، واللغويات والتدبر والمتشابهات)
 export const DEFAULT_BOOKS: LibraryBookItem[] = [
-  // --- تفاسير: المختصرات ---
+  // --- تفاسير القرآن الكريم (التفسير الميسر وتفسير السعدي فقط) ---
   {
     id: "tafsir_muyassar",
     title: "التفسير الميسر",
@@ -36,111 +36,8 @@ export const DEFAULT_BOOKS: LibraryBookItem[] = [
     isDownloaded: true,
   },
   {
-    id: "tafsir_mukhtasar",
-    title: "المختصر في التفسير",
-    author: "مركز تفسير للدراسات القرآنية",
-    mainCategory: "tafsir",
-    subCategory: "mukhtasarat",
-    apiType: "tafsir_mukhtasar",
-    isDownloaded: true,
-  },
-
-  // --- الترجمات المعتمدة ---
-  {
-    id: "english_rwwad",
-    title: "رواد الترجمة (الإنجليزية)",
-    author: "مركز رواد الترجمة (Rowwad Translation Center)",
-    mainCategory: "translations",
-    subCategory: "english_translations",
-    apiType: "english_rwwad",
-    isDownloaded: true,
-  },
-  {
-    id: "english_saheeh",
-    title: "صحيح إنترناشونال",
-    author: "Sahih International (الإنجليزية)",
-    mainCategory: "translations",
-    subCategory: "english_translations",
-    apiType: "english_saheeh",
-    isDownloaded: true,
-  },
-  {
-    id: "translation_hilali_khan",
-    title: "الهلالي ومحسن خان",
-    author: "د. محمد تقي الدين الهلالي ود. محمد محسن خان",
-    mainCategory: "translations",
-    subCategory: "english_translations",
-    apiType: "english_hilali_khan",
-    isDownloaded: true,
-  },
-  {
-    id: "french_rashid",
-    title: "الفرنسية (رشيد معاش)",
-    author: "Rachid Maach (الفرنسية)",
-    mainCategory: "translations",
-    subCategory: "world_translations",
-    apiType: "french_rashid",
-    isDownloaded: true,
-  },
-  {
-    id: "spanish_garcia",
-    title: "الإسبانية (عيسى غارسيا)",
-    author: "Isa Garcia (الإسبانية)",
-    mainCategory: "translations",
-    subCategory: "world_translations",
-    apiType: "spanish_garcia",
-    isDownloaded: true,
-  },
-  {
-    id: "german_bubenheim",
-    title: "الألمانية (بوبنهايم)",
-    author: "Frank Bubenheim (الألمانية)",
-    mainCategory: "translations",
-    subCategory: "world_translations",
-    apiType: "german_bubenheim",
-    isDownloaded: true,
-  },
-  {
-    id: "urdu_junagarhi",
-    title: "الأردية (جوناكارهي)",
-    author: "مولانا محمد جوناكارهي (الأردية)",
-    mainCategory: "translations",
-    subCategory: "world_translations",
-    apiType: "urdu_junagarhi",
-    isDownloaded: true,
-  },
-  {
-    id: "turkish_shaban",
-    title: "التركية (شعبان بريش)",
-    author: "Şaban Piriş (التركية)",
-    mainCategory: "translations",
-    subCategory: "world_translations",
-    apiType: "turkish_shaban",
-    isDownloaded: true,
-  },
-  {
-    id: "indonesian_affairs",
-    title: "الإندونيسية (الشؤون الدينية)",
-    author: "Kementerian Agama (الإندونيسية)",
-    mainCategory: "translations",
-    subCategory: "world_translations",
-    apiType: "indonesian_affairs",
-    isDownloaded: true,
-  },
-  {
-    id: "russian_kuliev",
-    title: "الروسية (إلمير كولييف)",
-    author: "Elmir Kuliev (الروسية)",
-    mainCategory: "translations",
-    subCategory: "world_translations",
-    apiType: "russian_kuliev",
-    isDownloaded: true,
-  },
-
-  // --- تفاسير: المتوسطات ---
-  {
     id: "tafsir_sadi",
-    title: "السعدي",
+    title: "تفسير السعدي",
     author: "الشيخ عبد الرحمن بن ناصر السعدي",
     mainCategory: "tafsir",
     subCategory: "mutawassitat",
@@ -148,41 +45,14 @@ export const DEFAULT_BOOKS: LibraryBookItem[] = [
     isDownloaded: true,
   },
 
-  // --- تفاسير: المطولات ---
+  // --- الترجمات المعتمدة (ترجمة تقي الدين الهلالي ومحسن خان فقط) ---
   {
-    id: "tafsir_kathir",
-    title: "ابن كثير",
-    author: "الحافظ ابن كثير",
-    mainCategory: "tafsir",
-    subCategory: "mutawwalat",
-    apiType: "tafsir_kathir",
-    isDownloaded: true,
-  },
-  {
-    id: "tafsir_tabari",
-    title: "الطبري",
-    author: "الإمام الطبري",
-    mainCategory: "tafsir",
-    subCategory: "mutawwalat",
-    apiType: "tafsir_tabari",
-    isDownloaded: true,
-  },
-  {
-    id: "tafsir_qurtubi",
-    title: "القرطبي",
-    author: "الإمام القرطبي",
-    mainCategory: "tafsir",
-    subCategory: "mutawwalat",
-    apiType: "tafsir_qurtubi",
-    isDownloaded: true,
-  },
-  {
-    id: "tafsir_baghawi",
-    title: "البغوي",
-    author: "الإمام البغوي",
-    mainCategory: "tafsir",
-    subCategory: "mutawwalat",
-    apiType: "tafsir_baghawi",
+    id: "translation_hilali_khan",
+    title: "ترجمة تقي الدين الهلالي ومحسن خان",
+    author: "د. محمد تقي الدين الهلالي ود. محمد محسن خان",
+    mainCategory: "translations",
+    subCategory: "english_translations",
+    apiType: "english_hilali_khan",
     isDownloaded: true,
   },
 
@@ -201,8 +71,8 @@ export const DEFAULT_BOOKS: LibraryBookItem[] = [
   // --- لغويات: إعراب الآية ---
   {
     id: "book_irab",
-    title: "الإعراب",
-    author: "محمود الصافي",
+    title: "إعراب القرآن الكريم",
+    author: "ملف إعراب القرآن (quran_eerab.ts)",
     mainCategory: "linguistics",
     subCategory: "irab",
     apiType: "book_irab",
@@ -231,26 +101,7 @@ export const DEFAULT_BOOKS: LibraryBookItem[] = [
     isDownloaded: true,
   },
 
-  // --- علوم: أحكام القرآن وأسباب النزول ---
-  {
-    id: "ahkam_quran_jassas",
-    title: "أحكام القرآن (الجصاص)",
-    author: "أبو بكر الرازي الجصاص (ت: قمحاوي)",
-    description: "كتاب أحكام القرآن للإمام أبي بكر أحمد بن علي الرازي الجصاص الحنفي (المتوفى: 370هـ)، بتحقيق الشيخ محمد صادق قمحاوي (دار إحياء التراث العربي).",
-    mainCategory: "sciences",
-    subCategory: "ahkam",
-    apiType: "ahkam_quran_jassas",
-    isDownloaded: true,
-  },
-  {
-    id: "ahkam_quran_arabi",
-    title: "أحكام القرآن (ابن العربي)",
-    author: "ابن العربي",
-    mainCategory: "sciences",
-    subCategory: "ahkam",
-    apiType: "ahkam_quran_arabi",
-    isDownloaded: true,
-  },
+  // --- علوم القرآن: أسباب النزول فقط ---
   {
     id: "muharrar_asbab",
     title: "المحرر في أسباب النزول",
@@ -261,16 +112,18 @@ export const DEFAULT_BOOKS: LibraryBookItem[] = [
     isDownloaded: true,
   },
 
-  // --- تدبر: كتاب ليدبروا آياته ---
+  // --- تدبر: كتاب ليدبروا آياته بمجموعاته الخمس الكاملة ---
   {
     id: "book_tadabbur",
-    title: "ليدبروا آياته",
-    author: "مركز تدبر للدراسات القرآنية",
+    title: "ليدبروا آياته (المجموعات الخمس كاملة)",
+    author: "مركز تدبر للدراسات والبحوث القرآنية",
+    description: "الموسوعة التدبرية الكاملة لكتاب «ليدبروا آياته» بمجموعاته الخمس، تجمع كل ما ورد في الآية من وقفات تدبرية ولطائف قرآنية موثقة.",
     mainCategory: "tadabbur",
     subCategory: "fawaid",
     apiType: "book_tadabbur",
     isDownloaded: true,
   },
+
   // --- المتشابهات: المتشابهات اللفظية وتوجيهها ---
   {
     id: "book_mutashabihat_saghir",
