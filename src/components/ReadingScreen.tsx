@@ -2030,16 +2030,16 @@ const AyahWithTafsirCard = ({
                           )}
 
                       {/* Formatted Table: العنوان -> التدبر -> القائل -> المصدر */}
-                      <div className="overflow-hidden rounded-lg border border-current/15 bg-current/[0.015]">
-                        <table className="w-full text-right border-collapse table-fixed">
-                          <tbody>
+                      <div className="overflow-hidden rounded-lg border border-current/15 bg-transparent">
+                        <table className="w-full text-right border-collapse table-fixed bg-transparent">
+                          <tbody className="bg-transparent">
                             {/* Row 1: العنوان */}
-                            <tr className="border-b border-current/10 bg-current/[0.03]">
-                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 bg-current/[0.04] border-l border-current/10 align-middle shrink-0">
+                            <tr className="border-b border-current/10 bg-transparent">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 bg-transparent border-l border-current/10 align-middle shrink-0">
                                 العنوان
                               </th>
                               <td 
-                                className="p-2.5 sm:p-3 font-bold text-emerald-800 dark:text-emerald-300"
+                                className="p-2.5 sm:p-3 font-bold text-emerald-800 dark:text-emerald-300 bg-transparent"
                                 style={{
                                   fontSize: `${Math.max(11, currentTafsirFontSize + 1)}px`,
                                   fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
@@ -2050,12 +2050,12 @@ const AyahWithTafsirCard = ({
                             </tr>
 
                             {/* Row 2: التدبر */}
-                            <tr className="border-b border-current/10">
-                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 bg-current/[0.04] border-l border-current/10 align-top shrink-0">
+                            <tr className="border-b border-current/10 bg-transparent">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 bg-transparent border-l border-current/10 align-top shrink-0">
                                 التدبر
                               </th>
                               <td 
-                                className={`p-2.5 sm:p-3 leading-[2.2] whitespace-pre-line selection:bg-emerald-200 selection:text-slate-900 ${
+                                className={`p-2.5 sm:p-3 leading-[2.2] whitespace-pre-line bg-transparent selection:bg-emerald-200 selection:text-slate-900 ${
                                   theme === "emerald-velvet"
                                     ? "text-[#FAF8F5]/95"
                                     : theme === "gold-velvet"
@@ -2074,12 +2074,12 @@ const AyahWithTafsirCard = ({
                             </tr>
 
                             {/* Row 3: القائل */}
-                            <tr className="border-b border-current/10 bg-current/[0.02]">
-                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-indigo-700 dark:text-indigo-400 bg-current/[0.04] border-l border-current/10 align-middle shrink-0">
+                            <tr className="border-b border-current/10 bg-transparent">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-indigo-700 dark:text-indigo-400 bg-transparent border-l border-current/10 align-middle shrink-0">
                                 القائل
                               </th>
                               <td 
-                                className="p-2.5 sm:p-3 font-semibold text-indigo-900 dark:text-indigo-200"
+                                className="p-2.5 sm:p-3 font-semibold text-indigo-900 dark:text-indigo-200 bg-transparent"
                                 style={{
                                   fontSize: `${currentTafsirFontSize}px`,
                                   fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
@@ -2090,12 +2090,12 @@ const AyahWithTafsirCard = ({
                             </tr>
 
                             {/* Row 4: المصدر */}
-                            <tr className="bg-current/[0.03]">
-                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-slate-600 dark:text-slate-400 bg-current/[0.04] border-l border-current/10 align-middle shrink-0">
+                            <tr className="bg-transparent">
+                              <th className="w-20 sm:w-24 p-2.5 sm:p-3 font-bold text-xs sm:text-sm text-slate-600 dark:text-slate-400 bg-transparent border-l border-current/10 align-middle shrink-0">
                                 المصدر
                               </th>
                               <td 
-                                className="p-2.5 sm:p-3 opacity-90 text-slate-700 dark:text-slate-300"
+                                className="p-2.5 sm:p-3 opacity-90 text-slate-700 dark:text-slate-300 bg-transparent"
                                 style={{
                                   fontSize: `${currentTafsirFontSize}px`,
                                   fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
@@ -3075,6 +3075,38 @@ export default function ReadingScreen({
   const [tafsirModalText, setTafsirModalText] = useState<string>("");
   const [tafsirModalLoading, setTafsirModalLoading] = useState<boolean>(false);
   const [tafsirModalError, setTafsirModalError] = useState<string | null>(null);
+  const [tafsirModalFontSize, setTafsirModalFontSize] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("altibyan_tafsir_modal_font_size");
+      return saved ? Math.max(14, Math.min(38, parseInt(saved, 10))) : 20;
+    } catch {
+      return 20;
+    }
+  });
+
+  const handleZoomInTafsir = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTafsirModalFontSize((prev) => {
+      const next = Math.min(prev + 2, 38);
+      try { localStorage.setItem("altibyan_tafsir_modal_font_size", next.toString()); } catch {}
+      return next;
+    });
+  };
+
+  const handleZoomOutTafsir = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTafsirModalFontSize((prev) => {
+      const next = Math.max(prev - 2, 14);
+      try { localStorage.setItem("altibyan_tafsir_modal_font_size", next.toString()); } catch {}
+      return next;
+    });
+  };
+
+  const handleResetTafsirFontSize = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTafsirModalFontSize(20);
+    try { localStorage.setItem("altibyan_tafsir_modal_font_size", "20"); } catch {}
+  };
 
   const fetchTafsirForModal = async (ayah: Ayah) => {
     setTafsirModalLoading(true);
@@ -10374,7 +10406,7 @@ export default function ReadingScreen({
                   }`} />
                 </div>
 
-                {/* Header (Merged single line with Title, Surah & Ayah, Close button) */}
+                {/* Header (Merged single line with Title, Surah & Ayah, Zoom In/Out controls, Close button) */}
                 <div 
                   onPointerDown={(e) => {
                     const target = e.target as HTMLElement;
@@ -10382,7 +10414,7 @@ export default function ReadingScreen({
                       tafsirMoyassarDragControls.start(e);
                     }
                   }}
-                  className={`flex items-center justify-between px-4 sm:px-6 py-3 border-b cursor-grab active:cursor-grabbing ${
+                  className={`flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b cursor-grab active:cursor-grabbing gap-3 sm:gap-4 ${
                     theme === "emerald-velvet"
                       ? "border-[#c5a85c]/15 bg-[#012519]"
                       : theme === "gold-velvet"
@@ -10394,10 +10426,10 @@ export default function ReadingScreen({
                             : "border-slate-100 bg-slate-50"
                   }`}
                 >
-                  <div className="flex items-center gap-2 sm:gap-2.5 flex-row-reverse flex-wrap">
-                    <div className="flex items-center gap-1.5 flex-row-reverse">
+                  <div className="flex items-center gap-2.5 sm:gap-3.5 flex-row-reverse flex-wrap">
+                    <div className="flex items-center gap-2 flex-row-reverse">
                       <BookOpenCheck 
-                        size={18} 
+                        size={19} 
                         className={
                           theme === "gold-velvet" || theme === "emerald-velvet" ? "text-[#c5a85c]" :
                           theme === "navy-velvet" ? "text-[#3F63C6]" :
@@ -10421,17 +10453,99 @@ export default function ReadingScreen({
                       {(tafsirModalAyah as any).surah?.name || currentSurahMeta?.name} • الآية {toArabicNumerals(tafsirModalAyah.numberInSurah)}
                     </span>
                   </div>
-                  <button
-                    onClick={() => setTafsirModalAyah(null)}
-                    className="p-1.5 rounded-full transition-colors bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer shrink-0"
-                    title="إغلاق"
-                  >
-                    <X size={18} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
-                  </button>
+
+                  {/* Left Controls: Zoom In / Zoom Out and Close with comfortable spacing */}
+                  <div className="flex items-center gap-2.5 sm:gap-3.5">
+                    {/* Zoom In & Zoom Out Buttons Container */}
+                    <div className={`flex items-center gap-1.5 sm:gap-2 rounded-xl p-1 sm:p-1.5 border shadow-2xs ${
+                      theme === "emerald-velvet"
+                        ? "bg-[#01160e] border-[#c5a85c]/25 text-[#FAF8F5]"
+                        : theme === "gold-velvet"
+                          ? "bg-[#FAF5E6] border-[#c5a85c]/25 text-slate-800"
+                          : theme === "navy-velvet"
+                            ? "bg-white border-[#3F63C6]/20 text-slate-800"
+                            : isDark
+                              ? "bg-slate-800 border-slate-700 text-slate-100"
+                              : "bg-white border-slate-200 text-slate-700"
+                    }`}>
+                      {/* أيقونة تكبير خط التفسير */}
+                      <button
+                        type="button"
+                        onClick={handleZoomInTafsir}
+                        disabled={tafsirModalFontSize >= 38}
+                        className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed ${
+                          theme === "emerald-velvet"
+                            ? "hover:bg-[#c5a85c]/20 text-[#c5a85c]"
+                            : theme === "gold-velvet"
+                              ? "hover:bg-[#c5a85c]/20 text-[#8c6b23]"
+                              : theme === "navy-velvet"
+                                ? "hover:bg-[#3F63C6]/20 text-[#3F63C6]"
+                                : isDark
+                                  ? "hover:bg-slate-700 text-emerald-400"
+                                  : "hover:bg-emerald-50 text-emerald-700"
+                        }`}
+                        title="تكبير خط التفسير (+)"
+                        aria-label="تكبير خط التفسير"
+                      >
+                        <ZoomIn size={17} className="stroke-[2.5px]" />
+                      </button>
+
+                      {/* مؤشر الحجم الحالي وزر إعادة التعيين */}
+                      <button
+                        type="button"
+                        onClick={handleResetTafsirFontSize}
+                        title="حجم الخط (اضغط لإعادة التعيين)"
+                        className={`px-2 sm:px-2.5 py-0.5 text-xs font-bold select-none cursor-pointer rounded-md transition-colors tabular-nums ${
+                          theme === "emerald-velvet"
+                            ? "hover:bg-[#c5a85c]/15 text-[#c5a85c]"
+                            : theme === "gold-velvet"
+                              ? "hover:bg-[#c5a85c]/15 text-[#8c6b23]"
+                              : theme === "navy-velvet"
+                                ? "hover:bg-[#3F63C6]/15 text-[#3F63C6]"
+                                : isDark
+                                  ? "hover:bg-slate-700 text-slate-300"
+                                  : "hover:bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {toArabicNumerals(tafsirModalFontSize)}
+                      </button>
+
+                      {/* أيقونة تصغير خط التفسير */}
+                      <button
+                        type="button"
+                        onClick={handleZoomOutTafsir}
+                        disabled={tafsirModalFontSize <= 14}
+                        className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed ${
+                          theme === "emerald-velvet"
+                            ? "hover:bg-[#c5a85c]/20 text-[#c5a85c]"
+                            : theme === "gold-velvet"
+                              ? "hover:bg-[#c5a85c]/20 text-[#8c6b23]"
+                              : theme === "navy-velvet"
+                                ? "hover:bg-[#3F63C6]/20 text-[#3F63C6]"
+                                : isDark
+                                  ? "hover:bg-slate-700 text-emerald-400"
+                                  : "hover:bg-emerald-50 text-emerald-700"
+                        }`}
+                        title="تصغير خط التفسير (-)"
+                        aria-label="تصغير خط التفسير"
+                      >
+                        <ZoomOut size={17} className="stroke-[2.5px]" />
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => setTafsirModalAyah(null)}
+                      className="p-2 sm:p-2.5 rounded-full transition-colors bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer shrink-0"
+                      title="إغلاق"
+                      aria-label="إغلاق"
+                    >
+                      <X size={18} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Content Body */}
-                <div className="p-4 sm:p-6 overflow-y-auto space-y-4 dir-rtl" style={{ direction: "rtl" }}>
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-4 dir-rtl pb-6" style={{ direction: "rtl" }}>
                   {/* Tafsir content area */}
                   <div className="space-y-3">
                     {tafsirModalLoading ? (
@@ -10472,45 +10586,17 @@ export default function ReadingScreen({
                         isDark ? "text-slate-200" : "text-slate-800"
                       }`}>
                         <p 
-                          className="font-amiri font-amiri-naskh leading-[2.3] text-justify text-lg sm:text-xl font-normal select-text"
-                          style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}
+                          className="font-amiri font-amiri-naskh leading-[2.3] text-justify font-normal select-text transition-all duration-150"
+                          style={{ 
+                            fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif",
+                            fontSize: `${tafsirModalFontSize}px`
+                          }}
                         >
                           {tafsirModalText}
                         </p>
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Footer */}
-                <div className={`px-6 py-4 flex justify-between items-center border-t text-[10px] font-semibold text-slate-400 ${
-                  theme === "emerald-velvet"
-                    ? "border-[#c5a85c]/10 bg-[#011a12]"
-                    : theme === "gold-velvet"
-                      ? "border-[#c5a85c]/10 bg-[#fbf9f6]"
-                      : theme === "navy-velvet"
-                        ? "border-slate-100 bg-slate-50"
-                        : isDark
-                          ? "border-slate-800/80 bg-slate-950/40"
-                          : "border-slate-100 bg-slate-50"
-                }`}>
-                  <span>تفسير معتمد وميسر</span>
-                  <button
-                    onClick={() => setTafsirModalAyah(null)}
-                    className={`px-4 py-1.5 rounded-xl border text-xs font-bold transition-all ${
-                      theme === "emerald-velvet"
-                        ? "border-[#c5a85c]/40 text-[#c5a85c] hover:bg-[#c5a85c]/10"
-                        : theme === "gold-velvet"
-                          ? "border-[#c5a85c]/40 text-[#c5a85c] hover:bg-[#c5a85c]/10"
-                          : theme === "navy-velvet"
-                            ? "border-slate-200 text-slate-600 hover:bg-slate-100"
-                            : isDark
-                              ? "border-slate-800 text-slate-300 hover:bg-slate-800"
-                              : "border-slate-200 text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    إغلاق
-                  </button>
                 </div>
               </motion.div>
             </div>
@@ -10691,10 +10777,10 @@ export default function ReadingScreen({
                 dir="rtl"
                 style={{
                   position: "fixed",
-                  left: `${Math.max(10, Math.min(floatingAyahMenu.x - 175, window.innerWidth - 370))}px`,
+                  left: `${Math.max(10, Math.min(floatingAyahMenu.x - 185, window.innerWidth - 395))}px`,
                   top: `${floatingAyahMenu.y > 170 ? Math.max(16, floatingAyahMenu.y - 110) : Math.min(window.innerHeight - 170, floatingAyahMenu.y + 25)}px`,
                 }}
-                className={`rounded-3xl p-2 sm:p-3 shadow-2xl border backdrop-blur-xl flex flex-col gap-2 sm:gap-2.5 z-[460] select-none ${
+                className={`rounded-3xl p-2.5 sm:p-3.5 shadow-2xl border backdrop-blur-xl flex flex-col gap-2.5 sm:gap-3 z-[460] select-none ${
                   theme === "emerald-velvet"
                     ? "bg-[#012519]/95 border-[#c5a85c]/45 text-[#FAF8F5] shadow-black/70"
                     : theme === "gold-velvet"
@@ -10706,8 +10792,8 @@ export default function ReadingScreen({
                           : "bg-white/95 border-emerald-200 shadow-emerald-950/20 text-slate-900"
                 }`}
               >
-                {/* Main Action Icons Row */}
-                <div className="flex items-center gap-1.5 sm:gap-2.5">
+                {/* Main Action Icons Row: التفسير ، النسخ ، المشاركة ، العلامات ، الملاحظات */}
+                <div className="flex items-center gap-2.5 sm:gap-4 px-1 justify-center">
                   {/* 1. Tafsir Al-Muyassar icon */}
                   <button
                     type="button"
