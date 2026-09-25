@@ -1092,19 +1092,6 @@ export default function RecitationScreen({
                               </span>
                             )}
                           </div>
-
-                          {/* Merged Riwayah & Bitrate Badge on the left */}
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${
-                            theme === "emerald-velvet"
-                              ? "bg-[#0e0c08] text-[#c5a85c] border-[#c5a85c]/30"
-                              : isDark
-                                ? "bg-[#060f0d] text-emerald-300 border-emerald-500/30"
-                                : "bg-black/5 border-black/10 text-slate-600"
-                          }`}>
-                            <span>{r.riwayah || "حفص عن عاصم"}</span>
-                            <span className="opacity-40">•</span>
-                            <span className="font-sans font-semibold">{r.bitrate || "128 kbps"}</span>
-                          </span>
                         </div>
                       </div>
                     </div>

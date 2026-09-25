@@ -1183,7 +1183,7 @@ export default function App() {
         id="floating-bottom-menu" 
         data-bottom-bar="true"
         className={`fixed bottom-0 left-0 right-0 w-full z-[500] border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] rounded-t-2xl transition-all duration-300 transform ${
-          (showBars && shareAyahData === null) ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
+          (showBars || shareAyahData !== null) ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
         } ${
           theme === "emerald-velvet"
             ? "bg-[#012519] border-t border-[#10b981]/35 text-[#FAF8F5]"

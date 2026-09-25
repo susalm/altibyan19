@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { toPng, toBlob } from "html-to-image";
 import {
   Sparkles,
@@ -2967,22 +2967,17 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   if (!shareData) return null;
 
   return createPortal(
-    <AnimatePresence>
+    <div
+      id="share-ayah-modal-backdrop"
+      className="fixed top-0 inset-x-0 bottom-[48px] md:bottom-[52px] z-[490] w-full bg-black/95 flex flex-col items-stretch justify-start overflow-hidden p-0"
+      onClick={onClose}
+    >
       <div
-        id="share-ayah-modal-backdrop"
-        className="fixed inset-0 z-[9999] w-full h-[100dvh] bg-black/95 flex flex-col items-stretch justify-start overflow-hidden p-0"
-        onClick={onClose}
+        id="share-ayah-modal-container"
+        onClick={(e) => e.stopPropagation()}
+        className={`w-full h-full flex flex-col overflow-hidden ${tTheme.modalBg}`}
+        style={{ direction: "rtl" }}
       >
-        <motion.div
-          id="share-ayah-modal-container"
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 15 }}
-          transition={{ duration: 0.25 }}
-          onClick={(e) => e.stopPropagation()}
-          className={`w-full h-full flex flex-col overflow-hidden ${tTheme.modalBg}`}
-          style={{ direction: "rtl" }}
-        >
           {/* Modal Header */}
           <div
             className={`px-4 sm:px-6 py-3 flex items-center justify-between border-b shrink-0 sticky top-0 z-30 backdrop-blur-md ${tTheme.headerFooterBg}`}
@@ -5121,90 +5116,91 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 </motion.div>
               )}
 
-              {/* Quick Actions Bar removed as requested */}
+              {/* Modal Bottom Footer Actions - Now in the original page flow under the controls */}
+              <div
+                id="share-ayah-modal-footer-bar"
+                className={`w-full p-2.5 sm:p-3.5 rounded-2xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shadow-sm backdrop-blur-md mt-1 mb-8 sm:mb-10 ${tTheme.headerFooterBg}`}
+              >
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0 flex-wrap">
+                  <button
+                    onClick={onClose}
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border whitespace-nowrap ${tTheme.closeModalBtn}`}
+                  >
+                    إغلاق
+                  </button>
+
+                  <button
+                    onClick={handleResetDefaults}
+                    title="إعادة ضبط كافة الإعدادات إلى الوضع الافتراضي"
+                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${tTheme.secondaryBtn}`}
+                  >
+                    <RotateCcw size={12} className="shrink-0" />
+                    <span>إعادة</span>
+                  </button>
+
+                  <button
+                    id="share-ayah-save-default-footer-btn"
+                    type="button"
+                    onClick={handleSaveAsDefault}
+                    title="تعيين هذا التنسيق الحالي كافتراضي لجميع مشاركات الآيات القادمة"
+                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${
+                      isDefaultSaved ? "bg-emerald-500/20 border-emerald-500 text-emerald-400" : tTheme.secondaryBtn
+                    }`}
+                  >
+                    {isDefaultSaved ? (
+                      <>
+                        <Check size={12} className="shrink-0 text-emerald-400 stroke-[2.5px]" />
+                        <span>تم الحفظ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark size={12} className="shrink-0" />
+                        <span>حفظ كافتراضي</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleCopyShareText}
+                    title="نسخ نص الآية الكريمة"
+                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${tTheme.secondaryBtn}`}
+                  >
+                    <Copy size={12} className="shrink-0" />
+                    <span>نسخ</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <button
+                    onClick={handleShareImage}
+                    disabled={isGeneratingImage || !generatedImageUrl}
+                    className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap ${tTheme.primaryBtn}`}
+                  >
+                    <Share2 size={12} className="shrink-0" />
+                    <span>مشاركة</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadImage}
+                    disabled={isGeneratingImage || !generatedImageUrl}
+                    className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border disabled:opacity-50 whitespace-nowrap ${tTheme.secondaryBtn}`}
+                  >
+                    {isGeneratingImage ? (
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Download size={12} className="shrink-0" />
+                    )}
+                    <span>تحميل</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* مساحة فارغة أسفل الشريط بمقدار سطرين */}
+              <div className="h-8 sm:h-10 w-full shrink-0" aria-hidden="true" />
             </div>
           </div>
-
-          {/* Modal Bottom Footer Actions */}
-          <div
-            className={`px-3 sm:px-6 py-2.5 flex items-center justify-between gap-1.5 sm:gap-2 border-t shrink-0 sticky bottom-0 z-20 backdrop-blur-md overflow-x-auto no-scrollbar flex-nowrap ${tTheme.headerFooterBg}`}
-          >
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              <button
-                onClick={onClose}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border whitespace-nowrap ${tTheme.closeModalBtn}`}
-              >
-                إغلاق
-              </button>
-
-              <button
-                onClick={handleResetDefaults}
-                title="إعادة ضبط كافة الإعدادات إلى الوضع الافتراضي"
-                className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${tTheme.secondaryBtn}`}
-              >
-                <RotateCcw size={12} className="shrink-0" />
-                <span>إعادة</span>
-              </button>
-
-              <button
-                id="share-ayah-save-default-footer-btn"
-                type="button"
-                onClick={handleSaveAsDefault}
-                title="تعيين هذا التنسيق الحالي كافتراضي لجميع مشاركات الآيات القادمة"
-                className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${
-                  isDefaultSaved ? "bg-emerald-500/20 border-emerald-500 text-emerald-400" : tTheme.secondaryBtn
-                }`}
-              >
-                {isDefaultSaved ? (
-                  <>
-                    <Check size={12} className="shrink-0 text-emerald-400 stroke-[2.5px]" />
-                    <span>تم الحفظ</span>
-                  </>
-                ) : (
-                  <>
-                    <Bookmark size={12} className="shrink-0" />
-                    <span>حفظ كافتراضي</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handleCopyShareText}
-                title="نسخ نص الآية الكريمة"
-                className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${tTheme.secondaryBtn}`}
-              >
-                <Copy size={12} className="shrink-0" />
-                <span>نسخ</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button
-                onClick={handleShareImage}
-                disabled={isGeneratingImage || !generatedImageUrl}
-                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap ${tTheme.primaryBtn}`}
-              >
-                <Share2 size={12} className="shrink-0" />
-                <span>مشاركة</span>
-              </button>
-
-              <button
-                onClick={handleDownloadImage}
-                disabled={isGeneratingImage || !generatedImageUrl}
-                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border disabled:opacity-50 whitespace-nowrap ${tTheme.secondaryBtn}`}
-              >
-                {isGeneratingImage ? (
-                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
-                ) : (
-                  <Download size={12} className="shrink-0" />
-                )}
-                <span>تحميل</span>
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>,
-    document.body
-  );
+        </div>
+      </div>,
+      document.body
+    );
 };
