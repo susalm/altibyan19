@@ -2153,7 +2153,6 @@ export interface ContinuousIconServiceItem {
 
 const CONTINUOUS_SERVICES_LIST: ContinuousIconServiceItem[] = [
   { id: "tafsir_mukhtasar", mainCategory: "tafsir", label: "المختصر", icon: BookOpen, desc: "المختصر في التفسير - مركز تفسير للدراسات القرآنية" },
-  { id: "tafsir_muyassar", mainCategory: "tafsir", label: "الميسر", icon: BookOpenText, desc: "التفسير الميسر - مجمع الملك فهد لطباعة المصحف الشريف" },
   { id: "tafsir_sadi", mainCategory: "tafsir", label: "السعدي", icon: BookOpenCheck, desc: "تيسير الكريم الرحمن في تفسير كلام المنان للشيخ السعدي" },
   { id: "translation_hilali_khan", mainCategory: "translations", label: "ترجمة", icon: Languages, desc: "ترجمة معاني القرآن الكريم لد. تقي الدين الهلالي ود. محسن خان" },
   { id: "suraj_garib_quran", mainCategory: "linguistics", label: "غريب الآية", icon: FileText, desc: "بيان وتوضيح غريب مفردات الآية الكريمة" },
