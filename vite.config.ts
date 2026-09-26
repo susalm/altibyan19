@@ -37,7 +37,13 @@ export default defineConfig(() => {
               if (id.includes('motion')) return 'vendor-motion';
               return 'vendor';
             }
-            if (id.includes('mukhtasar_full') || id.includes('aysar_full') || id.includes('english_translation')) {
+            if (
+              id.includes('mukhtasar_full') ||
+              id.includes('tafsir_muyassar_full') ||
+              id.includes('tafsir_sadi_full') ||
+              id.includes('aysar_full') ||
+              id.includes('english_translation')
+            ) {
               return 'tafsir-data';
             }
           },

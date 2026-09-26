@@ -11,10 +11,12 @@ import { getOfflineTdabr } from "./src/utils/tdabrBook";
 import { getOfflineSarf } from "./src/utils/sarfBook";
 import { 
   getOfflineSaadiTafsir,
+  getOfflineMuyassarTafsir,
   generateOfflineSaadi, 
   generateOfflineMuyassar,
   isCorruptAyahOnlyText
 } from "./src/utils/libraryOfflineEngine";
+import { getOfflineMukhtasarTafsir } from "./src/utils/mukhtasarBook";
 import { getOfflineEnglishTranslation } from "./src/utils/englishTranslation";
 
 dotenv.config();
@@ -975,19 +977,26 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       });
     }
 
-    if (type === "tafsir_muyassar") {
-      try {
-        const response = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/ar.muyassar`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.data && data.data.text) {
-            return res.json({ 
-              result: data.data.text
-            });
-          }
-        }
-      } catch (e) {
-        console.warn("Failed to fetch static Tafsir Muyassar:", e);
+    // 0. Instant offline resolution for Tafsir Mukhtasar, Muyassar, and Saadi
+    if (type === "tafsir_mukhtasar" || type === "mukhtasar") {
+      const localMukhtasar = getOfflineMukhtasarTafsir(Number(surahNumber), Number(ayahNumber));
+      if (localMukhtasar) {
+        tafsirMemoryCache.set(cacheKey, { result: localMukhtasar, source: "المختصر في التفسير (مركز تفسير للدراسات القرآنية)" });
+        return res.json({
+          result: localMukhtasar,
+          source: "المختصر في التفسير (مركز تفسير للدراسات القرآنية)"
+        });
+      }
+    }
+
+    if (type === "tafsir_muyassar" || type === "ar.muyassar") {
+      const localMuyassar = getOfflineMuyassarTafsir(Number(surahNumber), Number(ayahNumber)) || generateOfflineMuyassar(Number(surahNumber), Number(ayahNumber));
+      if (localMuyassar) {
+        tafsirMemoryCache.set(cacheKey, { result: localMuyassar, source: "التفسير الميسر (مجمع الملك فهد لطباعة المصحف الشريف)" });
+        return res.json({ 
+          result: localMuyassar,
+          source: "التفسير الميسر (مجمع الملك فهد لطباعة المصحف الشريف)"
+        });
       }
     }
 

@@ -23,9 +23,18 @@ export interface LibraryBookItem {
   sizeMB?: number;
 }
 
-// Catalog of default library books (مقتصرة بدقة على ما طلبه المستخدم: الميسر والسعدي، ترجمة الهلالي ومحسن خان، أسباب النزول، واللغويات والتدبر والمتشابهات)
+// Catalog of default library books (المختصر، الميسر، السعدي، ترجمة الهلالي ومحسن خان، أسباب النزول، واللغويات والتدبر والمتشابهات والكناشات)
 export const DEFAULT_BOOKS: LibraryBookItem[] = [
-  // --- تفاسير القرآن الكريم (التفسير الميسر وتفسير السعدي فقط) ---
+  // --- تفاسير القرآن الكريم (المختصر والميسر والسعدي أوفلاين 100%) ---
+  {
+    id: "tafsir_mukhtasar",
+    title: "المختصر في التفسير",
+    author: "مركز تفسير للدراسات القرآنية",
+    mainCategory: "tafsir",
+    subCategory: "mukhtasarat",
+    apiType: "tafsir_mukhtasar",
+    isDownloaded: true,
+  },
   {
     id: "tafsir_muyassar",
     title: "التفسير الميسر",

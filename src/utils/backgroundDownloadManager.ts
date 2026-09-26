@@ -25,7 +25,8 @@ import tafsirSadiFullJson from "../data/tafsir_sadi_full.json";
 
 // Complete list of library books and verse service packages
 export const CORE_LIBRARY_BOOK_IDS = [
-  // 1. كتب التفسير المعتمدة (الميسر والسعدي فقط)
+  // 1. كتب التفسير المعتمدة (المختصر والميسر والسعدي أوفلاين 100%)
+  "tafsir_mukhtasar",
   "tafsir_muyassar",
   "tafsir_sadi",
 
@@ -220,7 +221,8 @@ export const TAFSIR_OFFLINE_PACKS: TafsirBookItemToDownload[] = [
   // 1. ترجمة معاني القرآن الكريم (تقي الدين الهلالي ومحسن خان فقط)
   { id: "translation_hilali_khan", title: "ترجمة محمد تقي الدين الهلالي ومحسن خان", edition: "english_local", isLocal: true },
   
-  // 2. تفاسير القرآن الكريم المعتمدة (التفسير الميسر وتفسير السعدي) - محليتان أوفلاين 100%
+  // 2. تفاسير القرآن الكريم المعتمدة (المختصر في التفسير، التفسير الميسر، وتفسير السعدي) - محلية أوفلاين 100%
+  { id: "tafsir_mukhtasar", title: "المختصر في التفسير (مركز تفسير للدراسات القرآنية)", edition: "mukhtasar_local", isLocal: true },
   { id: "tafsir_muyassar", title: "التفسير الميسر (مجمع الملك فهد)", edition: "ar.muyassar", isLocal: true },
   { id: "tafsir_sadi", title: "تيسير الكريم الرحمن (تفسير السعدي)", edition: "ar.saadi", isLocal: true },
 ];

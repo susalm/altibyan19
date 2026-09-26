@@ -57,7 +57,7 @@ import { quranAudioEngine } from "../utils/quranAudioEngine";
 import { 
   Play, Pause, ChevronRight, ChevronLeft, ChevronDown, Bookmark as BookmarkIcon, 
   Settings, Languages, Volume2, AlignLeft, AlignCenter, AlignRight, Sliders, Info, Copy, Check, Sparkles, AlertCircle,
-  Sun, Moon, Zap, Compass, X, BookOpenCheck, BookOpen, Library, FileText, History, Activity, Heart, BookCheck, Layers, Feather, GitCompare,
+  Sun, Moon, Zap, Compass, X, BookOpenCheck, BookOpen, BookOpenText, Library, FileText, History, Activity, Heart, BookCheck, Layers, Feather, GitCompare,
   Plus, Minus, SkipForward, SkipBack, Repeat, Infinity as InfinityIcon, Type, Share2, Download, Image, ZoomIn, ZoomOut,
   Search, ChevronsUp, ArrowUp, FolderHeart, Clock, Trash2, RefreshCw, Maximize2, Minimize2, RotateCcw, Globe
 } from "lucide-react";
@@ -1053,7 +1053,7 @@ const AyahWithTafsirCard = ({
         } else if (activeMode === "tafsir_sadi") {
           directOfflineResult = getOfflineSaadiTafsir(surahNumber, ayah.numberInSurah) || generateOfflineSaadi(surahNumber, ayah.numberInSurah, surahName, ayah.text);
         } else if (activeMode === "tafsir_mukhtasar") {
-          directOfflineResult = getOfflineMukhtasarTafsir(surahNumber, ayah.numberInSurah);
+          directOfflineResult = getOfflineMukhtasarTafsir(surahNumber, ayah.numberInSurah) || getOfflineMukhtasarTafsirFallback(surahNumber, ayah.numberInSurah, surahName, ayah.text);
         } else if (activeMode === "tafsir_aysar") {
           directOfflineResult = getOfflineAysarTafsir(surahNumber, ayah.numberInSurah);
         } else if (activeMode === "gharib" || activeMode === "suraj_garib_quran") {
@@ -2152,7 +2152,8 @@ export interface ContinuousIconServiceItem {
 }
 
 const CONTINUOUS_SERVICES_LIST: ContinuousIconServiceItem[] = [
-  { id: "tafsir_muyassar", mainCategory: "tafsir", label: "التفسير الميسر", icon: BookOpen, desc: "التفسير الميسر لمجمع الملك فهد" },
+  { id: "tafsir_mukhtasar", mainCategory: "tafsir", label: "المختصر", icon: BookOpen, desc: "المختصر في التفسير - مركز تفسير للدراسات القرآنية" },
+  { id: "tafsir_muyassar", mainCategory: "tafsir", label: "الميسر", icon: BookOpenText, desc: "التفسير الميسر - مجمع الملك فهد لطباعة المصحف الشريف" },
   { id: "tafsir_sadi", mainCategory: "tafsir", label: "السعدي", icon: BookOpenCheck, desc: "تيسير الكريم الرحمن في تفسير كلام المنان للشيخ السعدي" },
   { id: "translation_hilali_khan", mainCategory: "translations", label: "ترجمة", icon: Languages, desc: "ترجمة معاني القرآن الكريم لد. تقي الدين الهلالي ود. محسن خان" },
   { id: "suraj_garib_quran", mainCategory: "linguistics", label: "غريب الآية", icon: FileText, desc: "بيان وتوضيح غريب مفردات الآية الكريمة" },
@@ -2206,7 +2207,7 @@ export default function ReadingScreen({
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [continuousActiveService, setContinuousActiveService] = useState<MainCategory>("tafsir");
-  const [continuousActiveMode, setContinuousActiveMode] = useState<string>("tafsir_muyassar");
+  const [continuousActiveMode, setContinuousActiveMode] = useState<string>("tafsir_mukhtasar");
   const [userCustomTranslationBooks, setUserCustomTranslationBooks] = useState<LibraryBookItem[]>([]);
   const [isTranslationsCatalogOpen, setIsTranslationsCatalogOpen] = useState(false);
 
@@ -2804,7 +2805,7 @@ export default function ReadingScreen({
     }
   };
 
-  const [tafsirMode, setTafsirMode] = useState<TafsirMode>("tafsir_muyassar");
+  const [tafsirMode, setTafsirMode] = useState<TafsirMode>("tafsir_mukhtasar");
   const [tafsirLoading, setTafsirLoading] = useState(false);
   const [tafsirResponse, setTafsirResponse] = useState<string>("");
   const [tafsirError, setTafsirError] = useState<string | null>(null);
@@ -3070,8 +3071,9 @@ export default function ReadingScreen({
     }
   }, [selectedAyah, surahNumber]);
 
-  // Al-Tafseer Al-Moyassar long-press modal state
+  // Tafsir long-press modal state
   const [tafsirModalAyah, setTafsirModalAyah] = useState<Ayah | null>(null);
+  const [tafsirModalBook, setTafsirModalBook] = useState<"tafsir_mukhtasar" | "tafsir_muyassar" | "tafsir_sadi">("tafsir_mukhtasar");
   const [tafsirModalText, setTafsirModalText] = useState<string>("");
   const [tafsirModalLoading, setTafsirModalLoading] = useState<boolean>(false);
   const [tafsirModalError, setTafsirModalError] = useState<string | null>(null);
@@ -3108,11 +3110,15 @@ export default function ReadingScreen({
     try { localStorage.setItem("altibyan_tafsir_modal_font_size", "20"); } catch {}
   };
 
-  const fetchTafsirForModal = async (ayah: Ayah) => {
+  const fetchTafsirForModal = async (
+    ayah: Ayah,
+    bookOverride?: "tafsir_mukhtasar" | "tafsir_muyassar" | "tafsir_sadi"
+  ) => {
     setTafsirModalLoading(true);
     setTafsirModalError(null);
     setTafsirModalText("");
 
+    const targetBook = bookOverride || tafsirModalBook;
     const sNum = (ayah as any).surah?.number || surahNumber;
     const aNum = ayah.numberInSurah;
     const sName = (ayah as any).surah?.name || currentSurahMeta?.name;
@@ -3127,16 +3133,26 @@ export default function ReadingScreen({
       }
     }
 
-    // 1. Direct check for authentic local offline Muyassar dataset (100% offline & instant)
-    const directMuyassar = getOfflineMuyassarTafsir(sNum, aNum);
-    if (directMuyassar) {
-      setTafsirModalText(directMuyassar);
+    // 1. Instant authentic local offline resolution (100% offline & instant 0ms)
+    let offlineResult: string | null = null;
+    if (targetBook === "tafsir_mukhtasar") {
+      offlineResult = getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, realAyahText);
+    } else if (targetBook === "tafsir_muyassar") {
+      offlineResult = getOfflineMuyassarTafsir(sNum, aNum) || generateOfflineMuyassar(sNum, aNum, sName, realAyahText);
+    } else if (targetBook === "tafsir_sadi") {
+      offlineResult = getOfflineSaadiTafsir(sNum, aNum) || generateOfflineSaadi(sNum, aNum, sName, realAyahText);
+    }
+
+    if (offlineResult) {
+      setTafsirModalText(offlineResult);
       setTafsirModalLoading(false);
+      const cacheKey = `${sNum}:${aNum}:${targetBook}`;
+      saveToLibraryCache(cacheKey, offlineResult).catch(() => {});
       return;
     }
 
     // 2. Direct check in IndexedDB offline cache
-    const cacheKey = `${sNum}:${aNum}:tafsir_muyassar`;
+    const cacheKey = `${sNum}:${aNum}:${targetBook}`;
     try {
       const dbCached = await getFromLibraryCache(cacheKey);
       if (dbCached) {
@@ -3146,54 +3162,15 @@ export default function ReadingScreen({
       }
     } catch (_) {}
 
-    // 3. Direct check for other local offline datasets (100% offline)
-    const offlineText = generateOfflineMuyassar(sNum, aNum, sName, realAyahText) ||
-                        getOfflineAysarTafsir(sNum, aNum) || 
-                        getOfflineMukhtasarTafsir(sNum, aNum);
-    if (offlineText) {
-      setTafsirModalText(offlineText);
+    // 3. Fallback to universal offline content engine
+    const offlineUniversal = await getOfflineLibraryContent(sNum, aNum, targetBook, sName, realAyahText);
+    if (offlineUniversal) {
+      setTafsirModalText(offlineUniversal);
       setTafsirModalLoading(false);
-      saveToLibraryCache(cacheKey, offlineText).catch(() => {});
       return;
     }
 
-    // 3. If offline, use offline library engine
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      const offlineGenerated = await getOfflineLibraryContent(sNum, aNum, "tafsir_muyassar", sName, ayah.text);
-      if (offlineGenerated) {
-        setTafsirModalText(offlineGenerated);
-        setTafsirModalLoading(false);
-        return;
-      }
-    }
-
-    try {
-      const response = await fetch("/api/tafsir", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          surahName: sName,
-          surahNumber: sNum,
-          ayahNumber: aNum,
-          ayahText: ayah.text,
-          type: "tafsir_muyassar",
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.result) {
-          setTafsirModalText(data.result);
-          setTafsirModalLoading(false);
-          saveToLibraryCache(cacheKey, data.result).catch(() => {});
-          return;
-        }
-      }
-    } catch (err: any) {
-      console.warn("Modal Tafsir network request failed, using offline fallback:", err);
-    }
-
-    const fallback = getOfflineAysarTafsirFallback(sNum, aNum, sName, ayah.text);
-    setTafsirModalText(fallback);
+    setTafsirModalText(getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMuyassarTafsir(sNum, aNum) || "");
     setTafsirModalLoading(false);
   };
 
@@ -9416,7 +9393,7 @@ export default function ReadingScreen({
                 </div>
                 )}
 
-                {/* شريط الأيقونات الموحد المباشر (بدون تفريعات): التفسير الميسر ، السعدي ، ترجمة ، غريب الآية ، إعراب ، صرف ، بلاغة ، أسباب النزول ، تدبر ، التقييدات */}
+                {/* شريط الأيقونات الموحد المباشر (بدون تفريعات): المختصر في التفسير ، السعدي ، ترجمة ، غريب الآية ، إعراب ، صرف ، بلاغة ، أسباب النزول ، تدبر ، التقييدات */}
                 <div 
                   id="library-services-horizontal-bar"
                   dir="rtl"
@@ -10426,18 +10403,68 @@ export default function ReadingScreen({
                             : "border-slate-100 bg-slate-50"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 sm:gap-3.5 flex-row-reverse flex-wrap">
-                    <div className="flex items-center gap-2 flex-row-reverse">
-                      <BookOpenCheck 
-                        size={19} 
-                        className={
-                          theme === "gold-velvet" || theme === "emerald-velvet" ? "text-[#c5a85c]" :
-                          theme === "navy-velvet" ? "text-[#3F63C6]" :
-                          "text-emerald-600"
-                        } 
-                      />
-                      <h3 className="text-sm sm:text-base font-bold font-sans">التفسير الميسر</h3>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-row-reverse flex-wrap">
+                    {/* Segmented Book Switcher: المختصر، الميسر، السعدي */}
+                    <div className={`flex items-center p-0.5 sm:p-1 rounded-xl border shadow-2xs gap-1 ${
+                      theme === "emerald-velvet"
+                        ? "bg-[#011a12] border-[#c5a85c]/30 text-[#FAF8F5]"
+                        : theme === "gold-velvet"
+                        ? "bg-[#FFFDF5] border-[#c5a85c]/30 text-[#011c14]"
+                        : theme === "navy-velvet"
+                        ? "bg-white border-[#3F63C6]/25 text-slate-900"
+                        : isDark
+                        ? "bg-slate-900 border-slate-700 text-slate-100"
+                        : "bg-slate-100 border-slate-200 text-slate-800"
+                    }`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTafsirModalBook("tafsir_mukhtasar");
+                          fetchTafsirForModal(tafsirModalAyah, "tafsir_mukhtasar");
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          tafsirModalBook === "tafsir_mukhtasar"
+                            ? (theme === "emerald-velvet" ? "bg-[#34d399] text-[#011a12] shadow-xs" : theme === "gold-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-xs" : theme === "navy-velvet" ? "bg-[#3F63C6] text-white shadow-xs" : isDark ? "bg-emerald-500 text-slate-950 shadow-xs" : "bg-emerald-600 text-white shadow-xs")
+                            : "opacity-75 hover:opacity-100"
+                        }`}
+                      >
+                        <BookOpen size={13} className="shrink-0" />
+                        <span>المختصر</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTafsirModalBook("tafsir_muyassar");
+                          fetchTafsirForModal(tafsirModalAyah, "tafsir_muyassar");
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          tafsirModalBook === "tafsir_muyassar"
+                            ? (theme === "emerald-velvet" ? "bg-[#34d399] text-[#011a12] shadow-xs" : theme === "gold-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-xs" : theme === "navy-velvet" ? "bg-[#3F63C6] text-white shadow-xs" : isDark ? "bg-emerald-500 text-slate-950 shadow-xs" : "bg-emerald-600 text-white shadow-xs")
+                            : "opacity-75 hover:opacity-100"
+                        }`}
+                      >
+                        <BookOpenText size={13} className="shrink-0" />
+                        <span>الميسر</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTafsirModalBook("tafsir_sadi");
+                          fetchTafsirForModal(tafsirModalAyah, "tafsir_sadi");
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          tafsirModalBook === "tafsir_sadi"
+                            ? (theme === "emerald-velvet" ? "bg-[#34d399] text-[#011a12] shadow-xs" : theme === "gold-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-xs" : theme === "navy-velvet" ? "bg-[#3F63C6] text-white shadow-xs" : isDark ? "bg-emerald-500 text-slate-950 shadow-xs" : "bg-emerald-600 text-white shadow-xs")
+                            : "opacity-75 hover:opacity-100"
+                        }`}
+                      >
+                        <BookOpenCheck size={13} className="shrink-0" />
+                        <span>السعدي</span>
+                      </button>
                     </div>
+
                     <span className="opacity-30 select-none">•</span>
                     <span className={`text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center ${
                       theme === "emerald-velvet"
@@ -10561,7 +10588,7 @@ export default function ReadingScreen({
                           theme === "gold-velvet" ? "text-[#c5a85c]" :
                           theme === "navy-velvet" ? "text-[#3F63C6]" :
                           "text-slate-500"
-                        }`}>جاري جلب التفسير الميسر...</p>
+                        }`}>جاري جلب المختصر في التفسير...</p>
                       </div>
                     ) : tafsirModalError ? (
                       <div className="text-center py-10 space-y-3">
@@ -10808,7 +10835,7 @@ export default function ReadingScreen({
                       setTafsirModalAyah(ayahWithSurah as Ayah);
                       setFloatingAyahMenu(null);
                     }}
-                    title="التفسير الميسر"
+                    title="تفسير الآية (المختصر • الميسر • السعدي)"
                     className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
                   >
                     <BookOpen size={28} className="sm:w-[34px] sm:h-[34px]" />

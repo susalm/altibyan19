@@ -7,7 +7,7 @@ import { getOfflineAsbab } from "../utils/asbabBook";
 import { getOfflineMutashabihat } from "../utils/mutashabihatBook";
 import { getOfflineTdabr } from "../utils/tdabrBook";
 import { getOfflineSarf } from "../utils/sarfBook";
-import { getOfflineLibraryContent } from "../utils/libraryOfflineEngine";
+import { getOfflineLibraryContent, getOfflineMuyassarTafsir, getOfflineSaadiTafsir } from "../utils/libraryOfflineEngine";
 import { 
   Search, X, Loader2, BookOpen, ChevronLeft, 
   Fingerprint, List, Network, Image as ImageIcon, 
@@ -407,9 +407,13 @@ export default function QuranWordSearchModal({
     setTafsirLoading(true);
     let tafsirResult: string | null = null;
 
-    // 1. Try local offline engines first for instant offline response
+    // 1. Try local offline engines first for instant offline response (100% offline)
     if (activeBook === "tafsir_mukhtasar") {
       tafsirResult = getOfflineMukhtasarTafsir(surahNumber, ayahNumber) || getOfflineMukhtasarTafsirFallback(surahNumber, ayahNumber, surahName, ayahText);
+    } else if (activeBook === "tafsir_muyassar") {
+      tafsirResult = getOfflineMuyassarTafsir(surahNumber, ayahNumber);
+    } else if (activeBook === "tafsir_sadi") {
+      tafsirResult = getOfflineSaadiTafsir(surahNumber, ayahNumber);
     } else if (activeBook === "tafsir_aysar") {
       tafsirResult = getOfflineAysarTafsir(surahNumber, ayahNumber) || getOfflineAysarTafsirFallback(surahNumber, ayahNumber, surahName, ayahText);
     } else if (activeBook === "suraj_garib_quran" || activeBook === "gharib") {
@@ -422,6 +426,12 @@ export default function QuranWordSearchModal({
       tafsirResult = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText);
     } else if (activeBook === "sarf" || activeBook === "eerab") {
       tafsirResult = getOfflineSarf(surahNumber, ayahNumber, surahName, ayahText, activeBook, true);
+    }
+
+    if (!tafsirResult) {
+      try {
+        tafsirResult = await getOfflineLibraryContent(surahNumber, ayahNumber, activeBook, surahName, ayahText);
+      } catch (_) {}
     }
 
     if (tafsirResult) {
