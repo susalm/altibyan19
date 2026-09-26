@@ -914,6 +914,54 @@ const renderFormattedMeaningText = (
   });
 };
 
+/**
+ * Highlights text between brackets/parentheses e.g. (كلمة) or {كلمة} or ﴿كلمة﴾ or [كلمة] in red
+ * تجعل ما بين الأقواس باللون الأحمر في نصوص التفسير والخدمات
+ */
+const renderTextWithRedParentheses = (
+  text: string,
+  theme: string,
+  isDark: boolean
+) => {
+  if (!text) return null;
+
+  // Red text class based on active theme
+  const redClass = isDark
+    ? "text-rose-400 font-bold"
+    : theme === "gold-velvet"
+      ? "text-red-700 font-bold"
+      : "text-red-600 font-bold";
+
+  // Regex matching all types of brackets: (...), {...}, ﴿...﴾, [...], «...»
+  const bracketRegex = /(\([^\(\)]+\)|\{[^\{\}]+\}|﴿[^﴿﴾]+﴾|\[[^\[\]]+\]|«[^«»]+»)/g;
+  const parts = text.split(bracketRegex);
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+
+    const isParenthesized =
+      (part.startsWith("(") && part.endsWith(")")) ||
+      (part.startsWith("{") && part.endsWith("}")) ||
+      (part.startsWith("﴿") && part.endsWith("﴾")) ||
+      (part.startsWith("[") && part.endsWith("]")) ||
+      (part.startsWith("«") && part.endsWith("»"));
+
+    if (isParenthesized) {
+      return (
+        <span key={index} className={`${redClass} select-text inline`}>
+          {part}
+        </span>
+      );
+    }
+
+    return (
+      <span key={index} className="select-text">
+        {part}
+      </span>
+    );
+  });
+};
+
 const AyahWithTafsirCard = ({
   ayah,
   surahNumber,
@@ -3070,9 +3118,9 @@ export default function ReadingScreen({
     }
   }, [selectedAyah, surahNumber]);
 
-  // Tafsir long-press modal state
+  // Tafsir & Verse services modal state
   const [tafsirModalAyah, setTafsirModalAyah] = useState<Ayah | null>(null);
-  const [tafsirModalBook, setTafsirModalBook] = useState<"tafsir_mukhtasar" | "tafsir_muyassar" | "tafsir_sadi">("tafsir_mukhtasar");
+  const [tafsirModalBook, setTafsirModalBook] = useState<"tafsir_muyassar" | "translation_hilali_khan" | "suraj_garib_quran" | "tafsir_mukhtasar" | "tafsir_sadi">("tafsir_muyassar");
   const [tafsirModalText, setTafsirModalText] = useState<string>("");
   const [tafsirModalLoading, setTafsirModalLoading] = useState<boolean>(false);
   const [tafsirModalError, setTafsirModalError] = useState<string | null>(null);
@@ -3111,7 +3159,7 @@ export default function ReadingScreen({
 
   const fetchTafsirForModal = async (
     ayah: Ayah,
-    bookOverride?: "tafsir_mukhtasar" | "tafsir_muyassar" | "tafsir_sadi"
+    bookOverride?: "tafsir_muyassar" | "translation_hilali_khan" | "suraj_garib_quran" | "tafsir_mukhtasar" | "tafsir_sadi"
   ) => {
     setTafsirModalLoading(true);
     setTafsirModalError(null);
@@ -3134,10 +3182,14 @@ export default function ReadingScreen({
 
     // 1. Instant authentic local offline resolution (100% offline & instant 0ms)
     let offlineResult: string | null = null;
-    if (targetBook === "tafsir_mukhtasar") {
-      offlineResult = getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, realAyahText);
-    } else if (targetBook === "tafsir_muyassar") {
+    if (targetBook === "tafsir_muyassar") {
       offlineResult = getOfflineMuyassarTafsir(sNum, aNum) || generateOfflineMuyassar(sNum, aNum, sName, realAyahText);
+    } else if (targetBook === "translation_hilali_khan") {
+      offlineResult = getOfflineEnglishTranslation(sNum, aNum);
+    } else if (targetBook === "suraj_garib_quran") {
+      offlineResult = getOfflineGharib(sNum, aNum, sName, realAyahText);
+    } else if (targetBook === "tafsir_mukhtasar") {
+      offlineResult = getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, realAyahText);
     } else if (targetBook === "tafsir_sadi") {
       offlineResult = getOfflineSaadiTafsir(sNum, aNum) || generateOfflineSaadi(sNum, aNum, sName, realAyahText);
     }
@@ -3169,7 +3221,7 @@ export default function ReadingScreen({
       return;
     }
 
-    setTafsirModalText(getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMuyassarTafsir(sNum, aNum) || "");
+    setTafsirModalText(getOfflineEnglishTranslation(sNum, aNum) || getOfflineGharib(sNum, aNum, sName, realAyahText) || "");
     setTafsirModalLoading(false);
   };
 
@@ -3182,6 +3234,7 @@ export default function ReadingScreen({
   const longPressTimeoutRef = useRef<any>(null);
   const longPressActiveRef = useRef<boolean>(false);
   const touchStartPosRef = useRef<{ x: number, y: number } | null>(null);
+  const menuOpenedAtRef = useRef<number>(0);
 
   const handleOpenFloatingAyahMenu = (ayah: Ayah, clientX?: number, clientY?: number) => {
     const sNum = (ayah as any).surah?.number || surahNumber;
@@ -3200,6 +3253,7 @@ export default function ReadingScreen({
       }
     }
 
+    menuOpenedAtRef.current = Date.now();
     setFloatingAyahMenu({
       ayah,
       surahNumber: sNum,
@@ -3311,7 +3365,7 @@ export default function ReadingScreen({
       }
       setTimeout(() => {
         longPressActiveRef.current = false;
-      }, 150);
+      }, 350);
       return true;
     }
     longPressActiveRef.current = false;
@@ -3331,7 +3385,7 @@ export default function ReadingScreen({
     }
     const dx = Math.abs(currentX - touchStartPosRef.current.x);
     const dy = Math.abs(currentY - touchStartPosRef.current.y);
-    if (dx > 12 || dy > 12) {
+    if (dx > 16 || dy > 16) {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
       longPressActiveRef.current = false;
@@ -10403,7 +10457,7 @@ export default function ReadingScreen({
                   }`}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 flex-row-reverse flex-wrap">
-                    {/* Segmented Book Switcher: المختصر، الميسر، السعدي */}
+                    {/* Segmented Service Switcher: الميسر، الترجمة، غريب الآية */}
                     <div className={`flex items-center p-0.5 sm:p-1 rounded-xl border shadow-2xs gap-1 ${
                       theme === "emerald-velvet"
                         ? "bg-[#011a12] border-[#c5a85c]/30 text-[#FAF8F5]"
@@ -10415,22 +10469,6 @@ export default function ReadingScreen({
                         ? "bg-slate-900 border-slate-700 text-slate-100"
                         : "bg-slate-100 border-slate-200 text-slate-800"
                     }`}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTafsirModalBook("tafsir_mukhtasar");
-                          fetchTafsirForModal(tafsirModalAyah, "tafsir_mukhtasar");
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                          tafsirModalBook === "tafsir_mukhtasar"
-                            ? (theme === "emerald-velvet" ? "bg-[#34d399] text-[#011a12] shadow-xs" : theme === "gold-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-xs" : theme === "navy-velvet" ? "bg-[#3F63C6] text-white shadow-xs" : isDark ? "bg-emerald-500 text-slate-950 shadow-xs" : "bg-emerald-600 text-white shadow-xs")
-                            : "opacity-75 hover:opacity-100"
-                        }`}
-                      >
-                        <BookOpen size={13} className="shrink-0" />
-                        <span>المختصر</span>
-                      </button>
-
                       <button
                         type="button"
                         onClick={() => {
@@ -10450,17 +10488,33 @@ export default function ReadingScreen({
                       <button
                         type="button"
                         onClick={() => {
-                          setTafsirModalBook("tafsir_sadi");
-                          fetchTafsirForModal(tafsirModalAyah, "tafsir_sadi");
+                          setTafsirModalBook("translation_hilali_khan");
+                          fetchTafsirForModal(tafsirModalAyah, "translation_hilali_khan");
                         }}
                         className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                          tafsirModalBook === "tafsir_sadi"
+                          tafsirModalBook === "translation_hilali_khan"
                             ? (theme === "emerald-velvet" ? "bg-[#34d399] text-[#011a12] shadow-xs" : theme === "gold-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-xs" : theme === "navy-velvet" ? "bg-[#3F63C6] text-white shadow-xs" : isDark ? "bg-emerald-500 text-slate-950 shadow-xs" : "bg-emerald-600 text-white shadow-xs")
                             : "opacity-75 hover:opacity-100"
                         }`}
                       >
-                        <BookOpenCheck size={13} className="shrink-0" />
-                        <span>السعدي</span>
+                        <Languages size={13} className="shrink-0" />
+                        <span>الترجمة</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTafsirModalBook("suraj_garib_quran");
+                          fetchTafsirForModal(tafsirModalAyah, "suraj_garib_quran");
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          tafsirModalBook === "suraj_garib_quran"
+                            ? (theme === "emerald-velvet" ? "bg-[#34d399] text-[#011a12] shadow-xs" : theme === "gold-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-xs" : theme === "navy-velvet" ? "bg-[#3F63C6] text-white shadow-xs" : isDark ? "bg-emerald-500 text-slate-950 shadow-xs" : "bg-emerald-600 text-white shadow-xs")
+                            : "opacity-75 hover:opacity-100"
+                        }`}
+                      >
+                        <FileText size={13} className="shrink-0" />
+                        <span>غريب الآية</span>
                       </button>
                     </div>
 
@@ -10618,7 +10672,7 @@ export default function ReadingScreen({
                             fontSize: `${tafsirModalFontSize}px`
                           }}
                         >
-                          {tafsirModalText}
+                          {renderTextWithRedParentheses(tafsirModalText, theme, isDark)}
                         </p>
                       </div>
                     )}
@@ -10788,9 +10842,25 @@ export default function ReadingScreen({
           {floatingAyahMenu && (
             <div
               className="fixed inset-0 z-[450] select-none pointer-events-auto"
-              onClick={() => setFloatingAyahMenu(null)}
+              onClick={(e) => {
+                // If the user just lifted their finger after triggering the long-press (within 400ms), do not close
+                if (Date.now() - menuOpenedAtRef.current < 400) {
+                  e.stopPropagation();
+                  return;
+                }
+                setFloatingAyahMenu(null);
+              }}
+              onTouchEnd={(e) => {
+                if (Date.now() - menuOpenedAtRef.current < 400) {
+                  e.stopPropagation();
+                  return;
+                }
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
+                if (Date.now() - menuOpenedAtRef.current < 400) {
+                  return;
+                }
                 setFloatingAyahMenu(null);
               }}
             >
@@ -10834,7 +10904,7 @@ export default function ReadingScreen({
                       setTafsirModalAyah(ayahWithSurah as Ayah);
                       setFloatingAyahMenu(null);
                     }}
-                    title="تفسير الآية (المختصر • الميسر • السعدي)"
+                    title="تفسير وخدمات الآية (الميسر • الترجمة • غريب الآية)"
                     className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl transition-all cursor-pointer flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90"
                   >
                     <BookOpen size={28} className="sm:w-[34px] sm:h-[34px]" />
