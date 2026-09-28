@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { fetchAlquranCloud, fetchTafsirData } from "../utils/quranApi";
-import { getOfflineMukhtasarTafsir, getOfflineMukhtasarTafsirFallback } from "../utils/mukhtasarBook";
-import { getOfflineAysarTafsir, getOfflineAysarTafsirFallback } from "../utils/aysarBook";
+import { fetchAlquranCloud } from "../utils/quranApi";
 import { getOfflineGharib } from "../utils/gharibBook";
 import { getOfflineAsbab } from "../utils/asbabBook";
 import { getOfflineMutashabihat } from "../utils/mutashabihatBook";
 import { getOfflineTdabr } from "../utils/tdabrBook";
-import { getOfflineSarf } from "../utils/sarfBook";
-import { getOfflineLibraryContent, getOfflineMuyassarTafsir, getOfflineSaadiTafsir } from "../utils/libraryOfflineEngine";
 import { 
   Search, X, Loader2, BookOpen, ChevronLeft, 
   Fingerprint, List, Network, Image as ImageIcon, 
@@ -279,16 +275,6 @@ interface SearchMatch {
   isSurahResult?: boolean;
 }
 
-const LIBRARY_BOOKS = [
-  { id: "tafsir_mukhtasar", name: "المختصر في التفسير", author: "مركز تفسير (susalm/mushaf-altibyan- / tafsir-mcp-main)", badge: "المختصر" },
-  { id: "tafsir_muyassar", name: "التفسير الميسر", author: "مجمع الملك فهد", badge: "الميسر" },
-  { id: "tafsir_sadi", name: "تفسير السعدي", author: "عبد الرحمن السعدي", badge: "السعدي" },
-  { id: "tafsir_kathir", name: "تفسير ابن كثير", author: "ابن كثير الدمشقي", badge: "ابن كثير" },
-  { id: "tafsir_tabari", name: "تفسير الطبري", author: "محمد بن جرير الطبري", badge: "الطبري" },
-  { id: "tafsir_qurtubi", name: "تفسير القرطبي", author: "القرطبي", badge: "القرطبي" },
-  { id: "tafsir_baghawi", name: "تفسير البغوي", author: "البغوي", badge: "البغوي" },
-];
-
 export default function QuranWordSearchModal({
   isOpen,
   onClose,
@@ -297,8 +283,8 @@ export default function QuranWordSearchModal({
   theme,
   inDrawer = false,
 }: QuranWordSearchModalProps) {
-  // Navigation tabs: المصحف، الفهرس، الموضوع، المكتبة، المشكاة
-  const [activeSearchTab, setActiveSearchTab] = useState<"mushaf" | "index" | "thematic" | "library" | "mishkat">("mushaf");
+  // Navigation tabs: المصحف، الفهرس، الموضوع، المشكاة
+  const [activeSearchTab, setActiveSearchTab] = useState<"mushaf" | "index" | "thematic" | "mishkat">("mushaf");
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -324,12 +310,6 @@ export default function QuranWordSearchModal({
     pageNumber: number;
     ayahNumber?: number;
   }[]>([]);
-
-  // States for library inline Tafsir
-  const [openTafsirVerseKey, setOpenTafsirVerseKey] = useState<string | null>(null);
-  const [tafsirLoading, setTafsirLoading] = useState<boolean>(false);
-  const [tafsirTexts, setTafsirTexts] = useState<Record<string, string>>({});
-  const [tafsirBookType, setTafsirBookType] = useState<string>("tafsir_muyassar");
 
   // States for mishkat search results
   const [matchingGems, setMatchingGems] = useState<MishkatGem[]>([]);
@@ -365,125 +345,8 @@ export default function QuranWordSearchModal({
       setMatchingIndexResults([]);
       setMatchingThemes([]);
       setMatchingGems([]);
-      setOpenTafsirVerseKey(null);
     }
   }, [isOpen]);
-
-  // Clean open Tafsirs when book type changes
-  useEffect(() => {
-    if (openTafsirVerseKey) {
-      const [surahNumber, ayahNumber] = openTafsirVerseKey.split(":").map(Number);
-      const match = results.find(r => r.surah.number === surahNumber && r.numberInSurah === ayahNumber);
-      if (match) {
-        setTafsirTexts(prev => {
-          const next = { ...prev };
-          delete next[openTafsirVerseKey];
-          return next;
-        });
-        handleFetchTafsirInline(surahNumber, ayahNumber, match.text, match.surah.name);
-      }
-    }
-  }, [tafsirBookType]);
-
-  const handleFetchTafsirInline = async (
-    surahNumber: number,
-    ayahNumber: number,
-    ayahText: string,
-    surahName: string,
-    bookTypeOverride?: string
-  ) => {
-    const activeBook = bookTypeOverride || tafsirBookType;
-    const verseKey = `${surahNumber}:${ayahNumber}`;
-    const cacheKey = `${verseKey}:${activeBook}`;
-
-    if (openTafsirVerseKey === verseKey && !bookTypeOverride) {
-      setOpenTafsirVerseKey(null);
-      return;
-    }
-    setOpenTafsirVerseKey(verseKey);
-    
-    if (tafsirTexts[cacheKey]) return; // cached
-
-    setTafsirLoading(true);
-    let tafsirResult: string | null = null;
-
-    // 1. Try local offline engines first for instant offline response (100% offline)
-    if (activeBook === "tafsir_mukhtasar") {
-      tafsirResult = getOfflineMukhtasarTafsir(surahNumber, ayahNumber) || getOfflineMukhtasarTafsirFallback(surahNumber, ayahNumber, surahName, ayahText);
-    } else if (activeBook === "tafsir_muyassar") {
-      tafsirResult = getOfflineMuyassarTafsir(surahNumber, ayahNumber);
-    } else if (activeBook === "tafsir_sadi") {
-      tafsirResult = getOfflineSaadiTafsir(surahNumber, ayahNumber);
-    } else if (activeBook === "tafsir_aysar") {
-      tafsirResult = getOfflineAysarTafsir(surahNumber, ayahNumber) || getOfflineAysarTafsirFallback(surahNumber, ayahNumber, surahName, ayahText);
-    } else if (activeBook === "suraj_garib_quran" || activeBook === "gharib") {
-      tafsirResult = getOfflineGharib(surahNumber, ayahNumber, surahName, ayahText);
-    } else if (activeBook === "muharrar_asbab" || activeBook === "asbab") {
-      tafsirResult = getOfflineAsbab(surahNumber, ayahNumber, surahName, ayahText);
-    } else if (activeBook === "mutashabihat") {
-      tafsirResult = getOfflineMutashabihat(surahNumber, ayahNumber, surahName, ayahText);
-    } else if (activeBook === "tadabbur" || activeBook === "hidaya") {
-      tafsirResult = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText);
-    } else if (activeBook === "sarf" || activeBook === "eerab") {
-      tafsirResult = getOfflineSarf(surahNumber, ayahNumber, surahName, ayahText, activeBook, true);
-    }
-
-    if (!tafsirResult) {
-      try {
-        tafsirResult = await getOfflineLibraryContent(surahNumber, ayahNumber, activeBook, surahName, ayahText);
-      } catch (_) {}
-    }
-
-    if (tafsirResult) {
-      setTafsirTexts(prev => ({
-        ...prev,
-        [cacheKey]: tafsirResult!
-      }));
-      setTafsirLoading(false);
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/tafsir", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          surahName,
-          surahNumber,
-          ayahNumber,
-          ayahText,
-          type: activeBook
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.result) {
-          tafsirResult = data.result;
-        }
-      }
-    } catch (e) {
-      console.warn("Online tafsir fetch failed, using offline fallback:", e);
-    }
-
-    if (!tafsirResult) {
-      tafsirResult = await getOfflineLibraryContent(surahNumber, ayahNumber, activeBook, surahName, ayahText);
-    }
-
-    if (!tafsirResult) {
-      // Ultimate offline fallback to ensure non-empty display
-      tafsirResult = getOfflineMukhtasarTafsir(surahNumber, ayahNumber) ||
-                     getOfflineAysarTafsir(surahNumber, ayahNumber) ||
-                     getOfflineMukhtasarTafsirFallback(surahNumber, ayahNumber, surahName, ayahText);
-    }
-
-    if (tafsirResult) {
-      setTafsirTexts(prev => ({
-        ...prev,
-        [cacheKey]: tafsirResult!
-      }));
-    }
-    setTafsirLoading(false);
-  };
 
   const handleIndexSearch = (cleanQuery: string) => {
     const normQuery = normalizeArabic(cleanQuery);
@@ -968,76 +831,6 @@ export default function QuranWordSearchModal({
 
   const colors = getThemeClasses();
 
-  const getTafsirBookChipClass = (isSelected: boolean) => {
-    if (isDark) {
-      if (theme === "gold-velvet") {
-        return isSelected
-          ? "bg-black text-[#fde047] border-[#c5a85c] ring-2 ring-[#c5a85c]/40 font-black shadow-sm"
-          : "bg-black/90 text-[#d6ba6d] border-[#c5a85c]/50 hover:border-[#c5a85c] hover:text-[#fde047]";
-      }
-      if (theme === "navy-velvet") {
-        return isSelected
-          ? "bg-black text-[#93c5fd] border-[#3F63C6] ring-2 ring-[#3F63C6]/40 font-black shadow-sm"
-          : "bg-black/90 text-[#60a5fa] border-[#3F63C6]/50 hover:border-[#3F63C6] hover:text-[#93c5fd]";
-      }
-      if (theme === "emerald-velvet") {
-        return isSelected
-          ? "bg-black text-emerald-300 border-emerald-400 ring-2 ring-emerald-500/40 font-black shadow-sm"
-          : "bg-black/90 text-emerald-400 border-emerald-500/50 hover:border-emerald-400 hover:text-emerald-300";
-      }
-      return isSelected
-        ? "bg-black text-emerald-300 border-emerald-400 ring-2 ring-emerald-500/40 font-black shadow-sm"
-        : "bg-black/80 text-emerald-400 border-emerald-500/50 hover:border-emerald-400 hover:text-emerald-300";
-    }
-
-    // Light Mode (الوضع الفاتح المناسب لكل مظهر)
-    if (theme === "gold-velvet") {
-      return isSelected
-        ? "bg-[#c5a85c] text-white border-[#c5a85c] font-black shadow-sm"
-        : "bg-amber-50/90 text-[#78350f] border-[#c5a85c]/40 hover:bg-amber-100 hover:border-[#c5a85c] hover:text-[#451a03]";
-    }
-    if (theme === "navy-velvet") {
-      return isSelected
-        ? "bg-[#3F63C6] text-white border-[#3F63C6] font-black shadow-sm"
-        : "bg-blue-50/90 text-[#1e3a8a] border-[#3F63C6]/30 hover:bg-blue-100 hover:border-[#3F63C6] hover:text-[#172554]";
-    }
-    if (theme === "emerald-velvet") {
-      return isSelected
-        ? "bg-emerald-600 text-white border-emerald-600 font-black shadow-sm"
-        : "bg-emerald-50/90 text-emerald-950 border-emerald-500/30 hover:bg-emerald-100 hover:border-emerald-500 hover:text-emerald-900";
-    }
-    return isSelected
-      ? "bg-emerald-600 text-white border-emerald-600 font-black shadow-sm"
-      : "bg-slate-50 text-slate-700 border-slate-200 hover:border-emerald-500 hover:text-emerald-800 hover:bg-emerald-50/60";
-  };
-
-  const getTafsirBookIconClass = (isSelected: boolean) => {
-    if (isDark) {
-      if (theme === "gold-velvet") {
-        return isSelected ? "text-[#fde047]" : "text-[#d6ba6d]";
-      }
-      if (theme === "navy-velvet") {
-        return isSelected ? "text-[#93c5fd]" : "text-[#60a5fa]";
-      }
-      if (theme === "emerald-velvet") {
-        return isSelected ? "text-emerald-300" : "text-emerald-400";
-      }
-      return isSelected ? "text-emerald-300" : "text-emerald-400";
-    }
-
-    // Light mode icons
-    if (theme === "gold-velvet") {
-      return isSelected ? "text-white" : "text-[#c5a85c]";
-    }
-    if (theme === "navy-velvet") {
-      return isSelected ? "text-white" : "text-[#3F63C6]";
-    }
-    if (theme === "emerald-velvet") {
-      return isSelected ? "text-white" : "text-emerald-600";
-    }
-    return isSelected ? "text-white" : "text-emerald-600";
-  };
-
   const getTafsirLabelClass = () => {
     if (isDark) {
       if (theme === "gold-velvet") return "text-[#d6ba6d]";
@@ -1144,7 +937,7 @@ export default function QuranWordSearchModal({
 
   // Unified Results Check
   const hasResults = () => {
-    if (activeSearchTab === "mushaf" || activeSearchTab === "library") {
+    if (activeSearchTab === "mushaf") {
       return results.length > 0;
     }
     if (activeSearchTab === "index") {
@@ -1254,41 +1047,6 @@ export default function QuranWordSearchModal({
               <Network size={32} />
             </div>
             <h4 className={`text-sm font-black ${getEmptyHeadingStyle()}`}>البحث الموضوعي في القرآن الكريم</h4>
-          </div>
-        );
-      case "library":
-        return (
-          <div className="py-8 flex flex-col items-center justify-center gap-4 text-center p-6">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-sm ${getEmptyIconBoxStyle()}`}>
-              <BookOpenText size={32} />
-            </div>
-            <h4 className={`text-sm font-black ${getEmptyHeadingStyle()}`}>البحث في كتب التفسير بالمكتبة</h4>
-
-            {/* Quick Tafsir Books Selection Chips */}
-            <div className="w-full max-w-lg text-right space-y-3 pt-4 border-t border-dashed border-slate-200/60 dark:border-slate-800/80">
-              <span className={`text-[11px] font-black block ${getTafsirLabelClass()}`}>كتب التفسير المتاحة بالمكتبة:</span>
-              <div className="flex flex-wrap gap-2 justify-start" dir="rtl">
-                {LIBRARY_BOOKS.map((b) => {
-                  const isSelected = tafsirBookType === b.id;
-                  return (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => {
-                        setTafsirBookType(b.id);
-                        if (inputRef.current) inputRef.current.focus();
-                      }}
-                      className={`px-3 py-1.5 rounded-xl text-xxs font-black transition-all cursor-pointer border flex items-center gap-1.5 shadow-sm ${
-                        getTafsirBookChipClass(isSelected)
-                      }`}
-                    >
-                      <BookOpen size={13} className={`${getTafsirBookIconClass(isSelected)} shrink-0`} />
-                      <span>{b.badge}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         );
       case "mishkat":
@@ -1465,178 +1223,6 @@ export default function QuranWordSearchModal({
                       </div>
                     );
                   })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderLibraryResults = () => {
-    const validMatches = results.filter(r => !r.isPageResult);
-    if (validMatches.length === 0) {
-      return (
-        <div className="h-48 flex flex-col items-center justify-center gap-2 text-center text-slate-400 dark:text-slate-500">
-          <span className="text-2xl">🔍</span>
-          <p className="text-xs font-bold">لم يتم العثور على أي آية مطابقة في كتب التفسير لـ "{query}"</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-4 pb-4">
-        <div className="flex items-center justify-between px-2 mb-1">
-          <span className="text-xs font-bold opacity-70">نتائج البحث في كتب التفسير لـ: "{query}"</span>
-          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${colors.badgeBg}`}>
-            {toArabic(validMatches.length)} آيات
-          </span>
-        </div>
-
-        {validMatches.map((match) => {
-          const verseKey = `${match.surah.number}:${match.numberInSurah}`;
-          const cacheKey = `${verseKey}:${tafsirBookType}`;
-          const isOpen = openTafsirVerseKey === verseKey;
-          const detail = verseDetails[verseKey];
-          const pageNum = detail?.page || match.page || getSurahStartPage(match.surah.number);
-
-          return (
-            <div
-              key={verseKey}
-              className={`rounded-2xl border transition-all overflow-hidden shadow-sm ${getSearchCardClass()}`}
-            >
-              {/* Header */}
-              <div className={`p-3.5 sm:p-4 border-b border-dashed flex items-center justify-between gap-2 ${getCardHeaderBorderClass()}`}>
-                <div className={`px-3 py-1 rounded-full text-xs font-black ${colors.badgeBg}`}>
-                  سورة {match.surah.name} • الآية {toArabic(match.numberInSurah)}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectVerse(match.surah.number, match.surah.name, match.numberInSurah, pageNum, match.text);
-                  }}
-                  className={`hover:underline cursor-pointer flex items-center gap-1 font-black text-xxs px-2.5 py-1 rounded-lg transition-all ${
-                    isDark
-                      ? theme === "emerald-velvet"
-                      ? "text-emerald-300 bg-emerald-950/40 hover:bg-emerald-950/60 border border-emerald-500/20"
-                      : theme === "gold-velvet"
-                      ? "text-[#fde047] bg-[#14100c] hover:bg-[#1c1813] border border-[#c5a85c]/30"
-                      : theme === "navy-velvet"
-                      ? "text-[#93c5fd] bg-[#060c18] hover:bg-[#0a1224] border border-[#3F63C6]/30"
-                      : "text-emerald-400 bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-500/20"
-                      : theme === "emerald-velvet"
-                      ? "text-emerald-800 bg-emerald-100/70 hover:bg-emerald-100"
-                      : "text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                  }`}
-                >
-                  <span>الانتقال للمصحف</span>
-                  <ChevronLeft size={12} />
-                </button>
-              </div>
-
-              {/* Ayah Text Card Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  handleFetchTafsirInline(match.surah.number, match.numberInSurah, match.text, match.surah.name, tafsirBookType);
-                }}
-                className={`w-full text-right p-4 border-b border-dashed cursor-pointer transition-colors ${getCardHeaderBorderClass()} ${
-                  isDark ? "hover:bg-slate-800/30" : "hover:bg-slate-100/40"
-                }`}
-              >
-                <p className={`font-uthmanic text-right text-base sm:text-xl leading-loose font-medium ${getTadabburAyahTextClass()}`} style={{ fontFamily: "'UthmanicHafs', 'Amiri', serif" }}>
-                  {highlightText(match.text, query)}
-                </p>
-                <div className={`mt-2.5 flex items-center gap-1.5 text-[11px] font-black ${
-                  isDark
-                    ? theme === "emerald-velvet"
-                    ? "text-[#34d399]"
-                    : theme === "gold-velvet"
-                    ? "text-[#fde047]"
-                    : theme === "navy-velvet"
-                    ? "text-[#93c5fd]"
-                    : "text-emerald-400"
-                    : theme === "emerald-velvet"
-                    ? "text-emerald-700"
-                    : "text-emerald-600"
-                }`}>
-                  <span>{isOpen ? "إخفاء التفسير" : "عرض تفسير الآية من كتب المكتبة"}</span>
-                  <ChevronDown size={12} className={`transform transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                </div>
-              </button>
-
-              {/* Tafsir Body */}
-              {isOpen && (
-                <div className={`p-4 space-y-3 ${
-                  isDark
-                    ? theme === "emerald-velvet" ? "bg-[#011a12]/80" : theme === "gold-velvet" ? "bg-[#14100c]/80" : theme === "navy-velvet" ? "bg-[#060c18]/80" : "bg-slate-950/60"
-                    : "bg-slate-50/60"
-                }`}>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[11px] font-black opacity-70">التفسير المختار من كتب المكتبة:</span>
-                    
-                    {/* Tafsir Book Buttons */}
-                    <div className="flex flex-wrap gap-1.5 justify-start" dir="rtl">
-                      {LIBRARY_BOOKS.map((b) => {
-                        const isSelected = tafsirBookType === b.id;
-                        return (
-                          <button
-                            key={b.id}
-                            type="button"
-                            onClick={() => {
-                              setTafsirBookType(b.id);
-                              handleFetchTafsirInline(match.surah.number, match.numberInSurah, match.text, match.surah.name, b.id);
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border flex items-center gap-1.5 shadow-xs ${
-                              getTafsirBookChipClass(isSelected)
-                            }`}
-                          >
-                            <BookOpen size={11} className={`${getTafsirBookIconClass(isSelected)} shrink-0`} />
-                            <span>{b.badge}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Tafsir Text Box */}
-                  {tafsirLoading && !tafsirTexts[cacheKey] ? (
-                    <div className="py-6 flex flex-col items-center justify-center gap-2 text-slate-400">
-                      <Loader2 className={`animate-spin ${
-                        theme === "emerald-velvet" ? "text-[#10b981]" :
-                        theme === "gold-velvet" ? "text-[#c5a85c]" :
-                        theme === "navy-velvet" ? "text-[#3F63C6]" :
-                        "text-emerald-500"
-                      }`} size={20} />
-                      <span className="text-[10px]">جاري جلب نص التفسير من المكتبة...</span>
-                    </div>
-                  ) : (
-                    <div className={`text-xs sm:text-sm leading-relaxed font-medium whitespace-pre-line p-3.5 rounded-xl border shadow-inner ${getTadabburBoxClass()}`}>
-                      {tafsirTexts[cacheKey] || "تعذر جلب التفسير حالياً."}
-                    </div>
-                  )}
-
-                  {/* Direct Jump to Mushaf Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelectVerse(match.surah.number, match.surah.name, match.numberInSurah, pageNum, match.text);
-                    }}
-                    className={`w-full py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm ${
-                      theme === "emerald-velvet"
-                        ? "bg-[#10b981] text-[#011c14] hover:bg-[#10b981]/90"
-                        : theme === "gold-velvet"
-                        ? "bg-[#c5a85c] text-[#292524] hover:bg-[#d6ba6d]"
-                        : theme === "navy-velvet"
-                        ? "bg-[#3F63C6] text-white hover:bg-[#4d73dc]"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700"
-                    }`}
-                  >
-                    <BookOpen size={14} />
-                    <span>الانتقال لموضع الآية الكريمة وتلاوتها بالمصحف الشريف</span>
-                  </button>
                 </div>
               )}
             </div>
@@ -1823,8 +1409,6 @@ export default function QuranWordSearchModal({
         return renderIndexResults();
       case "thematic":
         return renderThematicResults();
-      case "library":
-        return renderLibraryResults();
       case "mishkat":
         return renderMishkatResults();
       default:
@@ -1844,7 +1428,6 @@ export default function QuranWordSearchModal({
         {[
           { id: "mushaf", label: "المصحف", icon: BookOpen },
           { id: "thematic", label: "الموضوع", icon: Network },
-          { id: "library", label: "المكتبة", icon: BookOpenText },
           { id: "mishkat", label: "تدبر", icon: ImageIcon }
         ].map((tab) => {
           const IconComponent = tab.icon;
@@ -1861,7 +1444,6 @@ export default function QuranWordSearchModal({
                 setMatchingIndexResults([]);
                 setMatchingThemes([]);
                 setMatchingGems([]);
-                setOpenTafsirVerseKey(null);
               }}
               className={`flex-1 min-w-[65px] py-3.5 px-2 text-center flex flex-col items-center gap-1.5 border-b-2 transition-all cursor-pointer relative ${
                 isActive
@@ -1907,8 +1489,6 @@ export default function QuranWordSearchModal({
                   ? "اكتب اسم السورة، رقم الجزء، أو رقم الصفحة..."
                   : activeSearchTab === "thematic"
                   ? "اكتب اسم الموضوع (مثال: الصلاة، الصبر)..."
-                  : activeSearchTab === "library"
-                  ? "اكتب كلمة للبحث عن الآية وتفسيرها..."
                   : "اكتب للبحث في مشكاة الهدايات والتدبر..."
               }
               className={`w-full h-11 px-4 text-xs rounded-xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-opacity-25 ${
@@ -1959,32 +1539,6 @@ export default function QuranWordSearchModal({
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
           </button>
         </form>
-
-        {/* Tafsir Book Selection Chips placed to the right of the field */}
-        {activeSearchTab === "library" && (
-          <div className="px-4 pb-3 flex items-center gap-1.5 overflow-x-auto scrollbar-none justify-start" dir="rtl">
-            <span className={`text-[11px] font-black shrink-0 ml-1 ${getTafsirLabelClass()}`}>تفسير:</span>
-            {LIBRARY_BOOKS.map((b) => {
-              const isSelected = tafsirBookType === b.id;
-              return (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => {
-                    setTafsirBookType(b.id);
-                    if (inputRef.current) inputRef.current.focus();
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xxs font-black transition-all cursor-pointer border flex items-center gap-1.5 shrink-0 shadow-xs ${
-                    getTafsirBookChipClass(isSelected)
-                  }`}
-                >
-                  <BookOpen size={11} className={`${getTafsirBookIconClass(isSelected)} shrink-0`} />
-                  <span>{b.badge}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Content Area */}

@@ -79,28 +79,6 @@ export const DEFAULT_BOOKS: LibraryBookItem[] = [
     isDownloaded: true,
   },
 
-  // --- لغويات: التحليل الصرفي للآية ---
-  {
-    id: "book_sarf",
-    title: "الصرف",
-    author: "محمود الصافي",
-    mainCategory: "linguistics",
-    subCategory: "sarf",
-    apiType: "book_sarf",
-    isDownloaded: true,
-  },
-
-  // --- لغويات: بلاغة الآية ---
-  {
-    id: "book_balagha",
-    title: "البلاغة",
-    author: "محمود الصافي",
-    mainCategory: "linguistics",
-    subCategory: "balagha",
-    apiType: "book_balagha",
-    isDownloaded: true,
-  },
-
   // --- علوم القرآن: أسباب النزول فقط ---
   {
     id: "muharrar_asbab",

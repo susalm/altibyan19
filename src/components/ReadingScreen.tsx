@@ -618,6 +618,17 @@ const parseLinguisticItems = (text: string): LinguisticParsedItem[] => {
   const items: LinguisticParsedItem[] = [];
 
   for (const line of lines) {
+    // 0. Skip Sarf and Balagha sections per user request to delete them from library
+    if (
+      line.includes("التحليل الصرفي") ||
+      line.includes("البلاغة والبيان") ||
+      line.includes("أسرار البلاغة") ||
+      line.includes("الوزن الصرفي") ||
+      /^(?:####?|###?|##?)?\s*(?:📍|🔹|📌)?\s*(?:الصرف|البلاغة|التحليل الصرفي|البلاغة والبيان)/.test(line)
+    ) {
+      continue;
+    }
+
     // 1. Skip redundant ayah quotes: الآية: { ... }
     if (/^الآية\s*:\s*\{.*?\}\s*$/i.test(line)) {
       continue;
@@ -2205,8 +2216,6 @@ const CONTINUOUS_SERVICES_LIST: ContinuousIconServiceItem[] = [
   { id: "translation_hilali_khan", mainCategory: "translations", label: "ترجمة", icon: Languages, desc: "ترجمة معاني القرآن الكريم لد. تقي الدين الهلالي ود. محسن خان" },
   { id: "suraj_garib_quran", mainCategory: "linguistics", label: "غريب الآية", icon: FileText, desc: "بيان وتوضيح غريب مفردات الآية الكريمة" },
   { id: "book_irab", mainCategory: "linguistics", label: "إعراب", icon: Type, desc: "إعراب الآية الكريمة وبيان وجه الإعراب" },
-  { id: "book_sarf", mainCategory: "linguistics", label: "صرف", icon: Layers, desc: "التحليل الصرفي لمفردات الآية الكريمة" },
-  { id: "book_balagha", mainCategory: "linguistics", label: "بلاغة", icon: Sparkles, desc: "البلاغة واللمسات البيانية في الآية" },
   { id: "muharrar_asbab", mainCategory: "sciences", label: "أسباب النزول", icon: History, desc: "أسباب النزول المعتمدة للآيات" },
   { id: "book_tadabbur", mainCategory: "tadabbur", label: "تدبر", icon: Heart, desc: "الوقفات واللطائف والفوائد التدبرية" },
   { id: "notes", mainCategory: "notes", label: "التقييدات", icon: Feather, desc: "التقييدات والخواطر والملاحظات الشخصية" },
@@ -6642,113 +6651,9 @@ export default function ReadingScreen({
 
                   return (
                   <div className="p-4 sm:p-6 flex flex-col h-full overflow-y-auto custom-scrollbar">
-                    {/* My Files Sub Tabs Header */}
-                    <div id="my-files-sub-tabs" className={`grid grid-cols-3 p-1 mb-4 rounded-2xl h-12 items-center shrink-0 w-full ${
-                      theme === "emerald-velvet"
-                        ? "bg-[#011a12] border border-[#c5a85c]/30 text-[#FAF8F5]"
-                        : theme === "navy-velvet"
-                          ? "bg-[#3F63C6]/10 border border-[#3F63C6]/20 text-slate-800 dark:text-white"
-                          : theme === "gold-velvet"
-                            ? "bg-[#c5a85c]/10 border border-[#c5a85c]/25 text-slate-800 dark:text-amber-100"
-                            : isDark
-                              ? "bg-slate-900 border border-slate-800 text-slate-100"
-                              : "bg-emerald-100/70 border border-emerald-200/80 text-slate-800"
-                    }`}>
-                      {[
-                        { id: "bookmarks", label: "فواصل", icon: BookmarkIcon },
-                        { id: "notes", label: "ملاحظاتي", icon: FileText },
-                        { id: "reports", label: "تقارير", icon: Activity },
-                      ].map(t => {
-                        const IconComp = t.icon;
-                        const active = myFilesActiveTab === t.id;
-                        return (
-                          <button
-                            key={t.id}
-                            onClick={() => setMyFilesActiveTab(t.id as any)}
-                            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-bold h-10 transition-all cursor-pointer w-full ${
-                              active
-                                ? (theme === "emerald-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-xs font-black" : theme === "navy-velvet" ? "bg-[#3F63C6] text-white shadow-sm font-black" : theme === "gold-velvet" ? "bg-[#c5a85c] text-[#011c14] shadow-sm font-black" : isDark ? "bg-emerald-600 text-white shadow-sm font-black" : "bg-emerald-700 text-white shadow-sm font-black")
-                                : (theme === "emerald-velvet" ? "text-[#c5a85c]/70 hover:text-[#FAF8F5]" : theme === "navy-velvet" ? "text-[#3F63C6]/80 dark:text-slate-300 hover:text-[#2563EB]" : theme === "gold-velvet" ? "text-[#8c6b23] dark:text-amber-300/80 hover:text-[#011c14]" : isDark ? "text-slate-400 hover:text-slate-100" : "text-emerald-800/70 hover:text-emerald-950")
-                            }`}
-                          >
-                            <IconComp size={15} />
-                            <span>{t.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
                     {/* Sub Tab 1: Bookmarks / فواصل */}
                     {myFilesActiveTab === "bookmarks" && (
                       <div className="space-y-4">
-                        {/* Top Action Bar */}
-                        <div className="flex items-center justify-between gap-2">
-                          <button
-                            onClick={() => setShowAddBookmarkForm(prev => !prev)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all ${themePrimaryBg}`}
-                          >
-                            <Plus size={15} />
-                            <span>إضافة فاصلة يدوياً</span>
-                          </button>
-
-                          {bookmarkCategory !== "all" && (
-                            <button
-                              onClick={() => setBookmarkCategory("all")}
-                              className={`px-2.5 py-1.5 rounded-lg text-xxs font-bold transition cursor-pointer ${
-                                theme === "emerald-velvet"
-                                  ? "bg-[#012519] text-[#FAF8F5] border border-[#c5a85c]/30 hover:bg-[#012c1e]"
-                                  : theme === "gold-velvet"
-                                    ? "bg-[#FAF5E6] text-[#011c14] border border-[#c5a85c]/30 hover:bg-[#f5eedc]"
-                                    : theme === "navy-velvet"
-                                      ? "bg-[#EFF6FF] text-[#3F63C6] border border-[#3F63C6]/25 hover:bg-[#DBEAFE]"
-                                      : isDark
-                                        ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                        : "bg-emerald-100/80 text-emerald-900 hover:bg-emerald-200"
-                              }`}
-                            >
-                              عرض الكل
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Category Filter Pills */}
-                        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                          {[
-                            { id: "reading", label: "قراءة", activeClass: "bg-red-500 text-white border-red-500 shadow-sm" },
-                            { id: "memorization", label: "حفظ", activeClass: "bg-sky-500 text-white border-sky-500 shadow-sm" },
-                            { id: "revision", label: "مراجعة", activeClass: "bg-emerald-500 text-white border-emerald-500 shadow-sm" },
-                            { id: "contemplation", label: "تدبر", activeClass: "bg-purple-600 text-white border-purple-600 shadow-sm" },
-                          ].map(cat => {
-                            const isCatActive = bookmarkCategory === cat.id;
-                            return (
-                              <button
-                                key={cat.id}
-                                onClick={() => setBookmarkCategory(cat.id as any)}
-                                className={`py-2 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold border-2 transition-all text-center cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap ${
-                                  isCatActive
-                                    ? cat.activeClass
-                                    : theme === "emerald-velvet"
-                                      ? "border-[#c5a85c]/30 bg-[#011a12] text-[#FAF8F5]/80 hover:border-[#c5a85c]"
-                                      : theme === "gold-velvet"
-                                        ? "border-[#c5a85c]/30 bg-[#FAF5E6] text-[#011c14] hover:border-[#c5a85c]"
-                                        : theme === "navy-velvet"
-                                          ? "border-[#3F63C6]/25 bg-[#F8FAFC] text-slate-800 hover:border-[#3F63C6]"
-                                          : isDark
-                                            ? "border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700"
-                                            : "border-emerald-200/80 bg-white text-slate-800 hover:border-emerald-600"
-                                }`}
-                              >
-                                <span className={`w-2 h-2 rounded-full shrink-0 ${
-                                  cat.id === "reading" ? "bg-red-500" :
-                                  cat.id === "memorization" ? "bg-sky-500" :
-                                  cat.id === "revision" ? "bg-emerald-500" : "bg-purple-500"
-                                }`} />
-                                <span>{cat.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
                         {/* Manual Add Bookmark Form */}
                         {showAddBookmarkForm && (
                           <div className={`p-4 rounded-2xl space-y-3 relative ${themePrimaryFormBorderBg}`}>
@@ -6760,7 +6665,7 @@ export default function ReadingScreen({
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               {/* Surah Picker with Dropdown Popup */}
                               <div className="relative">
-                                <label className={`block text-[10px] font-bold mb-1 ${theme === "emerald-velvet" ? "text-[#FAF8F5]/70" : theme === "gold-velvet" ? "text-[#8c6b23]" : "text-slate-600 dark:text-slate-400"}`}>السورة</label>
+                                <label className={`block text-[10px] font-bold mb-1 ${theme === "emerald-velvet" ? "text-[#FAF8F5]/70" : theme === "gold-velvet" ? "text-[#8c6b23]" : "text-slate-600 dark:text-slate-400"}`}>اسم السورة</label>
                                 <button
                                   type="button"
                                   onClick={() => setSurahSelectDropdownOpen(prev => !prev)}
@@ -6776,7 +6681,7 @@ export default function ReadingScreen({
                                             : "bg-white border-emerald-200 text-slate-900"
                                   }`}
                                 >
-                                  <span>{surahsList.find(s => s.number === bookmarkFormSurah)?.name || `سورة ${bookmarkFormSurah}`}</span>
+                                  <span>{surahsList.find(s => s.number === bookmarkFormSurah)?.name || `${bookmarkFormSurah}`}</span>
                                   <ChevronRight size={14} className="rotate-90 text-slate-400" />
                                 </button>
 
@@ -9129,7 +9034,7 @@ export default function ReadingScreen({
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           <span className="font-extrabold tracking-wide">
-                            سُورَةُ {pageAyahs[0]?.surah?.name?.replace("سُورَةُ ", "")?.replace("سورة ", "") || ""}
+                            {pageAyahs[0]?.surah?.name?.replace("سُورَةُ ", "")?.replace("سورة ", "") || ""}
                           </span>
                           <ChevronDown size={13} className="text-emerald-600 dark:text-emerald-400 group-hover:translate-y-0.5 transition-transform" />
                         </div>

@@ -52,7 +52,7 @@ const STORAGE_KEY = "tebyan_storage_manager_items_v3";
 // 1. صفحات المصحف
 // 2. التلاوات
 // 3. كتب التفسير (المختصرة والمطولة)
-// 4. كتب علوم القرآن (الإعراب والصرف والبلاغة)
+// 4. كتب علوم القرآن (الإعراب)
 // 5. كتب التدبر
 // 6. كتب المتشابهات
 // 7. كتب ومكتبات إضافية
@@ -503,11 +503,11 @@ const initialCatalog: StorageItem[] = [
     isDownloaded: true
   },
 
-  // 4. كتب علوم القرآن (الإعراب والصرف والبلاغة)
+  // 4. كتب علوم القرآن (الإعراب)
   {
     id: "book_irab",
     category: "quran_sciences",
-    categoryAr: "كتب علوم القرآن (الإعراب والصرف والبلاغة)",
+    categoryAr: "كتب علوم القرآن (الإعراب)",
     title: "إعراب القرآن الكريم",
     subtext: "مركز تفسير للدراسات القرآنية",
     authorOrSource: "مركز تفسير للدراسات القرآنية",
@@ -515,29 +515,9 @@ const initialCatalog: StorageItem[] = [
     isDownloaded: true
   },
   {
-    id: "book_sarf",
-    category: "quran_sciences",
-    categoryAr: "كتب علوم القرآن (الإعراب والصرف والبلاغة)",
-    title: "الصرف في القرآن الكريم",
-    subtext: "مركز تفسير للدراسات القرآنية",
-    authorOrSource: "مركز تفسير للدراسات القرآنية",
-    sizeMB: 29.2,
-    isDownloaded: true
-  },
-  {
-    id: "book_balagha",
-    category: "quran_sciences",
-    categoryAr: "كتب علوم القرآن (الإعراب والصرف والبلاغة)",
-    title: "أسرار البلاغة والتبيان في البيان القرآني",
-    subtext: "اللمسات البلاغية والبيانية في الأسلوب القرآني المعجز",
-    authorOrSource: "الإمام عبد القاهر الجرجاني والعلماء",
-    sizeMB: 18.5,
-    isDownloaded: true
-  },
-  {
     id: "book_majaz",
     category: "quran_sciences",
-    categoryAr: "كتب علوم القرآن (الإعراب والصرف والبلاغة)",
+    categoryAr: "كتب علوم القرآن (الإعراب)",
     title: "مجاز القرآن ومعاني القرآن",
     subtext: "توجيه المعاني اللغوية والنحوية في التنزيل",
     authorOrSource: "أبو عبيدة والفراء والزجاج",
@@ -743,7 +723,7 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
     quran_pages: "أولاً: صفحات المصحف الشريف",
     recitations: "ثانياً: التلاوات والمقاطع الصوتية",
     tafsir: "ثالثاً: كتب التفسير (المختصرة والمطولة)",
-    quran_sciences: "رابعاً: كتب علوم القرآن (الإعراب والصرف والبلاغة)",
+    quran_sciences: "رابعاً: كتب علوم القرآن (الإعراب)",
     tadabbur: "خامساً: كتب التدبر والفوائد",
     mutashabihat: "سادساً: كتب المتشابهات والتوجيه",
     extra_media: "سابعاً: المكتبات والوسائط الإضافية"
@@ -856,7 +836,7 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
         {[
           { id: "quran_pages", label: "📖 صفحات المصحف" },
           { id: "recitations", label: "🎧 التلاوات الصوتية" },
-          { id: "quran_sciences", label: "📄 علوم القرآن (الإعراب والصرف)" },
+          { id: "quran_sciences", label: "📄 علوم القرآن (الإعراب)" },
           { id: "tadabbur_mutashabihat", label: "✨ كتب التدبر والمتشابهات" },
         ].map(tab => {
           const isActive = activeCategoryFilter === tab.id || (tab.id === "tadabbur_mutashabihat" && (activeCategoryFilter === "tadabbur" || activeCategoryFilter === "mutashabihat"));

@@ -487,56 +487,20 @@ export function getOfflineSarf(
     return null;
   }
 
-  // 2. SARF / BOOK_SARF mode: Return ONLY Sarf (التحليل الصرفي)
-  if (normMode === "sarf" || normMode === "book_sarf") {
-    if (matchedBlocks.length > 0) {
-      const formattedBody = matchedBlocks
-        .map((blk) => blk.replace(/^\[[^\]]+\]\s*/, "").trim())
-        .join("\n\n---\n\n");
-      return formattedBody.replace(/\*{1,3}/g, "").trim();
-    }
-    if (allowHeuristicFallback) {
-      return generateSmartOfflineSarf(surahNumber, ayahNumber, surahName, ayahText)?.replace(/\*{1,3}/g, "") || null;
-    }
+  // 2. SARF / BALAGHA: Removed per user request to delete Sarf & Balagha from library
+  if (normMode === "sarf" || normMode === "book_sarf" || normMode === "balagha" || normMode === "book_balagha") {
     return null;
   }
 
-  // 3. BALAGHA / BOOK_BALAGHA mode: Return ONLY Balagha & Bayan
-  if (normMode === "balagha" || normMode === "book_balagha") {
-    const balaghaBlocks = matchedBlocks.filter(b => b.includes("البلاغة") || b.includes("البيان"));
-    if (balaghaBlocks.length > 0) {
-      const formattedBody = balaghaBlocks
-        .map((blk) => blk.replace(/^\[[^\]]+\]\s*/, "").trim())
-        .join("\n\n---\n\n");
-      return formattedBody.replace(/\*{1,3}/g, "").trim();
-    }
-    if (allowHeuristicFallback) {
-      return generateSmartOfflineBalagha(surahNumber, ayahNumber, surahName, ayahText)?.replace(/\*{1,3}/g, "") || null;
-    }
-    return null;
-  }
-
-  // 4. Default / BOOK_JADWAL_SAFI / ALL: Return combined sections if available
-  if (localEerab || matchedBlocks.length > 0) {
-    let contentBody = "";
-
-    if (localEerab) {
-      contentBody += `#### 📍 الإعراب والجمل:\n${localEerab}\n\n`;
-    }
-
-    if (matchedBlocks.length > 0) {
-      const formattedBody = matchedBlocks
-        .map((blk) => blk.replace(/^\[[^\]]+\]\s*/, "").trim())
-        .join("\n\n---\n\n");
-      contentBody += `#### 📍 التحليل الصرفي:\n${formattedBody}`;
-    }
-
+  // 3. Default / Pure Eerab: Return only grammatical analysis (الإعراب والجمل)
+  if (localEerab) {
+    const contentBody = `#### 📍 الإعراب والجمل:\n${localEerab}`;
     return contentBody.replace(/\*{1,3}/g, "").trim();
   }
 
   if (allowHeuristicFallback) {
-    let contentBody = `${generateSmartOfflineEerab(surahNumber, ayahNumber, surahName, ayahText)}\n\n${generateSmartOfflineSarf(surahNumber, ayahNumber, surahName, ayahText)}`;
-    return contentBody.replace(/\*{1,3}/g, "").trim();
+    const contentBody = generateSmartOfflineEerab(surahNumber, ayahNumber, surahName, ayahText);
+    return contentBody?.replace(/\*{1,3}/g, "").trim() || null;
   }
 
   return null;
