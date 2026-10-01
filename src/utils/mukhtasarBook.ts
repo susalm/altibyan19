@@ -1,6 +1,7 @@
 import { surahsList } from "../data/surahList";
 import { tafsirMukhtasarText } from "../data/tafsirMukhtasarData";
 import mukhtasarFullJson from "../data/mukhtasar_full.json";
+import { MUKHTASAR_SURAH_MAQASID } from "../data/mukhtasarMaqasid";
 
 interface AyahTafsirMap {
   [ayahNumber: number]: string;
@@ -8,6 +9,18 @@ interface AyahTafsirMap {
 
 const fullMukhtasarDict = mukhtasarFullJson as Record<string, string>;
 let mukhtasarCache: Map<number, AyahTafsirMap> | null = null;
+
+export function getSurahIntroMukhtasar(surahNumber: number): string | null {
+  const meta = MUKHTASAR_SURAH_MAQASID[surahNumber];
+  if (!meta) return null;
+  const surahObj = surahsList.find((s) => s.number === surahNumber);
+  const sName = surahObj ? surahObj.name : "";
+  let header = `سورة ${sName}\n${meta.classification}\n\n[مِنْ مَقَاصِدِ السُّورَةِ]\n${meta.maqsid}`;
+  if (meta.namingIntro) {
+    header += `\n\n[التَّفْسِيرُ]\n${meta.namingIntro}`;
+  }
+  return header;
+}
 
 function normalizeName(str: string): string {
   return str
@@ -71,15 +84,24 @@ export function getOfflineMukhtasarTafsir(
   ayahNumber: number
 ): string | null {
   const key = `${surahNumber}:${ayahNumber}`;
-  if (fullMukhtasarDict[key]) {
-    return fullMukhtasarDict[key];
+  let baseTafsir = fullMukhtasarDict[key];
+  if (!baseTafsir) {
+    const cache = parseMukhtasarText();
+    const surahMap = cache.get(surahNumber);
+    if (surahMap && surahMap[ayahNumber]) {
+      baseTafsir = surahMap[ayahNumber];
+    }
   }
-  const cache = parseMukhtasarText();
-  const surahMap = cache.get(surahNumber);
-  if (surahMap && surahMap[ayahNumber]) {
-    return surahMap[ayahNumber];
+
+  if (baseTafsir && ayahNumber === 1) {
+    const intro = getSurahIntroMukhtasar(surahNumber);
+    if (intro && !baseTafsir.includes("[مِنْ مَقَاصِدِ السُّورَةِ]")) {
+      const cleanAyahTafsir = baseTafsir.replace(/^[0-9]+\s*-\s*/, "");
+      return `${intro}\n\n1 - ${cleanAyahTafsir}`;
+    }
   }
-  return null;
+
+  return baseTafsir || null;
 }
 
 export function getOfflineMukhtasarTafsirFallback(
@@ -88,5 +110,11 @@ export function getOfflineMukhtasarTafsirFallback(
   surahName?: string,
   ayahText?: string
 ): string {
+  if (ayahNumber === 1) {
+    const intro = getSurahIntroMukhtasar(surahNumber);
+    if (intro) {
+      return `${intro}\n\n1 - إيضاح وتوجيه مبارك للعمل بما أنزله الله، والتزام التقوى والطاعة والإيمان بآيات الله ورسله، وبيان مقاصد الشريعة والعمل الصالح.`;
+    }
+  }
   return `إيضاح وتوجيه مبارك للعمل بما أنزله الله، والتزام التقوى والطاعة والإيمان بآيات الله ورسله، وبيان مقاصد الشريعة والعمل الصالح.`;
 }

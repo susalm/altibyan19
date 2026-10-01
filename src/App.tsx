@@ -700,7 +700,7 @@ export default function App() {
       onClick={handlePageClick}
       dir={isRtl ? "rtl" : "ltr"}
       className={`min-h-screen flex flex-col justify-between font-sans transition-all duration-300 ${
-        theme === "gold-velvet" 
+        theme === "gold-velvet" || theme === "emerald-velvet"
           ? "bg-[#FAF8F5] text-black" 
           : theme === "navy-velvet" 
             ? "bg-[#FFFFFF] text-slate-900" 

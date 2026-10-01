@@ -11,7 +11,7 @@ interface IstiadhahCalligraphyProps {
 let cachedAlphaCanvas: HTMLCanvasElement | null = null;
 let baseImagePromise: Promise<HTMLCanvasElement> | null = null;
 
-function getBaseAlphaCanvas(): Promise<HTMLCanvasElement> {
+export function getBaseAlphaCanvas(): Promise<HTMLCanvasElement> {
   if (cachedAlphaCanvas) return Promise.resolve(cachedAlphaCanvas);
   if (baseImagePromise) return baseImagePromise;
 
@@ -35,28 +35,63 @@ function getBaseAlphaCanvas(): Promise<HTMLCanvasElement> {
       const imgData = ctx.getImageData(0, 0, w, h);
       const data = imgData.data;
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      let minX = w, minY = h, maxX = 0, maxY = 0;
+      let hasVisiblePixels = false;
 
-        let alpha = 255 - lum;
-        if (lum > 235) {
-          alpha = 0;
-        } else if (lum < 40) {
-          alpha = 255;
-        } else {
-          alpha = Math.round(((235 - lum) / 195) * 255);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+          let alpha = 255 - lum;
+          if (lum > 230) {
+            alpha = 0;
+          } else if (lum < 40) {
+            alpha = 255;
+          } else {
+            alpha = Math.round(((230 - lum) / 190) * 255);
+          }
+
+          data[idx + 3] = Math.max(0, Math.min(255, alpha));
+          data[idx] = 255;
+          data[idx + 1] = 255;
+          data[idx + 2] = 255;
+
+          if (alpha > 18) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            hasVisiblePixels = true;
+          }
         }
-
-        data[i + 3] = Math.max(0, Math.min(255, alpha));
-        data[i] = 255;
-        data[i + 1] = 255;
-        data[i + 2] = 255;
       }
 
       ctx.putImageData(imgData, 0, 0);
+
+      // Auto-crop to exact calligraphy bounds for pixel-perfect scale and centering
+      if (hasVisiblePixels && maxX > minX && maxY > minY) {
+        const padding = 4;
+        const cropX = Math.max(0, minX - padding);
+        const cropY = Math.max(0, minY - padding);
+        const cropW = Math.min(w - cropX, maxX - minX + 1 + padding * 2);
+        const cropH = Math.min(h - cropY, maxY - minY + 1 + padding * 2);
+
+        const croppedCanvas = document.createElement("canvas");
+        croppedCanvas.width = cropW;
+        croppedCanvas.height = cropH;
+        const cropCtx = croppedCanvas.getContext("2d");
+        if (cropCtx) {
+          cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          cachedAlphaCanvas = croppedCanvas;
+          resolve(croppedCanvas);
+          return;
+        }
+      }
+
       cachedAlphaCanvas = canvas;
       resolve(canvas);
     };

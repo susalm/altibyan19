@@ -186,8 +186,8 @@ export function processSvgAdjustments(text: string, pageNum: number): string {
     return `<svg${newAttrs}>`;
   });
 
-  // 2. Remove ONLY full-page/full-canvas obscuring background rect tags if present
-  result = result.replace(/<rect\b[^>]*(?:width=["'](?:100%|235|345|456|1024)["']|fill=["'](?:#fff|white|#ffffff)["'])[^>]*>/gi, "");
+  // 2. Remove full-page/full-canvas background rect tags so the SVG page color is 100% transparent and matches background
+  result = result.replace(/<rect\b(?![^>]*class=["'][^"']*surah)[^>]*(?:width=["'](?:100%|235|345|456|1024)["']|height=["'](?:100%|235|550|700)["']|fill=["'](?:#fff|white|#ffffff|#faf8f5|#fffdf5|#fafdfb|#fffefa)["'])[^>]*>/gi, "");
 
   // 3. Tag rosette groups (contains scale(...) in transform attribute) and digit groups
   result = result.replace(/<g\b([^>]*scale\([^>]*)>/gi, '<g$1 class="ayah_rosette_group">');
