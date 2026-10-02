@@ -2486,6 +2486,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string>("");
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [showAndroidSaveModal, setShowAndroidSaveModal] = useState<boolean>(false);
+  const [previewModalImageUrl, setPreviewModalImageUrl] = useState<string>("");
 
   const cardPreviewRef = useRef<HTMLDivElement>(null);
 
@@ -2780,7 +2782,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           if (texObj && texObj.imageUrl) {
             try {
               const texImg = new window.Image();
-              texImg.crossOrigin = "anonymous";
+              if (typeof texObj.imageUrl === "string" && (texObj.imageUrl.startsWith("http://") || texObj.imageUrl.startsWith("https://"))) {
+                texImg.crossOrigin = "anonymous";
+              }
               texImg.src = texObj.imageUrl;
               await new Promise<void>((resolve) => {
                 if (texImg.complete) {
@@ -2817,7 +2821,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 ? createSvgDataUrl(patObj.rawSvg, patternColor)
                 : patObj.svgPattern;
               const patImg = new window.Image();
-              patImg.crossOrigin = "anonymous";
+              if (typeof svgDataUrl === "string" && (svgDataUrl.startsWith("http://") || svgDataUrl.startsWith("https://"))) {
+                patImg.crossOrigin = "anonymous";
+              }
               patImg.src = svgDataUrl;
               await new Promise<void>((resolve) => {
                 if (patImg.complete) {
@@ -3465,31 +3471,53 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
           // Draw each line RTL
           if (showAyahText) {
+            const ayahScaleFactor = (ayahScale || 100) / 100;
+            ctx.save();
+            if (ayahScaleFactor !== 1 || textRotation !== 0) {
+              const centerX = width / 2 + ayahDeltaX;
+              const centerY = startY + ((lines.length - 1) * lineHeight) / 2;
+              ctx.translate(centerX, centerY);
+              if (textRotation !== 0) ctx.rotate((textRotation * Math.PI) / 180);
+              if (ayahScaleFactor !== 1) ctx.scale(ayahScaleFactor, ayahScaleFactor);
+              ctx.translate(-centerX, -centerY);
+            }
+
             lines.forEach((line, i) => {
               const lineY = startY + i * lineHeight;
-              let startRightX = 0;
-
-              if (textAlign === "center") {
-                startRightX = (width + line.totalWidth) / 2 + ayahDeltaX;
-              } else if (textAlign === "right") {
-                startRightX = (width + maxTextWidth) / 2 + ayahDeltaX;
-              } else {
-                startRightX = (width - maxTextWidth) / 2 + line.totalWidth + ayahDeltaX;
-              }
-
-              let currentRight = startRightX;
-
-              line.words.forEach((item, wIdx) => {
-                const wWidth = line.widths[wIdx];
-                const isEnd = item.type === "end";
-
-                ctx.font = `${curFontSize}px ${item.font ? `"${item.font}", ` : ""}${baseFontFamily}`;
+              if (selectedQuranFont !== "qcf4") {
+                const lineString = line.words.map((w) => w.char).join(" ");
+                ctx.font = `${curFontSize}px ${baseFontFamily}`;
                 ctx.fillStyle = textColor;
-                ctx.textAlign = "right";
-                ctx.fillText(item.char, currentRight, lineY);
-                currentRight -= (wWidth + spaceWidth);
-              });
+                ctx.textAlign = textAlign === "center" ? "center" : textAlign === "right" ? "right" : "left";
+                const drawX =
+                  textAlign === "center"
+                    ? width / 2 + ayahDeltaX
+                    : textAlign === "right"
+                    ? (width + maxTextWidth) / 2 + ayahDeltaX
+                    : (width - maxTextWidth) / 2 + ayahDeltaX;
+                ctx.fillText(lineString, drawX, lineY);
+              } else {
+                let startRightX = 0;
+                if (textAlign === "center") {
+                  startRightX = (width + line.totalWidth) / 2 + ayahDeltaX;
+                } else if (textAlign === "right") {
+                  startRightX = (width + maxTextWidth) / 2 + ayahDeltaX;
+                } else {
+                  startRightX = (width - maxTextWidth) / 2 + line.totalWidth + ayahDeltaX;
+                }
+
+                let currentRight = startRightX;
+                line.words.forEach((item, wIdx) => {
+                  const wWidth = line.widths[wIdx];
+                  ctx.font = `${curFontSize}px ${item.font ? `"${item.font}", ` : ""}${baseFontFamily}`;
+                  ctx.fillStyle = textColor;
+                  ctx.textAlign = "right";
+                  ctx.fillText(item.char, currentRight, lineY);
+                  currentRight -= (wWidth + spaceWidth);
+                });
+              }
             });
+            ctx.restore();
           }
         }
 
@@ -3586,7 +3614,22 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           ctx.restore();
         }
 
-        setGeneratedImageUrl(canvas.toDataURL("image/png"));
+        try {
+          const dataUrl = canvas.toDataURL("image/png");
+          setGeneratedImageUrl(dataUrl);
+        } catch (exportErr) {
+          console.warn("Canvas toDataURL export error:", exportErr);
+          try {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const blobUrl = URL.createObjectURL(blob);
+                setGeneratedImageUrl(blobUrl);
+              }
+            }, "image/png");
+          } catch (blobErr) {
+            console.warn("Canvas toBlob export fallback failed:", blobErr);
+          }
+        }
       } catch (err) {
         console.error("Failed drawing canvas:", err);
       } finally {
@@ -3594,9 +3637,34 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       }
     };
 
-    const timer = setTimeout(() => {
-      drawCanvas();
-    }, 120);
+    const timer = setTimeout(async () => {
+      if (cardPreviewRef.current) {
+        try {
+          if (document.fonts) {
+            await document.fonts.ready;
+          }
+          const exportFilter = (node: Node) =>
+            !(
+              node instanceof HTMLElement &&
+              (node.classList.contains("prevent-drag") ||
+                node.classList.contains("layer-controls-box") ||
+                node.hasAttribute("data-export-ignore"))
+            );
+          const dataUrl = await toPng(cardPreviewRef.current, {
+            pixelRatio: 1.5,
+            cacheBust: false,
+            filter: exportFilter,
+          });
+          if (dataUrl) {
+            setGeneratedImageUrl(dataUrl);
+          }
+        } catch {
+          drawCanvas();
+        }
+      } else {
+        drawCanvas();
+      }
+    }, 280);
 
     return () => clearTimeout(timer);
   }, [
@@ -3658,67 +3726,171 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     surahInfoScale,
     watermarkScale,
     showAyahText,
+    ayahScale,
+    textRotation,
     qcf4Words,
     qcf4Lines,
     qcf4Font,
     isQcf4Loaded,
   ]);
 
+  const dataUrlToBlob = (dataUrl: string): Blob | null => {
+    try {
+      const parts = dataUrl.split(",");
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/png";
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
+    } catch (e) {
+      console.warn("dataUrlToBlob conversion failed:", e);
+      return null;
+    }
+  };
+
+  const getCleanedAyahTextForShare = (): string => {
+    if (!activeData) return "";
+    let t = activeData.ayah.text || "";
+    if (
+      activeData.surahNumber !== 1 &&
+      ((shareMode === "single" && activeData.ayah.numberInSurah === 1) ||
+        (shareMode === "range" && rangeFrom === 1))
+    ) {
+      const bismillahVariants = [
+        "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+        "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ",
+        "بِسْمِ اللَّهِ الرَّحْمٰنِ الرَّحِيمِ",
+        "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ",
+        "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ",
+      ];
+      for (const b of bismillahVariants) {
+        if (t.startsWith(b)) {
+          t = t.replace(b, "").trim();
+          break;
+        }
+      }
+    }
+    return t;
+  };
+
   const getExportedImageBlob = async (): Promise<{ url: string; blob: Blob | null }> => {
+    // 1. PRIMARY: Capture directly from live DOM card (cardPreviewRef.current)
+    // This guarantees that all Quranic fonts, ligatures, alignment, font sizes, line wrapping,
+    // layer rotations, transforms, frames, and background styling match the card 100% identically!
+    if (cardPreviewRef.current) {
+      try {
+        setIsGeneratingImage(true);
+
+        // Deselect layer so bounding boxes/drag handles are not captured in the exported image
+        const prevLayer = selectedLayer;
+        if (prevLayer) {
+          setSelectedLayer(null);
+        }
+
+        // Wait for all document fonts to be completely ready
+        if (document.fonts) {
+          await document.fonts.ready;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 80));
+
+        const exportFilter = (node: Node) =>
+          !(
+            node instanceof HTMLElement &&
+            (node.classList.contains("prevent-drag") ||
+              node.classList.contains("layer-controls-box") ||
+              node.hasAttribute("data-export-ignore"))
+          );
+
+        let dataUrl: string | null = null;
+        let blob: Blob | null = null;
+
+        try {
+          dataUrl = await toPng(cardPreviewRef.current, {
+            pixelRatio: 2,
+            cacheBust: false,
+            filter: exportFilter,
+          });
+          blob = dataUrlToBlob(dataUrl) || (await toBlob(cardPreviewRef.current, { pixelRatio: 2, cacheBust: false, filter: exportFilter }));
+        } catch (innerErr) {
+          console.warn("toPng pixelRatio 2 failed, fallback to pixelRatio 1:", innerErr);
+          dataUrl = await toPng(cardPreviewRef.current, {
+            pixelRatio: 1,
+            cacheBust: false,
+            filter: exportFilter,
+          });
+          blob = dataUrlToBlob(dataUrl) || (await toBlob(cardPreviewRef.current, { pixelRatio: 1, cacheBust: false, filter: exportFilter }));
+        }
+
+        // Restore active layer selection if user was editing
+        if (prevLayer) {
+          setSelectedLayer(prevLayer);
+        }
+
+        if (dataUrl) {
+          setGeneratedImageUrl(dataUrl);
+          return { url: dataUrl, blob };
+        }
+      } catch (err) {
+        console.warn("Direct DOM capture failed, trying fallback:", err);
+      } finally {
+        setIsGeneratingImage(false);
+      }
+    }
+
+    // 2. FALLBACK ONLY: If DOM element was unavailable
     if (generatedImageUrl) {
       if (generatedImageUrl.startsWith("data:")) {
-        try {
-          const parts = generatedImageUrl.split(",");
-          const mimeMatch = parts[0].match(/:(.*?);/);
-          const mime = mimeMatch ? mimeMatch[1] : "image/png";
-          const bstr = atob(parts[1]);
-          let n = bstr.length;
-          const u8arr = new Uint8Array(n);
-          while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
-          }
-          const directBlob = new Blob([u8arr], { type: mime });
-          return { url: generatedImageUrl, blob: directBlob };
-        } catch (e) {
-          console.warn("Base64 direct blob conversion failed:", e);
-        }
+        const directBlob = dataUrlToBlob(generatedImageUrl);
+        return { url: generatedImageUrl, blob: directBlob };
       }
       try {
         const res = await fetch(generatedImageUrl);
         const blob = await res.blob();
         return { url: generatedImageUrl, blob };
       } catch (e) {
-        console.warn("Direct blob conversion fallback", e);
+        console.warn("Direct blob conversion fallback failed:", e);
       }
+      return { url: generatedImageUrl, blob: null };
     }
 
-    if (cardPreviewRef.current) {
-      try {
-        if (document.fonts) {
-          await document.fonts.ready;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 80));
-        const exportFilter = (node: Node) =>
-          !(node instanceof HTMLElement && (node.classList.contains("prevent-drag") || node.classList.contains("layer-controls-box")));
-        const dataUrl = await toPng(cardPreviewRef.current, { pixelRatio: 3, cacheBust: true, filter: exportFilter });
-        const blob = await toBlob(cardPreviewRef.current, { pixelRatio: 3, cacheBust: true, filter: exportFilter });
-        return { url: dataUrl, blob };
-      } catch (err) {
-        console.warn("toPng fallback failed", err);
+    return { url: "", blob: null };
+  };
+
+  const handleOpenPreviewModal = async () => {
+    setShareStatus("جاري تجهيز بطاقة الآية...");
+    try {
+      const { url } = await getExportedImageBlob();
+      const targetUrl = url || generatedImageUrl;
+      if (targetUrl) {
+        setPreviewModalImageUrl(targetUrl);
+        setShowAndroidSaveModal(true);
+        setShareStatus(null);
+      } else {
+        setShareStatus("تعذر تجهيز بطاقة الآية");
+      }
+    } catch (e) {
+      console.warn("handleOpenPreviewModal error:", e);
+      if (generatedImageUrl) {
+        setPreviewModalImageUrl(generatedImageUrl);
+        setShowAndroidSaveModal(true);
       }
     }
-    return { url: generatedImageUrl, blob: null };
   };
 
   const handleCopyShareText = () => {
     if (!activeData) return;
+    const cleanedText = getCleanedAyahTextForShare();
     let textToShare = "";
     if (shareMode === "page") {
-      textToShare = `﴿ ${activeData.ayah.text} ﴾\n[القرآن الكريم - صفحة ${toArabicNumerals(selectedPageNumber)} - سورة ${activeData.surahName}]`;
+      textToShare = `﴿ ${cleanedText} ﴾\n[القرآن الكريم - صفحة ${toArabicNumerals(selectedPageNumber)} - سورة ${activeData.surahName}]`;
     } else if (shareMode === "range") {
-      textToShare = `﴿ ${activeData.ayah.text} ﴾\n[سورة ${activeData.surahName} : الآيات ${toArabicNumerals(rangeFrom)}-${toArabicNumerals(rangeTo)}]`;
+      textToShare = `﴿ ${cleanedText} ﴾\n[سورة ${activeData.surahName} : الآيات ${toArabicNumerals(rangeFrom)}-${toArabicNumerals(rangeTo)}]`;
     } else {
-      textToShare = `﴿ ${activeData.ayah.text} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}]`;
+      textToShare = `﴿ ${cleanedText} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}]`;
     }
     navigator.clipboard.writeText(textToShare);
     setShareStatus("تم نسخ نص الآيات بنجاح!");
@@ -3727,20 +3899,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   const handleDownloadImage = async () => {
     if (!activeData) return;
-    setShareStatus("جاري حفظ وتحميل بطاقة المشاركة...");
+    setShareStatus("جاري تجهيز وحفظ بطاقة المشاركة...");
     try {
       const { url, blob } = await getExportedImageBlob();
       const targetUrl = url || generatedImageUrl;
       if (!targetUrl && !blob) {
-        setShareStatus("تعذر تحميل الصورة - يرجى المحاولة ثانية");
+        setShareStatus("تعذر استخراج الصورة - يرجى المحاولة ثانية");
         return;
-      }
-
-      let downloadHref = targetUrl;
-      let cleanupUrl: string | null = null;
-      if (blob) {
-        cleanupUrl = URL.createObjectURL(blob);
-        downloadHref = cleanupUrl;
       }
 
       let fileName = "";
@@ -3752,24 +3917,89 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         fileName = `مصحف_التبيان_سورة_${activeData.surahName}_آية_${activeData.ayah.numberInSurah}.png`;
       }
 
-      const link = document.createElement("a");
-      link.download = fileName;
-      link.href = downloadHref;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
+      const finalBlob = blob || (targetUrl && targetUrl.startsWith("data:") ? dataUrlToBlob(targetUrl) : null);
 
-      setTimeout(() => {
-        if (document.body.contains(link)) document.body.removeChild(link);
-        if (cleanupUrl) URL.revokeObjectURL(cleanupUrl);
-      }, 300);
+      // 1. Android Native Javascript Interface (if app was converted to Android APK with Webview bridge)
+      if (typeof window !== "undefined") {
+        const anyWin = window as any;
+        if (anyWin.Android?.saveImage) {
+          try {
+            anyWin.Android.saveImage(targetUrl, fileName);
+            setShareStatus("تم حفظ الصورة بنجاح في جهازك!");
+            setTimeout(() => setShareStatus(null), 3000);
+            return;
+          } catch (bridgeErr) {
+            console.warn("Android native saveImage failed:", bridgeErr);
+          }
+        }
+      }
 
-      setShareStatus("تم تنزيل بطاقة المشاركة بنجاح إلى جهازك!");
+      // 2. File System Access API (Supported in Chrome/Edge on Desktop and modern Android browsers)
+      if (typeof (window as any).showSaveFilePicker === "function" && finalBlob) {
+        try {
+          const handle = await (window as any).showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{
+              description: "صورة بطاقة الآية PNG",
+              accept: { "image/png": [".png"] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(finalBlob);
+          await writable.close();
+          setShareStatus("تم حفظ بطاقة المشاركة بنجاح في جهازك!");
+          setTimeout(() => setShareStatus(null), 3500);
+          return;
+        } catch (pickerErr: any) {
+          if (pickerErr?.name === "AbortError") {
+            setShareStatus(null);
+            return;
+          }
+          console.warn("showSaveFilePicker failed, trying standard link download:", pickerErr);
+        }
+      }
+
+      // 3. Clean link download (Never use target="_blank" as it breaks in Android WebView)
+      let downloadHref = targetUrl;
+      let cleanupUrl: string | null = null;
+      if (!downloadHref && finalBlob) {
+        cleanupUrl = URL.createObjectURL(finalBlob);
+        downloadHref = cleanupUrl;
+      }
+
+      if (downloadHref) {
+        const link = document.createElement("a");
+        link.download = fileName;
+        link.href = downloadHref;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          if (document.body.contains(link)) document.body.removeChild(link);
+          if (cleanupUrl) URL.revokeObjectURL(cleanupUrl);
+        }, 1000);
+      }
+
+      // 4. On Android / Mobile devices: Always open the Android Image Saver modal
+      // This gives the user the 100% guarantee that they can see the image and long-press to save it
+      // directly to their Gallery / Downloads, or share to WhatsApp, Telegram, etc.
+      const isMobileOrAndroid = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      if (isMobileOrAndroid) {
+        setPreviewModalImageUrl(targetUrl);
+        setShowAndroidSaveModal(true);
+        setShareStatus("تم تجهيز البطاقة! يمكنك الضغط مطولاً على الصورة لحفظها.");
+      } else {
+        setShareStatus("تم تنزيل بطاقة المشاركة بنجاح إلى جهازك!");
+      }
       setTimeout(() => setShareStatus(null), 3500);
     } catch (e) {
-      console.error(e);
-      setShareStatus("حدث خطأ أثناء تحميل الصورة");
+      console.error("handleDownloadImage error:", e);
+      if (generatedImageUrl) {
+        setPreviewModalImageUrl(generatedImageUrl);
+        setShowAndroidSaveModal(true);
+      }
+      setShareStatus("تم فتح بطاقة الآية - يمكنك الضغط مطولاً لحفظها");
     }
   };
 
@@ -3778,58 +4008,139 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setShareStatus("جاري تجهيز الصورة للمشاركة...");
     try {
       const { url, blob } = await getExportedImageBlob();
-      const finalBlob = blob || (url ? await (await fetch(url)).blob() : null);
-      if (!finalBlob) {
+      const targetUrl = url || generatedImageUrl;
+      const finalBlob = blob || (targetUrl && targetUrl.startsWith("data:") ? dataUrlToBlob(targetUrl) : null);
+
+      if (!targetUrl && !finalBlob) {
         handleDownloadImage();
         return;
       }
-      const fileName = shareMode === "page" ? `quran-page-${selectedPageNumber}.png` : `ayah-${activeData.ayah.numberInSurah}.png`;
-      const file = new File([finalBlob], fileName, { type: "image/png" });
 
+      const fileName = shareMode === "page" ? `quran-page-${selectedPageNumber}.png` : `ayah-${activeData.ayah.numberInSurah}.png`;
       const titleText = shareMode === "page" 
         ? `صفحة ${selectedPageNumber} من القرآن الكريم - سورة ${activeData.surahName}`
         : shareMode === "range"
         ? `آيات من سورة ${activeData.surahName} (${rangeFrom}-${rangeTo})`
         : `آية من سورة ${activeData.surahName}`;
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: titleText,
-          text: `﴿ ${titleText} ﴾ - مصحف التبيان`,
-        });
-        setShareStatus(null);
-      } else {
-        if (typeof ClipboardItem !== "undefined") {
+      const shareText = `﴿ ${getCleanedAyahTextForShare()} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`;
+
+      // 1. Android Native Javascript Interface (if app was wrapped with a native bridge)
+      if (typeof window !== "undefined") {
+        const anyWin = window as any;
+        if (anyWin.Android?.shareImage) {
           try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ "image/png": finalBlob }),
-            ]);
-            setShareStatus("تم نسخ الصورة إلى الحافظة بنجاح!");
-            setTimeout(() => setShareStatus(null), 3000);
+            anyWin.Android.shareImage(targetUrl, "image/png", titleText);
+            setShareStatus(null);
             return;
-          } catch (clipErr) {
-            console.warn("Clipboard copy failed:", clipErr);
+          } catch (bridgeErr) {
+            console.warn("Android native shareImage failed:", bridgeErr);
           }
         }
-        handleDownloadImage();
+        if (anyWin.Capacitor?.Plugins?.Share) {
+          try {
+            await anyWin.Capacitor.Plugins.Share.share({
+              title: titleText,
+              text: shareText,
+              url: targetUrl.startsWith("http") ? targetUrl : undefined,
+              dialogTitle: "مشاركة بطاقة الآية",
+            });
+            setShareStatus(null);
+            return;
+          } catch (capErr) {
+            console.warn("Capacitor share failed:", capErr);
+          }
+        }
+      }
+
+      // 2. Web Share API with File object
+      let shareSucceeded = false;
+      if (finalBlob && typeof File !== "undefined" && navigator.canShare) {
+        try {
+          const file = new File([finalBlob], fileName, { type: "image/png" });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: titleText,
+              text: shareText,
+            });
+            shareSucceeded = true;
+            setShareStatus(null);
+            return;
+          }
+        } catch (shareFileErr: any) {
+          if (
+            shareFileErr?.name === "AbortError" ||
+            shareFileErr?.code === 20 ||
+            shareFileErr?.message?.toLowerCase().includes("cancel") ||
+            shareFileErr?.message?.toLowerCase().includes("abort")
+          ) {
+            setShareStatus(null);
+            return; // User cancelled share sheet
+          }
+          console.warn("navigator.share with files failed, trying text share:", shareFileErr);
+        }
+      }
+
+      // 3. Web Share API with Text & URL (Supported in Android WebViews where files share is blocked)
+      if (!shareSucceeded && navigator.share) {
+        try {
+          await navigator.share({
+            title: titleText,
+            text: shareText,
+            url: window.location.href,
+          });
+          shareSucceeded = true;
+          setShareStatus(null);
+        } catch (shareTextErr: any) {
+          if (
+            shareTextErr?.name === "AbortError" ||
+            shareTextErr?.code === 20 ||
+            shareTextErr?.message?.toLowerCase().includes("cancel") ||
+            shareTextErr?.message?.toLowerCase().includes("abort")
+          ) {
+            setShareStatus(null);
+            return;
+          }
+          console.warn("navigator.share with text failed:", shareTextErr);
+        }
+      }
+
+      // 4. Try Clipboard copy if available
+      if (!shareSucceeded && finalBlob && typeof ClipboardItem !== "undefined") {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": finalBlob }),
+          ]);
+          setShareStatus("تم نسخ الصورة إلى الحافظة بنجاح!");
+          setTimeout(() => setShareStatus(null), 3000);
+          shareSucceeded = true;
+        } catch (clipErr) {
+          console.warn("Clipboard copy failed:", clipErr);
+        }
+      }
+
+      // 5. If sharing file directly wasn't possible on Android WebView:
+      // Open the Android Save & Share Sheet where user can long-press to save/share
+      if (!shareSucceeded) {
+        setPreviewModalImageUrl(targetUrl);
+        setShowAndroidSaveModal(true);
+        setShareStatus("تم تجهيز بطاقة الآية! اضغط مطولاً على الصورة لحفظها أو مشاركتها");
       }
     } catch (e: any) {
-      // If user canceled/dismissed the share dialog (AbortError or "Share canceled"), handle gracefully
       if (
         e?.name === "AbortError" ||
         e?.code === 20 ||
-        (typeof e?.message === "string" && (
-          e.message.toLowerCase().includes("canceled") ||
-          e.message.toLowerCase().includes("cancelled") ||
-          e.message.toLowerCase().includes("abort")
-        ))
+        e?.message?.toLowerCase().includes("cancel")
       ) {
         setShareStatus(null);
         return;
       }
-      console.warn("Share failed, falling back to download:", e);
-      handleDownloadImage();
+      console.warn("handleShareImage failed, opening save modal:", e);
+      if (generatedImageUrl) {
+        setPreviewModalImageUrl(generatedImageUrl);
+        setShowAndroidSaveModal(true);
+      }
     }
   };
 
@@ -4054,17 +4365,17 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       >
           {/* Modal Header */}
           <div
-            className={`px-4 sm:px-6 py-3 flex items-center justify-between border-b shrink-0 sticky top-0 z-30 backdrop-blur-md ${tTheme.headerFooterBg}`}
+            className={`px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between border-b shrink-0 sticky top-0 z-30 backdrop-blur-md ${tTheme.headerFooterBg}`}
           >
-            <div className="flex items-center gap-2.5">
-              <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold border ${tTheme.headerIcon}`}>
-                <Sparkles size={13} />
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center font-bold border shrink-0 ${tTheme.headerIcon}`}>
+                <Sparkles size={11} className="sm:w-3.5 sm:h-3.5" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm sm:text-base">
+                <span className="font-bold text-xs sm:text-sm md:text-base leading-tight">
                   مشاركة الآية
                 </span>
-                <span className={`text-[10px] font-medium ${tTheme.subText}`}>
+                <span className={`text-[9px] sm:text-[10px] font-medium leading-tight ${tTheme.subText}`}>
                   تصميم ومشاركة بطاقة الآية الكريمة
                 </span>
               </div>
@@ -4074,28 +4385,28 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               id="share-ayah-close-header-btn"
               onClick={onClose}
               title="إغلاق النافذة"
-              className="p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400"
+              className="p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 shrink-0"
             >
-              <X size={18} className="stroke-[2.5px] text-red-500 dark:text-red-400" />
+              <X size={16} className="sm:w-[18px] sm:h-[18px] stroke-[2.5px] text-red-500 dark:text-red-400" />
             </button>
           </div>
 
           {/* Main Visual Studio Area */}
-          <div className="p-3 sm:p-5 md:p-6 overflow-y-auto flex-1 min-h-0 custom-scrollbar space-y-5 touch-pan-y overscroll-contain">
-            <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto w-full">
+          <div className="p-2 sm:p-4 md:p-6 overflow-y-auto flex-1 min-h-0 custom-scrollbar space-y-4 sm:space-y-5 touch-pan-y overscroll-contain w-full">
+            <div className="flex flex-col items-center gap-3 sm:gap-4.5 w-full max-w-full lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl mx-auto transition-all duration-300 px-0.5 sm:px-2">
               
               {/* LIVE CARD PREVIEW */}
               <div className="w-full flex flex-col items-center">
                 {/* Header bar above card */}
-                <div className="w-full max-w-[340px] sm:max-w-[380px] flex items-center justify-between px-1 mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
-                      <Sparkles size={12} className={tTheme.accentText} />
+                <div className="w-full max-w-[min(100%,360px)] sm:max-w-[420px] md:max-w-[480px] lg:max-w-[540px] flex items-center justify-between px-1 mb-2">
+                  <div className="flex items-center gap-1 sm:gap-1.5">
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-300 flex items-center gap-1">
+                      <Sparkles size={11} className={`sm:w-3 sm:h-3 ${tTheme.accentText}`} />
                       <span>معاينة البطاقة</span>
                     </span>
                   </div>
                   {selectedAspectRatio === "auto" && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium flex items-center gap-1">
+                    <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium flex items-center gap-1">
                       <span>مقاس تلقائي:</span>
                       <span className="font-bold">{autoDimensions.label}</span>
                     </span>
@@ -4114,7 +4425,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       setSelectedLayer(null);
                     }
                   }}
-                  className={`w-full max-w-[340px] sm:max-w-[380px] rounded-2xl overflow-hidden shadow-2xl relative border border-white/10 flex items-center justify-center select-none transition-all duration-300 ${
+                  className={`w-full max-w-[min(100%,360px)] sm:max-w-[420px] md:max-w-[480px] lg:max-w-[540px] rounded-2xl overflow-hidden shadow-2xl relative border border-white/10 flex items-center justify-center select-none transition-all duration-300 ${
                     selectedAspectRatio === "auto"
                       ? autoDimensions.ratioClass
                       : selectedAspectRatio !== "custom"
@@ -4614,13 +4925,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 </div>
 
                 {/* Aspect Ratio Selector Pills, Lock/Unlock Movement Toggle, and Reset Position Button */}
-                <div className="flex items-center justify-center gap-2 mt-3 overflow-x-auto no-scrollbar flex-nowrap max-w-full px-1">
-                  <div className={`flex items-center gap-1 sm:gap-1.5 p-1 rounded-2xl border shrink-0 flex-nowrap ${tTheme.aspectContainer}`}>
+                <div className="flex items-center justify-center gap-1 sm:gap-2 mt-2 sm:mt-3 overflow-x-auto no-scrollbar flex-nowrap max-w-full px-1">
+                  <div className={`flex items-center gap-0.5 sm:gap-1.5 p-0.5 sm:p-1 rounded-2xl border shrink-0 flex-nowrap ${tTheme.aspectContainer}`}>
                     {aspectRatioOptions.map((opt) => (
                       <button
                         key={opt.id}
                         onClick={() => setSelectedAspectRatio(opt.id)}
-                        className={`px-2 sm:px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0 ${
+                        className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0 ${
                           selectedAspectRatio === opt.id
                             ? tTheme.aspectActive
                             : tTheme.aspectInactive
@@ -4629,13 +4940,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       >
                         {opt.id === "auto" && (
                           <Sparkles
-                            size={11}
-                            className={selectedAspectRatio === "auto" ? "text-amber-200" : tTheme.accentText}
+                            size={10}
+                            className={`sm:w-3 sm:h-3 ${selectedAspectRatio === "auto" ? "text-amber-200" : tTheme.accentText}`}
                           />
                         )}
-                        <span>{opt.label}</span>
+                        <span className="text-[11px]">{opt.label}</span>
                         {opt.id === "auto" && selectedAspectRatio === "auto" && (
-                          <span className="text-[9px] opacity-90 font-mono">({autoDimensions.aspectStyle})</span>
+                          <span className="text-[8px] sm:text-[9px] opacity-90 font-mono">({autoDimensions.aspectStyle})</span>
                         )}
                       </button>
                     ))}
@@ -4660,7 +4971,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         ? "قفل الحماية مفعّل لمنع التحريك (اضغط لفتح القفل والسماح بالتحريك)"
                         : "قفل الحماية مفتوح: يمكنك سحب أي عنصر (اضغط للقفل والتثبيت)"
                     }
-                    className={`px-2.5 py-1.5 rounded-2xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0 whitespace-nowrap ${
+                    className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-2xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-xs shrink-0 whitespace-nowrap ${
                       isMovementLocked
                         ? tTheme.quickBtn
                         : "bg-emerald-500/20 border-emerald-400 text-emerald-400 ring-2 ring-emerald-400/30"
@@ -4668,13 +4979,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   >
                     {isMovementLocked ? (
                       <>
-                        <Lock size={13} className="shrink-0 text-emerald-500" />
-                        <span>قفل التحريك</span>
+                        <Lock size={11} className="sm:w-3 sm:h-3 shrink-0 text-emerald-500" />
+                        <span className="text-[11px]">قفل التحريك</span>
                       </>
                     ) : (
                       <>
-                        <Unlock size={13} className="shrink-0 text-emerald-400 animate-pulse" />
-                        <span>التحريك متاح</span>
+                        <Unlock size={11} className="sm:w-3 sm:h-3 shrink-0 text-emerald-400 animate-pulse" />
+                        <span className="text-[11px]">التحريك متاح</span>
                       </>
                     )}
                   </button>
@@ -4851,19 +5162,19 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               <div className="w-full space-y-3 pt-1">
                 
                 {/* 🌟 SHARE SCOPE SELECTOR: آية واحدة | عدة آيات | صفحة كاملة */}
-                <div className={`p-1 rounded-2xl border shadow-inner grid grid-cols-3 gap-1 ${tTheme.tabContainer}`}>
+                <div className={`p-0.5 sm:p-1 rounded-2xl border shadow-inner grid grid-cols-3 gap-1 ${tTheme.tabContainer}`}>
                   <button
                     type="button"
                     onClick={() => {
                       setShareMode("single");
                       handleChangeVerse(activeData.surahNumber, activeData.ayah.numberInSurah || 1);
                     }}
-                    className={`py-1.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`py-1 sm:py-1.5 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                       shareMode === "single" ? tTheme.tabActive : tTheme.tabInactive
                     }`}
                   >
-                    <BookOpen size={13} />
-                    <span>آية واحدة</span>
+                    <BookOpen size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span className="text-[11px]">آية واحدة</span>
                   </button>
 
                   <button
@@ -4872,12 +5183,12 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       setShareMode("range");
                       handleChangeRange(activeData.surahNumber, rangeFrom, rangeTo);
                     }}
-                    className={`py-1.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`py-1 sm:py-1.5 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                       shareMode === "range" ? tTheme.tabActive : tTheme.tabInactive
                     }`}
                   >
-                    <Layers size={13} />
-                    <span>عدة آيات</span>
+                    <Layers size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span className="text-[11px]">عدة آيات</span>
                   </button>
 
                   <button
@@ -4886,38 +5197,38 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       setShareMode("page");
                       handleChangePage(selectedPageNumber);
                     }}
-                    className={`py-1.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`py-1 sm:py-1.5 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                       shareMode === "page" ? tTheme.tabActive : tTheme.tabInactive
                     }`}
                   >
-                    <FileText size={13} />
-                    <span>صفحة كاملة</span>
+                    <FileText size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span className="text-[11px]">صفحة كاملة</span>
                   </button>
                 </div>
 
                 {/* 🌟 SELECTOR ROW ACCORDING TO MODE */}
-                <div className={`p-2.5 rounded-2xl border shadow-xs space-y-2.5 ${tTheme.innerBox}`}>
+                <div className={`p-2 sm:p-2.5 rounded-2xl border shadow-xs space-y-2 sm:space-y-2.5 ${tTheme.innerBox}`}>
                   {/* Mode 1: Single Ayah */}
                   {shareMode === "single" && (
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-1.5 sm:gap-2">
                       {/* Surah Selector Button with QCF4 Surah Glyph */}
                       <div className="relative flex-1 min-w-0">
                         <button
                           type="button"
                           onClick={() => setIsSurahDropdownOpen(!isSurahDropdownOpen)}
-                          className={`w-full py-1.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between shadow-xs ${tTheme.selectedCard}`}
+                          className={`w-full py-1 sm:py-1.5 px-2 sm:px-3 rounded-xl border text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-between shadow-xs ${tTheme.selectedCard}`}
                           title="اختيار السورة"
                         >
-                          <div className="flex items-center gap-2 truncate">
-                            <BookOpen size={14} className={tTheme.accentText} />
+                          <div className="flex items-center gap-1.5 sm:gap-2 truncate">
+                            <BookOpen size={12} className={`sm:w-3.5 sm:h-3.5 shrink-0 ${tTheme.accentText}`} />
                             <span
-                              className="text-base sm:text-lg font-normal leading-none select-none truncate"
+                              className="text-xs xs:text-sm sm:text-base md:text-lg font-normal leading-none select-none truncate"
                               style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}
                             >
                               {getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName) || `سورة ${activeData.surahName}`}
                             </span>
                           </div>
-                          <ChevronDown size={13} className={`shrink-0 opacity-70 transition-transform duration-200 ${isSurahDropdownOpen ? "rotate-180" : ""}`} />
+                          <ChevronDown size={11} className={`sm:w-3 sm:h-3 shrink-0 opacity-70 transition-transform duration-200 ${isSurahDropdownOpen ? "rotate-180" : ""}`} />
                         </button>
 
                         <SurahSelectModal
@@ -4940,9 +5251,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           disabled={activeData.ayah.numberInSurah <= 1 || isLoadingVerse}
                           onClick={() => handleChangeVerse(activeData.surahNumber, activeData.ayah.numberInSurah - 1)}
                           title="الآية السابقة"
-                          className={`w-8 h-8 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
                         >
-                          <ChevronRight size={14} />
+                          <ChevronRight size={12} className="sm:w-3.5 sm:h-3.5" />
                         </button>
 
                         <div className="relative flex items-center">
@@ -4950,7 +5261,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                             value={activeData.ayah.numberInSurah}
                             disabled={isLoadingVerse}
                             onChange={(e) => handleChangeVerse(activeData.surahNumber, parseInt(e.target.value, 10))}
-                            className={`py-1.5 px-2.5 text-xs font-bold rounded-xl border appearance-none text-center cursor-pointer min-w-[70px] transition-all shadow-xs ${tTheme.subTabActive}`}
+                            className={`py-1 sm:py-1.5 px-1.5 sm:px-2.5 text-[10px] xs:text-[11px] sm:text-xs font-bold rounded-xl border appearance-none text-center cursor-pointer min-w-[62px] sm:min-w-[70px] transition-all shadow-xs ${tTheme.subTabActive}`}
                           >
                             {Array.from({ length: currentSurahObj.numberOfAyahs }, (_, i) => i + 1).map((aNum) => (
                               <option key={aNum} value={aNum} className="bg-slate-900 text-white">
@@ -4965,9 +5276,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           disabled={activeData.ayah.numberInSurah >= currentSurahObj.numberOfAyahs || isLoadingVerse}
                           onClick={() => handleChangeVerse(activeData.surahNumber, activeData.ayah.numberInSurah + 1)}
                           title="الآية التالية"
-                          className={`w-8 h-8 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
                         >
-                          <ChevronLeft size={14} />
+                          <ChevronLeft size={12} className="sm:w-3.5 sm:h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -4975,25 +5286,25 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
                   {/* Mode 2: Multiple Ayahs (Range) */}
                   {shareMode === "range" && (
-                    <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2">
                       {/* Surah Selector */}
-                      <div className="relative max-w-[145px] sm:max-w-[165px] min-w-[110px] shrink-0">
+                      <div className="relative flex-1 min-w-[105px] sm:min-w-[140px]">
                         <button
                           type="button"
                           onClick={() => setIsSurahDropdownOpen(!isSurahDropdownOpen)}
-                          className={`w-full h-8 sm:h-[34px] py-1 px-2 sm:px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between gap-1 shadow-xs ${tTheme.selectedCard}`}
+                          className={`w-full h-7 sm:h-[34px] py-0.5 sm:py-1 px-1.5 sm:px-2.5 rounded-xl border text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-between gap-1 shadow-xs ${tTheme.selectedCard}`}
                           title="اختيار السورة"
                         >
                           <div className="flex items-center gap-1.5 truncate">
-                            <BookOpen size={13} className={`${tTheme.accentText} shrink-0`} />
+                            <BookOpen size={11} className={`${tTheme.accentText} sm:w-3.5 sm:h-3.5 shrink-0`} />
                             <span
-                              className="text-sm sm:text-base font-normal leading-none select-none truncate"
+                              className="text-xs xs:text-sm sm:text-base font-normal leading-none select-none truncate"
                               style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}
                             >
                               {getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName) || `سورة ${activeData.surahName}`}
                             </span>
                           </div>
-                          <ChevronDown size={12} className={`shrink-0 opacity-70 transition-transform duration-200 ${isSurahDropdownOpen ? "rotate-180" : ""}`} />
+                          <ChevronDown size={11} className={`shrink-0 opacity-70 transition-transform duration-200 ${isSurahDropdownOpen ? "rotate-180" : ""}`} />
                         </button>
 
                         <SurahSelectModal
@@ -5010,8 +5321,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       </div>
 
                       {/* From Ayah Selector */}
-                      <div className={`h-8 sm:h-[34px] flex items-center gap-1 px-2 rounded-xl border shrink-0 ${tTheme.tabContainer}`}>
-                        <span className="text-[10px] sm:text-[11px] font-bold opacity-75 shrink-0">من:</span>
+                      <div className={`h-7 sm:h-[34px] flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 rounded-xl border shrink-0 ${tTheme.tabContainer}`}>
+                        <span className="text-[9px] sm:text-[10px] font-bold opacity-75 shrink-0">من:</span>
                         <select
                           value={rangeFrom}
                           disabled={isLoadingVerse}
@@ -5019,7 +5330,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                             const newFrom = parseInt(e.target.value, 10);
                             handleChangeRange(activeData.surahNumber, newFrom, Math.max(newFrom, rangeTo));
                           }}
-                          className={`py-0.5 px-1 sm:px-1.5 text-xs font-bold rounded-lg border appearance-none text-center cursor-pointer transition-all ${tTheme.subTabActive}`}
+                          className={`py-0.5 px-1 sm:px-1.5 text-[10px] sm:text-xs font-bold rounded-lg border appearance-none text-center cursor-pointer transition-all ${tTheme.subTabActive}`}
                         >
                           {Array.from({ length: currentSurahObj.numberOfAyahs }, (_, i) => i + 1).map((aNum) => (
                             <option key={`from-${aNum}`} value={aNum} className="bg-slate-900 text-white">
@@ -5030,8 +5341,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       </div>
 
                       {/* To Ayah Selector */}
-                      <div className={`h-8 sm:h-[34px] flex items-center gap-1 px-2 rounded-xl border shrink-0 ${tTheme.tabContainer}`}>
-                        <span className="text-[10px] sm:text-[11px] font-bold opacity-75 shrink-0">إلى:</span>
+                      <div className={`h-7 sm:h-[34px] flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 rounded-xl border shrink-0 ${tTheme.tabContainer}`}>
+                        <span className="text-[9px] sm:text-[10px] font-bold opacity-75 shrink-0">إلى:</span>
                         <select
                           value={rangeTo}
                           disabled={isLoadingVerse}
@@ -5039,7 +5350,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                             const newTo = parseInt(e.target.value, 10);
                             handleChangeRange(activeData.surahNumber, rangeFrom, newTo);
                           }}
-                          className={`py-0.5 px-1 sm:px-1.5 text-xs font-bold rounded-lg border appearance-none text-center cursor-pointer transition-all ${tTheme.subTabActive}`}
+                          className={`py-0.5 px-1 sm:px-1.5 text-[10px] sm:text-xs font-bold rounded-lg border appearance-none text-center cursor-pointer transition-all ${tTheme.subTabActive}`}
                         >
                           {Array.from({ length: currentSurahObj.numberOfAyahs - rangeFrom + 1 }, (_, i) => rangeFrom + i).map((aNum) => (
                             <option key={`to-${aNum}`} value={aNum} className="bg-slate-900 text-white">
@@ -5050,7 +5361,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       </div>
 
                       {/* Count Badge */}
-                      <span className={`h-8 sm:h-[34px] flex items-center px-2.5 text-[11px] font-bold rounded-xl border shrink-0 ${tTheme.accentText} ${tTheme.innerBox}`}>
+                      <span className={`h-7 sm:h-[34px] flex items-center px-2 text-[10px] sm:text-[11px] font-bold rounded-xl border shrink-0 ${tTheme.accentText} ${tTheme.innerBox}`}>
                         {toArabicNumerals(rangeTo - rangeFrom + 1)} آيات
                       </span>
                     </div>
@@ -5059,26 +5370,26 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   {/* Mode 3: Full Page */}
                   {shareMode === "page" && (
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-1.5 sm:gap-2">
                         {/* Previous Page Button (RTL: right arrow goes to prev page) */}
                         <button
                           type="button"
                           disabled={selectedPageNumber <= 1 || isLoadingVerse}
                           onClick={() => handleChangePage(selectedPageNumber - 1, false)}
                           title="الصفحة السابقة"
-                          className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
+                          className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
                         >
-                          <ChevronRight size={15} />
+                          <ChevronRight size={13} className="sm:w-4 sm:h-4" />
                         </button>
 
                         {/* Page Direct Selector */}
-                        <div className="flex-1 flex items-center justify-center gap-2">
-                          <span className="text-xs font-bold opacity-80">صفحة رقم:</span>
+                        <div className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2">
+                          <span className="text-[10px] sm:text-xs font-bold opacity-80">صفحة:</span>
                           <select
                             value={selectedPageNumber}
                             disabled={isLoadingVerse}
                             onChange={(e) => handleChangePage(parseInt(e.target.value, 10), false)}
-                            className={`py-1.5 px-3 text-xs font-bold rounded-xl border appearance-none text-center cursor-pointer min-w-[100px] transition-all shadow-xs ${tTheme.subTabActive}`}
+                            className={`py-1 px-2 sm:px-3 text-[10px] sm:text-xs font-bold rounded-xl border appearance-none text-center cursor-pointer min-w-[80px] sm:min-w-[100px] transition-all shadow-xs ${tTheme.subTabActive}`}
                           >
                             {Array.from({ length: 604 }, (_, i) => i + 1).map((pNum) => (
                               <option key={`p-${pNum}`} value={pNum} className="bg-slate-900 text-white">
@@ -5086,7 +5397,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                               </option>
                             ))}
                           </select>
-                          <span className="text-[11px] opacity-60">من ٦٠٤</span>
+                          <span className="text-[9px] sm:text-[11px] opacity-60">من ٦٠٤</span>
                         </div>
 
                         {/* Next Page Button (RTL: left arrow goes to next page) */}
@@ -5095,9 +5406,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           disabled={selectedPageNumber >= 604 || isLoadingVerse}
                           onClick={() => handleChangePage(selectedPageNumber + 1, false)}
                           title="الصفحة التالية"
-                          className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
+                          className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
                         >
-                          <ChevronLeft size={15} />
+                          <ChevronLeft size={13} className="sm:w-4 sm:h-4" />
                         </button>
                       </div>
                     </div>
@@ -5113,41 +5424,41 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 </div>
 
                 {/* 3 Main Tabs (الخط | الخلفية | الإطار) */}
-                <div className={`grid grid-cols-3 gap-1.5 p-1 rounded-2xl border shadow-inner ${tTheme.tabContainer}`}>
+                <div className={`grid grid-cols-3 gap-1 sm:gap-1.5 p-0.5 sm:p-1 rounded-2xl border shadow-inner ${tTheme.tabContainer}`}>
                   <button
                     onClick={() => setActiveTab("typography")}
-                    className={`py-2 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`py-1.5 sm:py-2 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                       activeTab === "typography"
                         ? tTheme.tabActive
                         : tTheme.tabInactive
                     }`}
                   >
-                    <Type size={13} />
-                    <span>الخط</span>
+                    <Type size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span className="text-[11px]">الخط</span>
                   </button>
 
                   <button
                     onClick={() => setActiveTab("background")}
-                    className={`py-2 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`py-1.5 sm:py-2 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                       activeTab === "background"
                         ? tTheme.tabActive
                         : tTheme.tabInactive
                     }`}
                   >
-                    <Palette size={13} />
-                    <span>الخلفية</span>
+                    <Palette size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span className="text-[11px]">الخلفية</span>
                   </button>
 
                   <button
                     onClick={() => setActiveTab("frame")}
-                    className={`py-2 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`py-1.5 sm:py-2 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                       activeTab === "frame"
                         ? tTheme.tabActive
                         : tTheme.tabInactive
                     }`}
                   >
-                    <Square size={13} />
-                    <span>الإطار</span>
+                    <Square size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span className="text-[11px]">الإطار</span>
                   </button>
                 </div>
 
@@ -5155,43 +5466,43 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 {activeTab === "background" && (
                   <div className={`space-y-3.5 p-3.5 rounded-2xl border backdrop-blur-xs ${tTheme.panelBg}`}>
                     {/* Sub Category Selector - 5 Primary Categories in a single clean row */}
-                    <div className={`flex flex-nowrap items-center justify-between gap-1 p-1 rounded-xl w-full max-w-lg mx-auto border overflow-x-auto no-scrollbar ${tTheme.subTabsContainer}`}>
+                    <div className={`flex flex-nowrap items-center justify-between gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl w-full max-w-lg mx-auto border overflow-x-auto no-scrollbar ${tTheme.subTabsContainer}`}>
                       <button
                         id="bg-category-tab-gradient"
                         onClick={() => setBgCategory("gradient")}
-                        className={`flex-1 min-w-0 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
                           bgCategory === "gradient"
                             ? tTheme.subTabActive
                             : tTheme.subTabInactive
                         }`}
                       >
-                        <Sparkles size={12} className="shrink-0" />
+                        <Sparkles size={11} className="sm:w-3 sm:h-3 shrink-0" />
                         <span className="whitespace-nowrap">تدرجات</span>
                       </button>
 
                       <button
                         id="bg-category-tab-solid"
                         onClick={() => setBgCategory("solid")}
-                        className={`flex-1 min-w-0 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
                           bgCategory === "solid"
                             ? tTheme.subTabActive
                             : tTheme.subTabInactive
                         }`}
                       >
-                        <Palette size={12} className="shrink-0" />
+                        <Palette size={11} className="sm:w-3 sm:h-3 shrink-0" />
                         <span className="whitespace-nowrap">لون</span>
                       </button>
 
                       <button
                         id="bg-category-tab-pattern"
                         onClick={() => setBgCategory("pattern")}
-                        className={`flex-1 min-w-0 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
                           bgCategory === "pattern"
                             ? tTheme.subTabActive
                             : tTheme.subTabInactive
                         }`}
                       >
-                        <SlidersHorizontal size={12} className="shrink-0" />
+                        <SlidersHorizontal size={11} className="sm:w-3 sm:h-3 shrink-0" />
                         <span className="whitespace-nowrap">نقوش</span>
                       </button>
 
@@ -5201,13 +5512,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           setBgCategory("texture");
                           setShowTexture(true);
                         }}
-                        className={`flex-1 min-w-0 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
                           bgCategory === "texture"
                             ? tTheme.subTabActive
                             : tTheme.subTabInactive
                         }`}
                       >
-                        <Layers size={12} className="shrink-0" />
+                        <Layers size={11} className="sm:w-3 sm:h-3 shrink-0" />
                         <span className="whitespace-nowrap">خامات</span>
                       </button>
 
@@ -5219,13 +5530,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           setShowPattern(false);
                           setTextShadowOpacity(0);
                         }}
-                        className={`flex-1 min-w-0 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
                           bgCategory === "none"
                             ? tTheme.subTabActive
                             : tTheme.subTabInactive
                         }`}
                       >
-                        <Ban size={12} className="shrink-0" />
+                        <Ban size={11} className="sm:w-3 sm:h-3 shrink-0" />
                         <span className="whitespace-nowrap">بلا خلفية</span>
                       </button>
                     </div>
@@ -6160,14 +6471,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                               setSelectedFrameStyle("rectangle");
                             }
                           }}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
+                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
                             showAyahFrame && selectedFrameStyle !== "none"
                               ? tTheme.toggleActive
                               : tTheme.toggleInactive
                           }`}
                           title="إظهار أو إخفاء إطار الآية"
                         >
-                          <span className="truncate">إطار الآية</span>
+                          <span className="truncate text-[10px]">إطار الآية</span>
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${showAyahFrame && selectedFrameStyle !== "none" ? tTheme.toggleDotActive : tTheme.toggleDotInactive}`} />
                         </button>
 
@@ -6183,14 +6494,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                               setOpeningHeaderMode("bismillah");
                             }
                           }}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
+                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
                             showOpeningHeader && (openingHeaderMode === "bismillah" || openingHeaderMode === "auto")
                               ? tTheme.toggleActive
                               : tTheme.toggleInactive
                           }`}
                           title="إظهار أو إخفاء البسملة الشريفة (بسم الله الرحمن الرحيم)"
                         >
-                          <span className="truncate">البسملة</span>
+                          <span className="truncate text-[10px]">البسملة</span>
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                             showOpeningHeader && (openingHeaderMode === "bismillah" || openingHeaderMode === "auto")
                               ? tTheme.toggleDotActive
@@ -6214,14 +6525,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                               setOpeningHeaderMode("istiadhah");
                             }
                           }}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
+                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
                             showIstiadhah || (showOpeningHeader && openingHeaderMode === "istiadhah")
                               ? tTheme.toggleActive
                               : tTheme.toggleInactive
                           }`}
                           title="إظهار أو إخفاء الاستعاذة (أعوذ بالله من الشيطان الرجيم)"
                         >
-                          <span className="truncate">الاستعاذة</span>
+                          <span className="truncate text-[10px]">الاستعاذة</span>
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                             showIstiadhah || (showOpeningHeader && openingHeaderMode === "istiadhah")
                               ? tTheme.toggleDotActive
@@ -6233,14 +6544,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         <button
                           id="toggle-surah-info-btn"
                           onClick={() => setShowSurahInfo(!showSurahInfo)}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
+                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
                             showSurahInfo
                               ? tTheme.toggleActive
                               : tTheme.toggleInactive
                           }`}
                           title="إظهار أو إخفاء شارة وبيانات السورة"
                         >
-                          <span className="truncate">بيانات السورة</span>
+                          <span className="truncate text-[10px]">بيانات السورة</span>
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${showSurahInfo ? tTheme.toggleDotActive : tTheme.toggleDotInactive}`} />
                         </button>
 
@@ -6248,14 +6559,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         <button
                           id="toggle-watermark-btn"
                           onClick={() => setShowWatermark(!showWatermark)}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
+                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
                             showWatermark
                               ? tTheme.toggleActive
                               : tTheme.toggleInactive
                           }`}
                           title="إظهار أو إخفاء شعار مصحف التبيان"
                         >
-                          <span className="truncate">مصحف التبيان</span>
+                          <span className="truncate text-[10px]">مصحف التبيان</span>
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${showWatermark ? tTheme.toggleDotActive : tTheme.toggleDotInactive}`} />
                         </button>
                       </div>
@@ -6314,23 +6625,25 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               {/* Modal Bottom Footer Actions - Now in the original page flow under the controls */}
               <div
                 id="share-ayah-modal-footer-bar"
-                className={`w-full p-2.5 sm:p-3.5 rounded-2xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shadow-sm backdrop-blur-md mt-1 mb-8 sm:mb-10 ${tTheme.headerFooterBg}`}
+                className={`w-full max-w-full lg:max-w-4xl xl:max-w-5xl p-2 sm:p-3 rounded-2xl border flex items-center justify-between gap-1.5 sm:gap-2 shadow-sm backdrop-blur-md mt-1 mb-8 sm:mb-10 ${tTheme.headerFooterBg}`}
               >
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0 flex-wrap">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   <button
                     onClick={onClose}
-                    className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border whitespace-nowrap ${tTheme.closeModalBtn}`}
+                    title="إغلاق النافذة"
+                    aria-label="إغلاق النافذة"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all cursor-pointer border flex items-center justify-center active:scale-95 shrink-0 ${tTheme.closeModalBtn}`}
                   >
-                    إغلاق
+                    <X size={16} className="sm:w-[18px] sm:h-[18px] stroke-[2.5px]" />
                   </button>
 
                   <button
                     onClick={handleResetDefaults}
                     title="إعادة ضبط كافة الإعدادات إلى الوضع الافتراضي"
-                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${tTheme.secondaryBtn}`}
+                    aria-label="إعادة ضبط كافة الإعدادات إلى الوضع الافتراضي"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
                   >
-                    <RotateCcw size={12} className="shrink-0" />
-                    <span>إعادة</span>
+                    <RotateCcw size={15} className="sm:w-4 sm:h-4 shrink-0" />
                   </button>
 
                   <button
@@ -6338,54 +6651,65 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                     type="button"
                     onClick={handleSaveAsDefault}
                     title="تعيين هذا التنسيق الحالي كافتراضي لجميع مشاركات الآيات القادمة"
-                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${
+                    aria-label="تعيين هذا التنسيق الحالي كافتراضي لجميع مشاركات الآيات القادمة"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border active:scale-95 shrink-0 ${
                       isDefaultSaved ? "bg-emerald-500/20 border-emerald-500 text-emerald-400" : tTheme.secondaryBtn
                     }`}
                   >
                     {isDefaultSaved ? (
-                      <>
-                        <Check size={12} className="shrink-0 text-emerald-400 stroke-[2.5px]" />
-                        <span>تم الحفظ</span>
-                      </>
+                      <Check size={16} className="sm:w-[18px] sm:h-[18px] shrink-0 text-emerald-400 stroke-[2.5px]" />
                     ) : (
-                      <>
-                        <Bookmark size={12} className="shrink-0" />
-                        <span>حفظ كافتراضي</span>
-                      </>
+                      <Bookmark size={15} className="sm:w-4 sm:h-4 shrink-0" />
                     )}
                   </button>
 
                   <button
                     onClick={handleCopyShareText}
                     title="نسخ نص الآية الكريمة"
-                    className={`px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${tTheme.secondaryBtn}`}
+                    aria-label="نسخ نص الآية الكريمة"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
                   >
-                    <Copy size={12} className="shrink-0" />
-                    <span>نسخ</span>
+                    <Copy size={15} className="sm:w-4 sm:h-4 shrink-0" />
                   </button>
                 </div>
 
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  {/* Android / Mobile Instant Save & View Card button */}
                   <button
-                    onClick={handleShareImage}
-                    disabled={isGeneratingImage || !generatedImageUrl}
-                    className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap ${tTheme.primaryBtn}`}
+                    type="button"
+                    onClick={handleOpenPreviewModal}
+                    disabled={isGeneratingImage}
+                    title="معاينة وحفظ بطاقة الآية لأجهزة وتطبيقات أندرويد"
+                    aria-label="معاينة وحفظ بطاقة الآية لأجهزة وتطبيقات أندرويد"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border disabled:opacity-50 active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
                   >
-                    <Share2 size={12} className="shrink-0" />
-                    <span>مشاركة</span>
+                    <Eye size={16} className="sm:w-[18px] sm:h-[18px] shrink-0 text-amber-400" />
                   </button>
 
                   <button
+                    type="button"
+                    onClick={handleShareImage}
+                    disabled={isGeneratingImage}
+                    title="مشاركة بطاقة الآية"
+                    aria-label="مشاركة بطاقة الآية"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 active:scale-95 shrink-0 ${tTheme.primaryBtn}`}
+                  >
+                    <Share2 size={15} className="sm:w-4 sm:h-4 shrink-0" />
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleDownloadImage}
-                    disabled={isGeneratingImage || !generatedImageUrl}
-                    className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border disabled:opacity-50 whitespace-nowrap ${tTheme.secondaryBtn}`}
+                    disabled={isGeneratingImage}
+                    title="تحميل وحفظ بطاقة الآية كصورة"
+                    aria-label="تحميل وحفظ بطاقة الآية كصورة"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border disabled:opacity-50 active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
                   >
                     {isGeneratingImage ? (
-                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
                     ) : (
-                      <Download size={12} className="shrink-0" />
+                      <Download size={15} className="sm:w-4 sm:h-4 shrink-0" />
                     )}
-                    <span>تحميل</span>
                   </button>
                 </div>
               </div>
@@ -6418,6 +6742,156 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               <span>تراجع واستعادة</span>
             </button>
           </motion.div>
+        )}
+
+        {/* Universal Android / Mobile Save & Share Dialog */}
+        {showAndroidSaveModal && (
+          <div 
+            id="android-save-modal-overlay"
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={() => setShowAndroidSaveModal(false)}
+          >
+            <div 
+              className="bg-slate-900 border border-amber-500/50 rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col p-4 sm:p-6 gap-3.5 shadow-2xl text-white text-right overflow-y-auto custom-scrollbar"
+              style={{ direction: "rtl" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between w-full border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-amber-300">بطاقة الآية الكريمة</h3>
+                    <p className="text-[11px] text-slate-400">جاهزة للحفظ والمشاركة على أجهزة أندرويد</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAndroidSaveModal(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                  title="إغلاق"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Android Helpful Tip Banner */}
+              <div className="w-full p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5 shadow-inner">
+                <span className="text-lg shrink-0 leading-none">📱</span>
+                <div className="space-y-1">
+                  <p className="font-bold text-amber-300">طريقة الحفظ المباشر في أندرويد والتطبيقات:</p>
+                  <p className="text-[11px] text-amber-100/90 leading-relaxed">
+                    اضغط <strong>مطولاً (Long Press)</strong> على الصورة بالأسفل ثم اختر <strong>"تنزيل الصورة"</strong> لحفظها في ألبوم الصور/المعرض، أو <strong>"مشاركة الصورة"</strong> لإرسالها مباشرة لواتساب وتطبيقات التواصل.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card Image Display */}
+              <div className="relative w-full max-h-[48vh] flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-slate-800 p-1.5">
+                {(previewModalImageUrl || generatedImageUrl) ? (
+                  <img
+                    src={previewModalImageUrl || generatedImageUrl}
+                    alt="بطاقة مشاركة الآية"
+                    className="max-h-[45vh] max-w-full object-contain rounded-xl shadow-lg select-all cursor-pointer transition hover:brightness-105"
+                    title="اضغط مطولاً لحفظ الصورة أو مشاركتها"
+                  />
+                ) : (
+                  <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400 text-xs">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-amber-500 border-t-transparent" />
+                    <span>جاري تجهيز الصورة عالية الدقة...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="grid grid-cols-3 gap-2 w-full pt-1">
+                {/* 1. Direct Download */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const src = previewModalImageUrl || generatedImageUrl;
+                    if (!src) return;
+                    const a = document.createElement("a");
+                    a.download = `مصحف_التبيان_آية.png`;
+                    a.href = src;
+                    a.style.display = "none";
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                      if (document.body.contains(a)) document.body.removeChild(a);
+                    }, 500);
+                    setShareStatus("تم إرسال طلب التنزيل لجهازك");
+                  }}
+                  className="px-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
+                >
+                  <Download size={15} />
+                  <span>تنزيل</span>
+                </button>
+
+                {/* 2. Share via Web Share */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (activeData) {
+                      const src = previewModalImageUrl || generatedImageUrl;
+                      const finalBlob = src && src.startsWith("data:") ? dataUrlToBlob(src) : null;
+                      
+                      // Try file share first
+                      if (finalBlob && typeof File !== "undefined" && navigator.canShare) {
+                        try {
+                          const file = new File([finalBlob], `ayah-${activeData.ayah.numberInSurah}.png`, { type: "image/png" });
+                          if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                              files: [file],
+                              title: `آية من سورة ${activeData.surahName}`,
+                              text: `﴿ ${getCleanedAyahTextForShare()} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`,
+                            });
+                            return;
+                          }
+                        } catch {}
+                      }
+
+                      // Fallback to text share
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: `آية من سورة ${activeData.surahName}`,
+                            text: `﴿ ${getCleanedAyahTextForShare()} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`,
+                            url: window.location.href,
+                          });
+                        } catch {}
+                      }
+                    }
+                  }}
+                  className="px-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
+                >
+                  <Share2 size={15} />
+                  <span>مشاركة</span>
+                </button>
+
+                {/* 3. Copy Ayah Text */}
+                <button
+                  type="button"
+                  onClick={handleCopyShareText}
+                  className="px-2 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer"
+                >
+                  <Copy size={15} />
+                  <span>نسخ النص</span>
+                </button>
+              </div>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowAndroidSaveModal(false)}
+                className="w-full py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white text-xs font-semibold transition cursor-pointer"
+              >
+                إغلاق والعودة للتعديل
+              </button>
+            </div>
+          </div>
         )}
       </div>,
       document.body

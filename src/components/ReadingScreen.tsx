@@ -55,7 +55,7 @@ import { getAyahsForPage } from "../data/quranPageAyahsMap";
 import { getCachedSurahAyahs, saveCachedSurahAyahs } from "../utils/quranPageCache";
 import { quranAudioEngine } from "../utils/quranAudioEngine";
 import { 
-  Play, Pause, ChevronRight, ChevronLeft, ChevronDown, Bookmark as BookmarkIcon, BookmarkPlus, BookmarkCheck,
+  Play, Pause, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Bookmark as BookmarkIcon, BookmarkPlus, BookmarkCheck,
   Settings, Languages, Volume2, AlignLeft, AlignCenter, AlignRight, Sliders, Info, Copy, Check, Sparkles, AlertCircle,
   Sun, Moon, Zap, Compass, X, BookOpenCheck, BookOpen, BookOpenText, Library, FileText, History, Activity, Heart, BookCheck, Layers, Feather, GitCompare,
   Plus, Minus, SkipForward, SkipBack, Repeat, Infinity as InfinityIcon, Type, Share2, Download, Image, ZoomIn, ZoomOut,
@@ -2681,6 +2681,32 @@ export default function ReadingScreen({
   const lastClickTimeRef = useRef<{ time: number; ayahNumber: number | null }>({ time: 0, ayahNumber: null });
   const hasAppliedInitialPageRef = useRef<boolean>(false);
 
+  // Screen orientation and fullscreen state
+  const [isPortrait, setIsPortrait] = useState<boolean>(
+    typeof window !== "undefined" ? window.innerHeight > window.innerWidth : true
+  );
+
+  const [nativeFullscreen, setNativeFullscreen] = useState<boolean>(() => 
+    typeof document !== "undefined" ? !!document.fullscreenElement : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+      setNativeFullscreen(typeof document !== "undefined" && !!document.fullscreenElement);
+    };
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+    document.addEventListener("fullscreenchange", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+      document.removeEventListener("fullscreenchange", handleResize);
+    };
+  }, []);
+
+  const isFullScreenOrLandscape = !showBars || nativeFullscreen || !isPortrait;
+
   // Swipe and Drag gesture state for page navigation
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
@@ -2710,8 +2736,8 @@ export default function ReadingScreen({
   const handleDragMove = (clientX: number, clientY: number, isMouse = false) => {
     if (!isDraggingRef.current) return;
 
-    // Smooth drag-to-scroll when dragging with mouse or pointer
-    if (isMouse && lastDragYRef.current !== null) {
+    // Smooth drag-to-scroll when dragging with mouse or pointer in continuous mode
+    if (isMouse && lastDragYRef.current !== null && isContinuousMode) {
       const deltaY = clientY - lastDragYRef.current;
       if (Math.abs(deltaY) > 0) {
         window.scrollBy({ top: -deltaY, behavior: "auto" });
@@ -2762,9 +2788,11 @@ export default function ReadingScreen({
       }, 700);
     }
     
-    const isContinuousMode = !!(settings.autoScrollActive || settings.scrollDirection === "vertical");
+    const isContinuousMode = settings.scrollDirection === "vertical"
+      ? !!settings.autoScrollActive
+      : !!(settings.autoScrollActive || !isPortrait);
 
-    // When Continuous mode is active (flip-up vertical mode or auto-scroll):
+    // When Continuous mode is active (in horizontal/landscape mode or auto-scroll):
     // Allow smooth, fluid swiping across consecutive pages without discrete page barriers
     if (isContinuousMode) {
       return;
@@ -2772,28 +2800,25 @@ export default function ReadingScreen({
 
     // Page navigation gesture follows settings.scrollDirection (horizontal vs vertical)
     const isVertical = settings.scrollDirection === "vertical";
-    const canScrollVertically = (document.documentElement.scrollHeight - window.innerHeight) > 50;
-    const isAtBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 30);
-    const isAtTop = window.scrollY <= 15;
 
     if (isVertical) {
-      // Vertical swipe navigation
-      if (Math.abs(diffY) >= 20 && Math.abs(diffY) > Math.abs(diffX)) {
+      // Vertical swipe navigation ONLY (لأعلى وأسفل فقط - يمنع التقليب يميناً ويساراً)
+      if (Math.abs(diffY) >= 14 && Math.abs(diffY) > Math.abs(diffX)) {
         if (diffY < 0) {
-          // Swipe UP (finger moves up) -> NEXT page
+          // Swipe UP (finger moves up) -> NEXT page (الصفحة التالية)
           const nextPage = Math.min(604, currentPage + 1);
           setCurrentPage(nextPage);
           window.scrollTo({ top: 0, behavior: "instant" });
         } else {
-          // Swipe DOWN (finger moves down) -> PREVIOUS page
+          // Swipe DOWN (finger moves down) -> PREVIOUS page (الصفحة السابقة)
           const prevPage = Math.max(1, currentPage - 1);
           setCurrentPage(prevPage);
           window.scrollTo({ top: 0, behavior: "instant" });
         }
       }
     } else {
-      // Instant, clean horizontal swipe navigation
-      if (Math.abs(diffX) >= 20 && Math.abs(diffX) > Math.abs(diffY)) {
+      // Horizontal swipe navigation ONLY (على اليمين واليسار فقط - يمنع التقليب لأعلى وأسفل)
+      if (Math.abs(diffX) >= 14 && Math.abs(diffX) > Math.abs(diffY)) {
         if (diffX > 0) {
           // Swiping right (finger moves right: diffX > 0) -> NEXT page (التالي)
           const nextPage = Math.min(604, currentPage + 1);
@@ -2804,21 +2829,6 @@ export default function ReadingScreen({
           const prevPage = Math.max(1, currentPage - 1);
           setCurrentPage(prevPage);
           window.scrollTo({ top: 0, behavior: "instant" });
-        }
-      } else if (Math.abs(diffY) >= 30 && Math.abs(diffY) > Math.abs(diffX) * 1.3) {
-        // Vertical swipe response in full screen or at boundaries
-        if (!canScrollVertically || (diffY < 0 && isAtBottom) || (diffY > 0 && isAtTop)) {
-          if (diffY < 0) {
-            // Swipe UP -> NEXT page
-            const nextPage = Math.min(604, currentPage + 1);
-            setCurrentPage(nextPage);
-            window.scrollTo({ top: 0, behavior: "instant" });
-          } else {
-            // Swipe DOWN -> PREVIOUS page
-            const prevPage = Math.max(1, currentPage - 1);
-            setCurrentPage(prevPage);
-            window.scrollTo({ top: 0, behavior: "instant" });
-          }
         }
       }
     }
@@ -2936,6 +2946,10 @@ export default function ReadingScreen({
   const handleAyahClick = (ayah: Ayah, e?: React.SyntheticEvent) => {
     if (e && 'stopPropagation' in e && typeof e.stopPropagation === 'function') {
       e.stopPropagation();
+    }
+
+    if (floatingAyahMenu || longPressActiveRef.current) {
+      return;
     }
 
     const now = Date.now();
@@ -3289,6 +3303,8 @@ export default function ReadingScreen({
   const menuOpenedAtRef = useRef<number>(0);
 
   const handleOpenFloatingAyahMenu = (ayah: Ayah, clientX?: number, clientY?: number) => {
+    setSelectedAyah(null);
+    longPressActiveRef.current = true;
     const sNum = (ayah as any).surah?.number || surahNumber;
     const sName = (ayah as any).surah?.name || currentSurahMeta?.name || `سورة ${sNum}`;
     
@@ -3365,6 +3381,7 @@ export default function ReadingScreen({
       longPressTimeoutRef.current = null;
     }
     longPressActiveRef.current = false;
+    setSelectedAyah(null);
 
     let clientX = 0;
     let clientY = 0;
@@ -3417,7 +3434,7 @@ export default function ReadingScreen({
       }
       setTimeout(() => {
         longPressActiveRef.current = false;
-      }, 350);
+      }, 600);
       return true;
     }
     longPressActiveRef.current = false;
@@ -3732,31 +3749,6 @@ export default function ReadingScreen({
     }
   }, [surahNumber, initialPageNumber, initialAyahNumber]);
 
-  const [isPortrait, setIsPortrait] = useState<boolean>(
-    typeof window !== "undefined" ? window.innerHeight > window.innerWidth : true
-  );
-
-  const [nativeFullscreen, setNativeFullscreen] = useState<boolean>(() => 
-    typeof document !== "undefined" ? !!document.fullscreenElement : false
-  );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
-      setNativeFullscreen(typeof document !== "undefined" && !!document.fullscreenElement);
-    };
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("orientationchange", handleResize);
-    document.addEventListener("fullscreenchange", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleResize);
-      document.removeEventListener("fullscreenchange", handleResize);
-    };
-  }, []);
-
-  const isFullScreenOrLandscape = !showBars || nativeFullscreen || !isPortrait;
-
   // Medina Mushaf SVG page mode states
   const [svgContent, setSvgContent] = useState<string>("");
   const [svgLoading, setSvgLoading] = useState<boolean>(false);
@@ -3821,7 +3813,136 @@ export default function ReadingScreen({
     }
   }, [scrollTargetPage, autoScrollStartPage]);
 
-  const isContinuousMode = !!(settings.autoScrollActive || settings.scrollDirection === "vertical");
+  const isContinuousMode = settings.scrollDirection === "vertical"
+    ? !!settings.autoScrollActive
+    : !!(settings.autoScrollActive || !isPortrait);
+
+  const lastWheelTimeRef = useRef<number>(0);
+  const handleWheelNavigation = useCallback((e: React.WheelEvent) => {
+    if (isContinuousMode) return;
+    const isVertical = settings.scrollDirection === "vertical";
+    const now = Date.now();
+    if (now - lastWheelTimeRef.current < 280) return;
+
+    if (isVertical) {
+      if (Math.abs(e.deltaY) >= 18 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        lastWheelTimeRef.current = now;
+        if (e.deltaY > 0) {
+          // Wheel down -> Next page
+          setCurrentPage(prev => Math.min(604, prev + 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        } else {
+          // Wheel up -> Previous page
+          setCurrentPage(prev => Math.max(1, prev - 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
+      }
+    } else {
+      if (Math.abs(e.deltaX) >= 18 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        lastWheelTimeRef.current = now;
+        if (e.deltaX > 0) {
+          // Wheel right in RTL -> Next page
+          setCurrentPage(prev => Math.min(604, prev + 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        } else {
+          // Wheel left in RTL -> Previous page
+          setCurrentPage(prev => Math.max(1, prev - 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
+      }
+    }
+  }, [isContinuousMode, settings.scrollDirection]);
+
+  // Global window wheel navigation listener across the reader
+  useEffect(() => {
+    const handleGlobalWheel = (e: WheelEvent) => {
+      const hasActiveModal = !!document.querySelector(
+        "#service-drawer-container, #ayah-bottom-sheet, .share-modal-container, [role='dialog'], #settings-screen-root, #index-drawer"
+      );
+      if (hasActiveModal || isIndexOpen || serviceDrawerTab !== null) return;
+      if (isContinuousMode) return;
+
+      const isVertical = settings.scrollDirection === "vertical";
+      const now = Date.now();
+      if (now - lastWheelTimeRef.current < 280) return;
+
+      if (isVertical) {
+        // Vertical mode: up & down ONLY
+        if (Math.abs(e.deltaY) >= 18 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          lastWheelTimeRef.current = now;
+          if (e.deltaY > 0) {
+            // Wheel down -> Next page
+            setCurrentPage(prev => Math.min(604, prev + 1));
+            window.scrollTo({ top: 0, behavior: "instant" });
+          } else {
+            // Wheel up -> Previous page
+            setCurrentPage(prev => Math.max(1, prev - 1));
+            window.scrollTo({ top: 0, behavior: "instant" });
+          }
+        }
+      } else {
+        // Horizontal mode: right & left ONLY
+        if (Math.abs(e.deltaX) >= 18 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+          lastWheelTimeRef.current = now;
+          if (e.deltaX > 0) {
+            setCurrentPage(prev => Math.min(604, prev + 1));
+            window.scrollTo({ top: 0, behavior: "instant" });
+          } else {
+            setCurrentPage(prev => Math.max(1, prev - 1));
+            window.scrollTo({ top: 0, behavior: "instant" });
+          }
+        }
+      }
+    };
+
+    window.addEventListener("wheel", handleGlobalWheel, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", handleGlobalWheel);
+    };
+  }, [isContinuousMode, settings.scrollDirection, isIndexOpen, serviceDrawerTab]);
+
+  // Global keyboard navigation listener
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea" || activeTag === "select") return;
+      const hasActiveModal = !!document.querySelector(
+        "#service-drawer-container, #ayah-bottom-sheet, .share-modal-container, [role='dialog'], #settings-screen-root, #index-drawer"
+      );
+      if (hasActiveModal || isIndexOpen || serviceDrawerTab !== null) return;
+      if (isContinuousMode) return;
+
+      const isVertical = settings.scrollDirection === "vertical";
+      if (isVertical) {
+        // Vertical ONLY: ArrowDown / ArrowUp / PageDown / PageUp
+        if (e.key === "ArrowDown" || e.key === "PageDown") {
+          e.preventDefault();
+          setCurrentPage(prev => Math.min(604, prev + 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+          e.preventDefault();
+          setCurrentPage(prev => Math.max(1, prev - 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
+      } else {
+        // Horizontal ONLY: ArrowLeft / ArrowRight
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          setCurrentPage(prev => Math.min(604, prev + 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          setCurrentPage(prev => Math.max(1, prev - 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [isContinuousMode, settings.scrollDirection, isIndexOpen, serviceDrawerTab]);
 
   useEffect(() => {
     if ((settings.pageMode === "mushaf-svg" || !settings.pageMode) && isContinuousMode) {
@@ -4157,7 +4278,7 @@ export default function ReadingScreen({
     e.stopPropagation();
     setShowReciterPanel(false);
 
-    if (longPressActiveRef.current) {
+    if (longPressActiveRef.current || floatingAyahMenu) {
       e.preventDefault();
       return;
     }
@@ -4417,7 +4538,7 @@ export default function ReadingScreen({
 
 
   const activeSelector = useMemo(() => {
-    if (effectivePageMode !== "mushaf-svg") return "";
+    if (effectivePageMode !== "mushaf-svg" || floatingAyahMenu) return "";
 
     const items: { sNum: number; aNum: number }[] = [];
 
@@ -4460,7 +4581,7 @@ export default function ReadingScreen({
         animation: none !important;
       }
     `;
-  }, [selectedAyah, playingIndex, ayahs, effectivePageMode, surahNumber, theme]);
+  }, [selectedAyah, playingIndex, ayahs, effectivePageMode, surahNumber, theme, floatingAyahMenu]);
 
   const dynamicFontStyles = useMemo(() => {
     if (settings.quranFont === "amiri") return "";
@@ -9161,18 +9282,35 @@ export default function ReadingScreen({
                           cursor: pointer !important;
                           transition: none !important;
                           animation: none !important;
+                          -webkit-tap-highlight-color: transparent !important;
                         }
-                        #mushaf-svg-wrapper .ayahPolygon:hover, .mushaf-page-list-item .ayahPolygon:hover {
-                          fill: ${theme === "navy-velvet" ? "#3F63C6" : theme === "emerald-velvet" ? "#34d399" : theme === "gold-velvet" ? "#c5a85c" : "#10b981"} !important;
-                          fill-opacity: ${theme === "navy-velvet" || theme === "gold-velvet" || theme === "emerald-velvet" ? "0.09" : "0.07"} !important;
-                          transition: none !important;
-                          animation: none !important;
+                        @media (hover: hover) and (pointer: fine) {
+                          #mushaf-svg-wrapper .ayahPolygon:hover, .mushaf-page-list-item .ayahPolygon:hover {
+                            fill: ${theme === "navy-velvet" ? "#3F63C6" : theme === "emerald-velvet" ? "#34d399" : theme === "gold-velvet" ? "#c5a85c" : "#10b981"} !important;
+                            fill-opacity: ${theme === "navy-velvet" || theme === "gold-velvet" || theme === "emerald-velvet" ? "0.09" : "0.07"} !important;
+                            transition: none !important;
+                            animation: none !important;
+                          }
                         }
                         #mushaf-svg-wrapper svg text, #mushaf-svg-wrapper svg path:not(.ayahPolygon),
                         .mushaf-page-list-item svg text, .mushaf-page-list-item svg path:not(.ayahPolygon) {
                           pointer-events: none !important;
                         }
                         ${activeSelector}
+
+                        ${floatingAyahMenu ? `
+                          #mushaf-svg-wrapper .ayahPolygon, 
+                          .mushaf-page-list-item .ayahPolygon,
+                          #mushaf-svg-wrapper .ayahPolygon:hover, 
+                          .mushaf-page-list-item .ayahPolygon:hover,
+                          #mushaf-svg-wrapper .ayahPolygon:active,
+                          .mushaf-page-list-item .ayahPolygon:active { 
+                            fill: transparent !important; 
+                            fill-opacity: 0 !important; 
+                            background: transparent !important; 
+                            outline: none !important;
+                          }
+                        ` : ''}
 
                         @media (orientation: landscape) {
                           .surah_header_frame .surah_header_text {
@@ -9502,10 +9640,12 @@ export default function ReadingScreen({
                           onMouseUp={handleSvgMouseUp}
                           onMouseMove={handleSvgMouseMove}
                           onMouseLeave={handleMouseLeave}
+                          onWheel={handleWheelNavigation}
+                          onDragStart={(e) => e.preventDefault()}
                           onClick={handleSvgClick}
                           onDoubleClick={handleSvgDoubleClick}
                           style={{ 
-                            touchAction: "pan-y"
+                            touchAction: "none"
                           }}
                           className={`relative w-full flex flex-col items-center ${
                             currentPage === 1 || currentPage === 2
@@ -9809,32 +9949,6 @@ export default function ReadingScreen({
                             : "bg-white border-slate-200/80 shadow-[0_12px_40px_rgba(15,76,58,0.04)] text-slate-900"
                       }`}
                     >
-                    {/* Left Side (Next Page) Button Overlay */}
-                    <button
-                      id="btn-next-page-by-page"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentPage(prev => Math.min(604, prev + 1));
-                      }}
-                      title="الصفحة التالية (السحب لليمين)"
-                      className="absolute top-0 bottom-0 left-0 w-10 sm:w-12 z-20 cursor-pointer bg-transparent hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 transition-all duration-300 rounded-l-3xl flex items-center justify-start pl-2 text-slate-400/40 hover:text-slate-600 dark:hover:text-slate-200 pointer-events-auto"
-                    >
-                      <ChevronLeft size={28} />
-                    </button>
-
-                    {/* Right Side (Previous Page) Button Overlay */}
-                    <button
-                      id="btn-prev-page-by-page"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentPage(prev => Math.max(1, prev - 1));
-                      }}
-                      title="الصفحة السابقة (السحب لليسار)"
-                      className="absolute top-0 bottom-0 right-0 w-10 sm:w-12 z-20 cursor-pointer bg-transparent hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 transition-all duration-300 rounded-r-3xl flex items-center justify-end pr-2 text-slate-400/40 hover:text-slate-600 dark:hover:text-slate-200 pointer-events-auto"
-                    >
-                      <ChevronRight size={28} />
-                    </button>
-
                     {/* Header showing current page and surah info with decorative frame */}
                     <div className="flex items-center justify-between mb-6 pb-3 border-b border-dashed border-emerald-800/15 dark:border-emerald-500/20 text-xs font-bold text-slate-500 dark:text-slate-400">
                       <span 
@@ -9886,7 +10000,7 @@ export default function ReadingScreen({
 
                         let lastSurahNumber: number | null = null;
                         pageAyahs.forEach((ayah, idx) => {
-                          const isSelected = selectedAyah?.number === ayah.number;
+                          const isSelected = !floatingAyahMenu && selectedAyah?.number === ayah.number;
                           const isBookmarked = hasSpecificBookmarkJson(ayah.numberInSurah);
                           const isPlayingNow = playingPageAyahNumber === ayah.number && isPageAyahPlaying;
 
@@ -10003,6 +10117,8 @@ export default function ReadingScreen({
                                   ? (theme === "navy-velvet" ? "bg-[#3F63C6]/20 text-[#3F63C6] ring-1 ring-[#3F63C6]/40 shadow-xs font-semibold" : theme === "gold-velvet" ? "bg-emerald-200/35 text-[#012c1e] ring-1 ring-emerald-400/45 shadow-xs font-semibold" : isDark ? "bg-emerald-950/40 text-emerald-300 ring-1 ring-emerald-800/40 shadow-md font-medium" : "bg-emerald-100/40 text-emerald-950 ring-1 ring-emerald-300/40 shadow-xs font-medium")
                                   : isSelected
                                   ? (theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-slate-800 ring-1 ring-[#3F63C6]/30 shadow-xs" : theme === "gold-velvet" ? "bg-amber-200/30 text-[#012c1e] ring-1 ring-amber-400/30 shadow-xs" : isDark ? "bg-amber-955/40 text-amber-300 ring-1 ring-amber-900/40 shadow-md" : "bg-amber-100/60 text-amber-950 ring-1 ring-amber-300/30 shadow-xs")
+                                  : floatingAyahMenu
+                                  ? ""
                                   : (theme === "navy-velvet" ? "hover:bg-[#3F63C6]/5" : theme === "gold-velvet" ? "hover:bg-emerald-150/30" : isDark ? "hover:bg-slate-800/40" : "hover:bg-amber-100/30")
                               } ${fontSizes[settings.fontSize]}`}
                             >
@@ -11554,7 +11670,15 @@ export default function ReadingScreen({
         <AnimatePresence>
           {floatingAyahMenu && (
             <div
-              className="fixed inset-0 z-[450] select-none pointer-events-auto"
+              id="floating-ayah-backdrop"
+              className="fixed inset-0 z-[450] select-none pointer-events-auto !bg-transparent"
+              style={{
+                WebkitTapHighlightColor: "transparent",
+                background: "transparent",
+                backgroundColor: "transparent",
+                backdropFilter: "none",
+                WebkitBackdropFilter: "none",
+              }}
               onClick={(e) => {
                 // If the user just lifted their finger after triggering the long-press (within 400ms), do not close
                 if (Date.now() - menuOpenedAtRef.current < 400) {
@@ -11562,6 +11686,7 @@ export default function ReadingScreen({
                   return;
                 }
                 setFloatingAyahMenu(null);
+                setSelectedAyah(null);
               }}
               onTouchEnd={(e) => {
                 if (Date.now() - menuOpenedAtRef.current < 400) {
@@ -11575,6 +11700,7 @@ export default function ReadingScreen({
                   return;
                 }
                 setFloatingAyahMenu(null);
+                setSelectedAyah(null);
               }}
             >
               <motion.div

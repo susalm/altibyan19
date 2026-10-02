@@ -825,17 +825,24 @@ export default function SettingsScreen({
             }`}>
               <Move size={14} />
             </div>
-            <span>{isRtl ? "تقليب الصفحات" : "Page Navigation"}</span>
+            <div className="flex flex-col">
+              <span>{isRtl ? "تقليب الصفحات" : "Page Navigation"}</span>
+              <span className="text-[10px] font-normal opacity-70">
+                {(settings.scrollDirection || "horizontal") === "vertical"
+                  ? (isRtl ? "الوضع المفعّل: رأسي لأعلى وأسفل فقط (صفحة صفحة)" : "Active: Vertical (Up & Down only - Page by page)")
+                  : (isRtl ? "الوضع المفعّل: أفقي على اليمين واليسار فقط" : "Active: Horizontal (Right & Left only)")}
+              </span>
+            </div>
           </h3>
 
           <div className="grid grid-cols-2 gap-2.5 pt-1">
-            {/* Option 1: Horizontal Navigation (Left & Right / يميناً ويساراً) - Icon only without phrase */}
+            {/* Option 1: Horizontal Navigation (Right & Left only / على اليمين واليسار فقط) */}
             <button
               id="settings-portrait-nav-horizontal"
               onClick={() => onChangeSettings({ scrollDirection: "horizontal" })}
-              title={isRtl ? "يميناً ويساراً" : "Left & Right"}
-              aria-label={isRtl ? "يميناً ويساراً" : "Left & Right"}
-              className={`py-3.5 px-3 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center border-2 ${
+              title={isRtl ? "أفقي: على اليمين واليسار فقط" : "Horizontal: Right & Left only"}
+              aria-label={isRtl ? "أفقي: على اليمين واليسار فقط" : "Horizontal: Right & Left only"}
+              className={`py-3.5 px-3 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 border-2 ${
                 (settings.scrollDirection || "horizontal") === "horizontal"
                   ? (theme === "navy-velvet"
                       ? "bg-[#3F63C6]/15 text-[#3F63C6] border-[#3F63C6] ring-2 ring-[#3F63C6]/30 shadow-sm"
@@ -857,16 +864,17 @@ export default function SettingsScreen({
                             : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-100")
               }`}
             >
-              <ArrowLeftRight size={22} className="stroke-[2.5px]" />
+              <ArrowLeftRight size={20} className="stroke-[2.5px]" />
+              <span className="text-xs font-bold">{isRtl ? "أفقي (يمين ويسار)" : "Horizontal"}</span>
             </button>
 
-            {/* Option 2: Vertical Navigation (Up & Down / لأعلى وأسفل) - Icon only without phrase */}
+            {/* Option 2: Vertical Navigation (Up & Down only / لأعلى وأسفل فقط - صفحة صفحة) */}
             <button
               id="settings-portrait-nav-vertical"
               onClick={() => onChangeSettings({ scrollDirection: "vertical" })}
-              title={isRtl ? "لأعلى وأسفل" : "Up & Down"}
-              aria-label={isRtl ? "لأعلى وأسفل" : "Up & Down"}
-              className={`py-3.5 px-3 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center border-2 ${
+              title={isRtl ? "رأسي: لأعلى وأسفل فقط (صفحة صفحة)" : "Vertical: Up & Down only (Page by page)"}
+              aria-label={isRtl ? "رأسي: لأعلى وأسفل فقط (صفحة صفحة)" : "Vertical: Up & Down only (Page by page)"}
+              className={`py-3.5 px-3 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 border-2 ${
                 settings.scrollDirection === "vertical"
                   ? (theme === "navy-velvet"
                       ? "bg-[#3F63C6]/15 text-[#3F63C6] border-[#3F63C6] ring-2 ring-[#3F63C6]/30 shadow-sm"
@@ -888,7 +896,8 @@ export default function SettingsScreen({
                             : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-100")
               }`}
             >
-              <ArrowUpDown size={22} className="stroke-[2.5px]" />
+              <ArrowUpDown size={20} className="stroke-[2.5px]" />
+              <span className="text-xs font-bold">{isRtl ? "رأسي (أعلى وأسفل)" : "Vertical"}</span>
             </button>
           </div>
         </div>
