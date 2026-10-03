@@ -562,7 +562,7 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
   visibility: hidden !important;
 }
 
-/* Opening pages (Al-Fatihah and Al-Baqarah): Raise the SVG page upwards to hide the duplicate surah title */
+/* Opening pages (Al-Fatihah and Al-Baqarah): Raise the SVG page upwards to hide the duplicate surah title and elevate by 2 lines */
 #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container,
 .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner {
   overflow: hidden !important;
@@ -573,8 +573,15 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
 .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
   margin-top: -34% !important;
   margin-bottom: -12% !important;
-  transform: translateY(-2%) !important;
+  transform: translateY(calc(-2% - 84px)) !important;
   transition: transform 0.3s ease, margin-top 0.3s ease !important;
+}
+
+@media (min-width: 640px) {
+  #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
+  .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
+    transform: translateY(calc(-2% - 104px)) !important;
+  }
 }
 
 @media (orientation: landscape) {
@@ -582,7 +589,7 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
   .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
     margin-top: -34% !important;
     margin-bottom: -12% !important;
-    transform: translateY(-2%) !important;
+    transform: translateY(calc(-2% - 84px)) !important;
   }
 }
 
@@ -662,7 +669,10 @@ html, body {
   padding: 0;
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
-  touch-action: manipulation;
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: auto;
+  overscroll-behavior: none !important;
 }
 
 #root {
@@ -671,17 +681,36 @@ html, body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overscroll-behavior-x: none !important;
 }
 
-/* Support iOS standalone & safe area insets */
-@supports (padding-top: env(safe-area-inset-top)) {
-  #global-nav-header, #reading-header {
-    padding-top: env(safe-area-inset-top, 0px);
-    height: calc(3.5rem + env(safe-area-inset-top, 0px));
-  }
-  #floating-bottom-menu {
-    padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
-  }
+#app-wrapper-frame, 
+#app-viewport, 
+#reading-screen-root, 
+#reading-canvas, 
+#mushaf-svg-view-container, 
+#mushaf-aligned-page-container {
+  overscroll-behavior-x: none !important;
+}
+
+/* Support iOS & Android standalone, safe area insets, and system navigation bar controls */
+#global-nav-header, #reading-header {
+  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(3.5rem + env(safe-area-inset-top, 0px));
+}
+
+#floating-bottom-menu {
+  /* Extra bottom padding to stay clearly elevated above on-screen system navigation buttons (Back/Home/Recents) */
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+  box-sizing: content-box !important;
+}
+
+#floating-recitation-bar {
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
+}
+
+#mushaf-svg-footer-frame {
+  margin-bottom: max(18px, env(safe-area-inset-bottom, 18px)) !important;
 }
 
 /* Hide library-scroll-to-top-button whenever the Index screen or drawer is active */

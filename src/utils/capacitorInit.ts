@@ -38,11 +38,11 @@ export function initCapacitorNativeHandlers(onBackPressed?: () => boolean) {
               if (handled) return;
             }
 
+            // Prevent accidental exiting when swiping from edges
             if (canGoBack) {
               window.history.back();
-            } else {
-              CapApp.exitApp();
             }
+            // Do not call CapApp.exitApp() on backButton event to prevent exit on edge swipes
           } catch {
             // Ignore back action error
           }

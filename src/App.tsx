@@ -316,7 +316,21 @@ export default function App() {
 
   useEffect(() => {
     initOfflineFonts().catch(console.warn);
-    initCapacitorNativeHandlers();
+    
+    // Handle back button / back gesture safely without exiting the app
+    const handleBackNavigation = () => {
+      if (shareAyahData !== null) {
+        setShareAyahData(null);
+        return true;
+      }
+      if (activeTab !== "home") {
+        setActiveTab("home");
+        return true;
+      }
+      return true; // Keep user inside the app on back gesture
+    };
+
+    initCapacitorNativeHandlers(handleBackNavigation);
     loadKhatmahPlan();
     const handleUpdate = () => {
       loadKhatmahPlan();
@@ -325,7 +339,78 @@ export default function App() {
     return () => {
       window.removeEventListener("khatmah_updated", handleUpdate);
     };
-  }, []);
+  }, [shareAyahData, activeTab]);
+
+  // Prevent browser & PWA exiting when swiping right and left from screen edges
+  useEffect(() => {
+    // 1. Maintain a history entry to trap back navigation gestures
+    try {
+      window.history.pushState({ app: "tebyan_quran" }, "");
+    } catch {}
+
+    const handlePopState = () => {
+      try {
+        window.history.pushState({ app: "tebyan_quran" }, "");
+      } catch {}
+
+      if (shareAyahData !== null) {
+        setShareAyahData(null);
+        return;
+      }
+      if (activeTab !== "home") {
+        setActiveTab("home");
+        return;
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+
+    // 2. Intercept horizontal edge swipe gestures (within 28px of left/right screen boundary)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isEdgeSwipe = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches && e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        const edgeThreshold = 28;
+        isEdgeSwipe = touchStartX <= edgeThreshold || touchStartX >= (window.innerWidth - edgeThreshold);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (isEdgeSwipe && e.touches && e.touches.length === 1) {
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+        const deltaX = Math.abs(currentX - touchStartX);
+        const deltaY = Math.abs(currentY - touchStartY);
+
+        // Cancel horizontal swipe from edge before browser can trigger history navigation/exit
+        if (deltaX > 4 && deltaX > deltaY) {
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      isEdgeSwipe = false;
+    };
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [shareAyahData, activeTab]);
 
   // Offline pages count & background downloader state
   const [offlinePagesCount, setOfflinePagesCount] = useState<number>(0);

@@ -3193,9 +3193,10 @@ export default function ReadingScreen({
   const [tafsirModalFontSize, setTafsirModalFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("altibyan_tafsir_modal_font_size");
-      return saved ? Math.max(9, Math.min(38, parseInt(saved, 10))) : 20;
+      if (!saved || saved === "20") return 9;
+      return saved ? Math.max(9, Math.min(38, parseInt(saved, 10))) : 9;
     } catch {
-      return 20;
+      return 9;
     }
   });
 
@@ -3219,8 +3220,8 @@ export default function ReadingScreen({
 
   const handleResetTafsirFontSize = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setTafsirModalFontSize(20);
-    try { localStorage.setItem("altibyan_tafsir_modal_font_size", "20"); } catch {}
+    setTafsirModalFontSize(9);
+    try { localStorage.setItem("altibyan_tafsir_modal_font_size", "9"); } catch {}
   };
 
   const fetchTafsirForModal = async (
@@ -6197,13 +6198,17 @@ export default function ReadingScreen({
   
   const paddingBottomClass = showBars
     ? isPlayerActive
-      ? "pb-12 sm:pb-16"
-      : "pb-2 sm:pb-4"
+      ? "pb-24 sm:pb-32"
+      : "pb-16 sm:pb-24"
     : isPlayerActive
-      ? "pb-8 sm:pb-10"
-      : "pb-1 sm:pb-2";
+      ? "pb-16 sm:pb-20"
+      : "pb-10 sm:pb-14";
 
-  const paddingTopClass = (effectivePageMode === "mushaf-svg" || effectivePageMode === "qcf4" || settings.mushafProvider === "qcf4") ? "pt-2 sm:pt-3" : "pt-2 sm:pt-4";
+  const paddingTopClass = (effectivePageMode === "mushaf-svg" || effectivePageMode === "qcf4" || settings.mushafProvider === "qcf4") 
+    ? "pt-2 sm:pt-3" 
+    : showBars 
+      ? "pt-14 sm:pt-16" 
+      : "pt-2 sm:pt-4";
 
   return (
     <div 
@@ -7486,11 +7491,11 @@ export default function ReadingScreen({
         <AnimatePresence>
           {showMyFilesDrawer && (
             <motion.div 
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[400] flex items-end justify-center cursor-default bg-black/50 backdrop-blur-[1px]"
+              transition={{ duration: 0 }}
+              className="fixed inset-0 z-[400] p-0 cursor-default bg-transparent"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowMyFilesDrawer(false);
@@ -7499,48 +7504,63 @@ export default function ReadingScreen({
               <motion.div
                 id="my-files-overlay-drawer"
                 dir="rtl"
-                initial={{ y: "100%", opacity: 0.9 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: "100%", opacity: 0.9 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
+                initial={false}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className={`w-full max-w-5xl h-[82vh] overflow-hidden rounded-t-[28px] rounded-b-none border-t border-x-0 border-b-0 shadow-2xl flex flex-col transition-colors duration-300 ${
+                className={`fixed inset-0 w-full h-full max-w-full rounded-none border-0 z-[400] overflow-hidden flex flex-col transition-colors duration-300 ${
                   theme === "emerald-velvet"
-                    ? "bg-[#012519] border-[#c5a85c]/35 text-[#FAF8F5]"
+                    ? "bg-[#011a12] text-[#FAF8F5]"
                     : theme === "navy-velvet"
-                      ? "bg-[#13224a] border-[#3F63C6]/40 text-[#FAF8F5]"
+                      ? "bg-white text-slate-900"
                       : theme === "gold-velvet"
-                        ? "bg-[#FFFDF5] border-[#c5a85c]/35 text-[#011c14]"
+                        ? "bg-[#FFFDF5] text-slate-900"
                         : isDark
-                          ? "bg-slate-900 border-slate-800 text-slate-100"
-                          : "bg-white border-emerald-100 text-slate-800"
+                          ? "bg-slate-950 text-slate-100"
+                          : "bg-white text-slate-900"
                 }`}
               >
-                {/* Drag Handle Accent */}
-                <div className="w-12 h-1 bg-slate-300/40 dark:bg-slate-700/50 rounded-full mx-auto my-2.5 shrink-0" />
-                
                 {/* Header Title with Center Alignment and Close Button */}
-                <div className={`flex items-center justify-between px-5 py-3 border-b ${
-                  theme === "gold-velvet" ? "border-[#c5a85c]/25" : theme === "emerald-velvet" ? "border-[#c5a85c]/25" : theme === "navy-velvet" ? "border-[#3F63C6]/25" : isDark ? "border-slate-800" : "border-slate-200/60"
-                }`}>
-                  <h3 className={`text-sm font-black flex items-center gap-1.5 ${
-                    theme === "navy-velvet"
-                      ? "text-[#3F63C6]"
-                      : theme === "gold-velvet" || theme === "emerald-velvet"
-                        ? "text-[#c5a85c]"
-                        : isDark
-                          ? "text-emerald-400"
-                          : "text-emerald-850"
-                  }`}>
-                    <FolderHeart size={16} />
-                    ملفاتي
-                  </h3>
+                <div className={`px-4 sm:px-5 py-3 flex items-center justify-between border-b ${
+                  theme === "gold-velvet" || theme === "emerald-velvet"
+                    ? "border-[#c5a85c]/25"
+                    : theme === "navy-velvet"
+                      ? "border-[#3F63C6]/25"
+                      : isDark
+                        ? "border-slate-800"
+                        : "border-slate-200/70"
+                } shrink-0`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded-lg ${
+                      theme === "navy-velvet"
+                        ? "bg-[#3F63C6]/15 text-[#3F63C6]"
+                        : theme === "gold-velvet" || theme === "emerald-velvet"
+                          ? "bg-[#c5a85c]/15 text-[#c5a85c]"
+                          : isDark
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-emerald-100 text-emerald-800"
+                    }`}>
+                      <FolderHeart size={16} />
+                    </div>
+                    <h3 className={`font-black text-xs sm:text-sm ${
+                      theme === "navy-velvet"
+                        ? "text-[#3F63C6]"
+                        : theme === "gold-velvet" || theme === "emerald-velvet"
+                          ? "text-[#c5a85c]"
+                          : isDark
+                            ? "text-emerald-400"
+                            : "text-emerald-850"
+                    }`}>
+                      ملفاتي (الفواصل والملاحظات والتقارير)
+                    </h3>
+                  </div>
                   <button 
                     onClick={() => setShowMyFilesDrawer(false)}
-                    className="p-1.5 rounded-full transition-all cursor-pointer bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400"
+                    className="p-1.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 transition-colors cursor-pointer flex items-center justify-center"
                     title="إغلاق"
                   >
-                    <X size={16} className="text-red-500 dark:text-red-400 stroke-[2.5px]" />
+                    <X size={16} className="text-red-500 dark:text-red-400 font-bold" />
                   </button>
                 </div>
 
@@ -7579,7 +7599,7 @@ export default function ReadingScreen({
               </div>
 
               {/* Content area */}
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-4 pb-20 sm:pb-24 custom-scrollbar">
                 {/* 1. BOOKMARKS TAB ("فواصل") */}
                 {myFilesActiveTab === "bookmarks" && (
                   <div className="space-y-4">
@@ -8781,28 +8801,24 @@ export default function ReadingScreen({
                                 </span>
                               </div>
 
-                              {/* Left Side: Surah name (hide on pages 1 and 2 where SurahHeaderFrame is in the page window) */}
-                              {!(currentPage === 1 || currentPage === 2) && (
-                                <>
-                                  <span className={`font-light opacity-30 text-base sm:text-xl md:text-2xl ${isDark ? "text-slate-400" : "text-slate-500"}`}>|</span>
+                              {/* Left Side: Surah name */}
+                              <span className={`font-light opacity-30 text-base sm:text-xl md:text-2xl ${isDark ? "text-slate-400" : "text-slate-500"}`}>|</span>
 
-                                  <div 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenIndexDrawer("surahs");
-                                    }}
-                                    title="فتح فهرس السور"
-                                    className="flex items-center cursor-pointer hover:opacity-80 active:scale-95 transition-all h-full"
-                                  >
-                                    <span 
-                                      className="text-2xl sm:text-4xl md:text-5xl font-normal leading-none text-center flex items-center justify-center select-none h-full" 
-                                      style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "12px", marginTop: "-2px" }}
-                                    >
-                                      {getSurahHeaderGlyph(pageMeta.surahNumber, pageMeta.surahName?.startsWith("سُورَةُ") || pageMeta.surahName?.startsWith("سورة") ? pageMeta.surahName : `سُورَةُ ${pageMeta.surahName}`) || (pageMeta.surahName?.startsWith("سُورَةُ") || pageMeta.surahName?.startsWith("سورة") ? pageMeta.surahName : `سُورَةُ ${pageMeta.surahName}`)}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
+                              <div 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenIndexDrawer("surahs");
+                                }}
+                                title="فتح فهرس السور"
+                                className="flex items-center cursor-pointer hover:opacity-80 active:scale-95 transition-all h-full"
+                              >
+                                <span 
+                                  className="text-2xl sm:text-4xl md:text-5xl font-normal leading-none text-center flex items-center justify-center select-none h-full" 
+                                  style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "12px", marginTop: "-2px" }}
+                                >
+                                  {getSurahHeaderGlyph(pageMeta.surahNumber, pageMeta.surahName?.startsWith("سُورَةُ") || pageMeta.surahName?.startsWith("سورة") ? pageMeta.surahName : `سُورَةُ ${pageMeta.surahName}`) || (pageMeta.surahName?.startsWith("سُورَةُ") || pageMeta.surahName?.startsWith("سورة") ? pageMeta.surahName : `سُورَةُ ${pageMeta.surahName}`)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         );
@@ -9003,9 +9019,16 @@ export default function ReadingScreen({
                           user-select: none;
                           margin-top: -34% !important;
                           margin-bottom: -12% !important;
-                          transform: translateY(-2%) !important;
+                          transform: translateY(calc(-2% - 84px)) !important;
                           transition: transform 0.3s ease, margin-top 0.3s ease !important;
                           filter: ${isDark && theme !== "navy-velvet" && theme !== "gold-velvet" && theme !== "emerald-velvet" ? "invert(0.93) hue-rotate(180deg) brightness(1.2) contrast(1.05)" : "none"} !important;
+                        }
+
+                        @media (min-width: 640px) {
+                          #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
+                          .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
+                            transform: translateY(calc(-2% - 104px)) !important;
+                          }
                         }
 
                         .surah_header_frame {
@@ -9414,7 +9437,13 @@ export default function ReadingScreen({
                             object-fit: contain !important;
                             margin-top: -34% !important;
                             margin-bottom: -12% !important;
-                            transform: translateY(-2%) !important;
+                            transform: translateY(calc(-2% - 84px)) !important;
+                          }
+                          @media (min-width: 640px) {
+                            #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
+                            .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
+                              transform: translateY(calc(-2% - 104px)) !important;
+                            }
                           }
                           #mushaf-svg-footer-frame {
                             margin-top: 18px !important;
@@ -9771,6 +9800,7 @@ export default function ReadingScreen({
                               width: "100%",
                               maxWidth: "100%",
                               marginTop: "18px",
+                              marginBottom: "max(18px, env(safe-area-inset-bottom, 18px))",
                               marginLeft: "0px",
                               boxSizing: "border-box",
                             }}
@@ -10183,15 +10213,17 @@ export default function ReadingScreen({
                 }}
                 dir="rtl"
               >
-                {/* Placeholder spacer to preserve layout rhythm */}
-                <div className="w-full mb-3 h-10 sm:h-11 pointer-events-none select-none" />
+                {/* Dynamic spacer ensuring floating-surah-ayah-picker never overlaps library-services-horizontal-bar */}
+                <div className={`w-full transition-all duration-300 pointer-events-none select-none ${
+                  showBars ? "h-14 sm:h-16 mb-2" : "h-10 sm:h-11 mb-3"
+                }`} />
 
                 {/* Top Floating Box with Surah & Ayah Selectors (عائم وظاهر في وضع القراءة فقط، ومخفي في صفحة علاماتي والفهرس والأدراج) */}
                 {activeTab === "home" && !isIndexOpen && serviceDrawerTab === null && (
                 <div 
                   id="floating-surah-ayah-picker"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed ${showBars ? "top-16" : "top-3 sm:top-4"} left-3 sm:left-6 z-[360] inline-flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md shadow-xl border transition-all duration-300 select-none ${
+                  className={`fixed ${showBars ? "top-16 sm:top-[4.25rem]" : "top-3 sm:top-4"} left-3 sm:left-6 z-[360] inline-flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md shadow-xl border transition-all duration-300 select-none ${
                     theme === "navy-velvet"
                       ? "bg-white/95 border-[#3F63C6]/35 shadow-[#3F63C6]/20 text-slate-900"
                       : theme === "gold-velvet"
@@ -11322,7 +11354,7 @@ export default function ReadingScreen({
                             : "opacity-75 hover:opacity-100"
                         }`}
                       >
-                        <span>الميسر</span>
+                        <span style={{ fontSize: "11px" }}>الميسر</span>
                       </button>
 
                       <button
@@ -11337,7 +11369,7 @@ export default function ReadingScreen({
                             : "opacity-75 hover:opacity-100"
                         }`}
                       >
-                        <span>الترجمة</span>
+                        <span style={{ fontSize: "11px" }}>الترجمة</span>
                       </button>
 
                       <button
@@ -11352,7 +11384,7 @@ export default function ReadingScreen({
                             : "opacity-75 hover:opacity-100"
                         }`}
                       >
-                        <span>الغريب</span>
+                        <span style={{ fontSize: "11px" }}>الغريب</span>
                       </button>
                     </div>
 
@@ -11412,7 +11444,7 @@ export default function ReadingScreen({
                       <button
                         type="button"
                         onClick={handleResetTafsirFontSize}
-                        title="حجم الخط (اضغط لإعادة التعيين)"
+                        title="حجم الخط (اضغط لإعادة التعيين إلى الحد الأدنى)"
                         className={`px-2 sm:px-2.5 py-0.5 text-xs font-bold select-none cursor-pointer rounded-md transition-colors tabular-nums ${
                           theme === "emerald-velvet"
                             ? "hover:bg-[#c5a85c]/15 text-[#c5a85c]"
