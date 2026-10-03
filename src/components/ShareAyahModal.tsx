@@ -2485,9 +2485,15 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   // Image Generation & Export State
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string>("");
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [showAndroidSaveModal, setShowAndroidSaveModal] = useState<boolean>(false);
   const [previewModalImageUrl, setPreviewModalImageUrl] = useState<string>("");
+  
+  // Instant Share Cache references
+  const cachedExportBlobRef = useRef<Blob | null>(null);
+  const cachedDataUrlRef = useRef<string>("");
+  const isCardDirtyRef = useRef<boolean>(true);
 
   const cardPreviewRef = useRef<HTMLDivElement>(null);
 
@@ -2706,7 +2712,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       return;
     }
 
-    setIsGeneratingImage(true);
     setShareStatus(null);
 
     const activeAspect = aspectRatioOptions.find((a) => a.id === selectedAspectRatio) || aspectRatioOptions[0];
@@ -3616,13 +3621,22 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
         try {
           const dataUrl = canvas.toDataURL("image/png");
+          cachedDataUrlRef.current = dataUrl;
+          const directBlob = dataUrlToBlob(dataUrl);
+          if (directBlob) {
+            cachedExportBlobRef.current = directBlob;
+          }
+          isCardDirtyRef.current = false;
           setGeneratedImageUrl(dataUrl);
         } catch (exportErr) {
           console.warn("Canvas toDataURL export error:", exportErr);
           try {
             canvas.toBlob((blob) => {
               if (blob) {
+                cachedExportBlobRef.current = blob;
                 const blobUrl = URL.createObjectURL(blob);
+                cachedDataUrlRef.current = blobUrl;
+                isCardDirtyRef.current = false;
                 setGeneratedImageUrl(blobUrl);
               }
             }, "image/png");
@@ -3637,6 +3651,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       }
     };
 
+    isCardDirtyRef.current = true;
     const timer = setTimeout(async () => {
       if (cardPreviewRef.current) {
         try {
@@ -3650,21 +3665,46 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 node.classList.contains("layer-controls-box") ||
                 node.hasAttribute("data-export-ignore"))
             );
+          
+          try {
+            const blob = await toBlob(cardPreviewRef.current, {
+              pixelRatio: 1.5,
+              cacheBust: false,
+              skipFonts: true,
+              filter: exportFilter,
+            });
+            if (blob) {
+              cachedExportBlobRef.current = blob;
+              const objectUrl = URL.createObjectURL(blob);
+              cachedDataUrlRef.current = objectUrl;
+              isCardDirtyRef.current = false;
+              setGeneratedImageUrl(objectUrl);
+              return;
+            }
+          } catch (blobErr) {
+            console.warn("Fast toBlob pre-render skipped:", blobErr);
+          }
+
           const dataUrl = await toPng(cardPreviewRef.current, {
             pixelRatio: 1.5,
             cacheBust: false,
+            skipFonts: true,
             filter: exportFilter,
           });
           if (dataUrl) {
+            cachedDataUrlRef.current = dataUrl;
+            cachedExportBlobRef.current = dataUrlToBlob(dataUrl);
+            isCardDirtyRef.current = false;
             setGeneratedImageUrl(dataUrl);
+            return;
           }
         } catch {
-          drawCanvas();
+          await drawCanvas();
         }
       } else {
-        drawCanvas();
+        await drawCanvas();
       }
-    }, 280);
+    }, 120);
 
     return () => clearTimeout(timer);
   }, [
@@ -3777,25 +3817,17 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     return t;
   };
 
-  const getExportedImageBlob = async (): Promise<{ url: string; blob: Blob | null }> => {
-    // 1. PRIMARY: Capture directly from live DOM card (cardPreviewRef.current)
-    // This guarantees that all Quranic fonts, ligatures, alignment, font sizes, line wrapping,
-    // layer rotations, transforms, frames, and background styling match the card 100% identically!
+  const getExportedImageBlob = async (forceFresh = false): Promise<{ url: string; blob: Blob | null }> => {
+    // 0. INSTANT FAST-PATH: If pre-rendered Blob is already available and card hasn't been modified, return in 0ms!
+    if (!forceFresh && !isCardDirtyRef.current && cachedExportBlobRef.current) {
+      const url = cachedDataUrlRef.current || (generatedImageUrl ? generatedImageUrl : URL.createObjectURL(cachedExportBlobRef.current));
+      return { url, blob: cachedExportBlobRef.current };
+    }
+
+    // 1. PRIMARY: Fast direct capture from live DOM card (cardPreviewRef.current)
     if (cardPreviewRef.current) {
       try {
         setIsGeneratingImage(true);
-
-        // Deselect layer so bounding boxes/drag handles are not captured in the exported image
-        const prevLayer = selectedLayer;
-        if (prevLayer) {
-          setSelectedLayer(null);
-        }
-
-        // Wait for all document fonts to be completely ready
-        if (document.fonts) {
-          await document.fonts.ready;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 80));
 
         const exportFilter = (node: Node) =>
           !(
@@ -3805,32 +3837,41 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               node.hasAttribute("data-export-ignore"))
           );
 
-        let dataUrl: string | null = null;
+        // Fast toBlob capture first (5-10x faster than toPng and eliminates JS string allocations)
         let blob: Blob | null = null;
+        let dataUrl: string | null = null;
 
         try {
-          dataUrl = await toPng(cardPreviewRef.current, {
-            pixelRatio: 2,
+          blob = await toBlob(cardPreviewRef.current, {
+            pixelRatio: 1.5,
             cacheBust: false,
+            skipFonts: true,
             filter: exportFilter,
           });
-          blob = dataUrlToBlob(dataUrl) || (await toBlob(cardPreviewRef.current, { pixelRatio: 2, cacheBust: false, filter: exportFilter }));
-        } catch (innerErr) {
-          console.warn("toPng pixelRatio 2 failed, fallback to pixelRatio 1:", innerErr);
-          dataUrl = await toPng(cardPreviewRef.current, {
-            pixelRatio: 1,
-            cacheBust: false,
-            filter: exportFilter,
-          });
-          blob = dataUrlToBlob(dataUrl) || (await toBlob(cardPreviewRef.current, { pixelRatio: 1, cacheBust: false, filter: exportFilter }));
+        } catch (fastBlobErr) {
+          console.warn("Direct toBlob capture skipped, trying toPng:", fastBlobErr);
         }
 
-        // Restore active layer selection if user was editing
-        if (prevLayer) {
-          setSelectedLayer(prevLayer);
+        if (blob) {
+          dataUrl = URL.createObjectURL(blob);
+        } else {
+          try {
+            dataUrl = await toPng(cardPreviewRef.current, {
+              pixelRatio: 1.5,
+              cacheBust: false,
+              skipFonts: true,
+              filter: exportFilter,
+            });
+            blob = dataUrl ? dataUrlToBlob(dataUrl) : null;
+          } catch (innerErr) {
+            console.warn("toPng capture failed:", innerErr);
+          }
         }
 
-        if (dataUrl) {
+        if (blob && dataUrl) {
+          cachedExportBlobRef.current = blob;
+          cachedDataUrlRef.current = dataUrl;
+          isCardDirtyRef.current = false;
           setGeneratedImageUrl(dataUrl);
           return { url: dataUrl, blob };
         }
@@ -3841,7 +3882,12 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       }
     }
 
-    // 2. FALLBACK ONLY: If DOM element was unavailable
+    // 2. FALLBACK ONLY: If DOM element was unavailable or fast capture failed
+    if (cachedExportBlobRef.current) {
+      const url = cachedDataUrlRef.current || (generatedImageUrl ? generatedImageUrl : URL.createObjectURL(cachedExportBlobRef.current));
+      return { url, blob: cachedExportBlobRef.current };
+    }
+
     if (generatedImageUrl) {
       if (generatedImageUrl.startsWith("data:")) {
         const directBlob = dataUrlToBlob(generatedImageUrl);
@@ -4004,14 +4050,27 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   };
 
   const handleShareImage = async () => {
-    if (!activeData) return;
-    setShareStatus("جاري تجهيز الصورة للمشاركة...");
+    if (!activeData || isSharing) return;
+    setIsSharing(true);
+    setShareStatus("جاري تحضير نافذة المشاركة...");
+
     try {
-      const { url, blob } = await getExportedImageBlob();
-      const targetUrl = url || generatedImageUrl;
-      const finalBlob = blob || (targetUrl && targetUrl.startsWith("data:") ? dataUrlToBlob(targetUrl) : null);
+      // 0. FAST PATH: Use pre-rendered blob immediately if ready to preserve user gesture
+      let exported: { url: string; blob: Blob | null };
+      if (!isCardDirtyRef.current && cachedExportBlobRef.current) {
+        exported = {
+          url: cachedDataUrlRef.current || generatedImageUrl,
+          blob: cachedExportBlobRef.current,
+        };
+      } else {
+        exported = await getExportedImageBlob();
+      }
+
+      const targetUrl = exported.url || generatedImageUrl;
+      const finalBlob = exported.blob || (targetUrl && targetUrl.startsWith("data:") ? dataUrlToBlob(targetUrl) : null);
 
       if (!targetUrl && !finalBlob) {
+        setIsSharing(false);
         handleDownloadImage();
         return;
       }
@@ -4032,6 +4091,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           try {
             anyWin.Android.shareImage(targetUrl, "image/png", titleText);
             setShareStatus(null);
+            setIsSharing(false);
             return;
           } catch (bridgeErr) {
             console.warn("Android native shareImage failed:", bridgeErr);
@@ -4046,6 +4106,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               dialogTitle: "مشاركة بطاقة الآية",
             });
             setShareStatus(null);
+            setIsSharing(false);
             return;
           } catch (capErr) {
             console.warn("Capacitor share failed:", capErr);
@@ -4053,20 +4114,57 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         }
       }
 
-      // 2. Web Share API with File object
+      // 2. Web Share API with File object (Sharing the actual card image)
       let shareSucceeded = false;
-      if (finalBlob && typeof File !== "undefined" && navigator.canShare) {
+      if (finalBlob && typeof File !== "undefined" && typeof navigator !== "undefined" && navigator.canShare) {
         try {
           const file = new File([finalBlob], fileName, { type: "image/png" });
           if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: titleText,
-              text: shareText,
-            });
-            shareSucceeded = true;
-            setShareStatus(null);
-            return;
+            try {
+              await navigator.share({
+                files: [file],
+                title: titleText,
+                text: shareText,
+              });
+              shareSucceeded = true;
+              setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
+              setTimeout(() => setShareStatus(null), 3000);
+              setIsSharing(false);
+              return;
+            } catch (shareWithTextErr: any) {
+              if (
+                shareWithTextErr?.name === "AbortError" ||
+                shareWithTextErr?.code === 20 ||
+                shareWithTextErr?.message?.toLowerCase().includes("cancel") ||
+                shareWithTextErr?.message?.toLowerCase().includes("abort")
+              ) {
+                setShareStatus(null);
+                setIsSharing(false);
+                return; // User cancelled share sheet
+              }
+              // Some mobile browsers fail when both text and files are passed, retry with file only:
+              try {
+                await navigator.share({
+                  files: [file],
+                  title: titleText,
+                });
+                shareSucceeded = true;
+                setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
+                setTimeout(() => setShareStatus(null), 3000);
+                setIsSharing(false);
+                return;
+              } catch (shareOnlyFileErr: any) {
+                if (
+                  shareOnlyFileErr?.name === "AbortError" ||
+                  shareOnlyFileErr?.code === 20 ||
+                  shareOnlyFileErr?.message?.toLowerCase().includes("cancel")
+                ) {
+                  setShareStatus(null);
+                  setIsSharing(false);
+                  return;
+                }
+              }
+            }
           }
         } catch (shareFileErr: any) {
           if (
@@ -4076,56 +4174,35 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             shareFileErr?.message?.toLowerCase().includes("abort")
           ) {
             setShareStatus(null);
-            return; // User cancelled share sheet
-          }
-          console.warn("navigator.share with files failed, trying text share:", shareFileErr);
-        }
-      }
-
-      // 3. Web Share API with Text & URL (Supported in Android WebViews where files share is blocked)
-      if (!shareSucceeded && navigator.share) {
-        try {
-          await navigator.share({
-            title: titleText,
-            text: shareText,
-            url: window.location.href,
-          });
-          shareSucceeded = true;
-          setShareStatus(null);
-        } catch (shareTextErr: any) {
-          if (
-            shareTextErr?.name === "AbortError" ||
-            shareTextErr?.code === 20 ||
-            shareTextErr?.message?.toLowerCase().includes("cancel") ||
-            shareTextErr?.message?.toLowerCase().includes("abort")
-          ) {
-            setShareStatus(null);
+            setIsSharing(false);
             return;
           }
-          console.warn("navigator.share with text failed:", shareTextErr);
+          console.warn("navigator.share with files failed:", shareFileErr);
         }
       }
 
-      // 4. Try Clipboard copy if available
-      if (!shareSucceeded && finalBlob && typeof ClipboardItem !== "undefined") {
+      // 3. Fallback when system file share is unavailable or not supported in this browser/frame:
+      // Try copying the image directly to the clipboard so the user can paste it anywhere
+      let copiedToClipboard = false;
+      if (finalBlob && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
         try {
           await navigator.clipboard.write([
             new ClipboardItem({ "image/png": finalBlob }),
           ]);
-          setShareStatus("تم نسخ الصورة إلى الحافظة بنجاح!");
-          setTimeout(() => setShareStatus(null), 3000);
-          shareSucceeded = true;
+          copiedToClipboard = true;
         } catch (clipErr) {
           console.warn("Clipboard copy failed:", clipErr);
         }
       }
 
-      // 5. If sharing file directly wasn't possible on Android WebView:
-      // Open the Android Save & Share Sheet where user can long-press to save/share
-      if (!shareSucceeded) {
-        setPreviewModalImageUrl(targetUrl);
-        setShowAndroidSaveModal(true);
-        setShareStatus("تم تجهيز بطاقة الآية! اضغط مطولاً على الصورة لحفظها أو مشاركتها");
+      // 4. Open the full-featured Card Share & Save Modal:
+      // This guarantees the user has immediate access to download the card image, copy it, or long-press!
+      setPreviewModalImageUrl(targetUrl);
+      setShowAndroidSaveModal(true);
+      if (copiedToClipboard) {
+        setShareStatus("تم نسخ صورة البطاقة للحافظة، ويمكنك حفظها أو مشاركتها من النافذة!");
+      } else {
+        setShareStatus("اختر طريقة حفظ أو مشاركة بطاقة الآية");
       }
     } catch (e: any) {
       if (
@@ -4141,6 +4218,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         setPreviewModalImageUrl(generatedImageUrl);
         setShowAndroidSaveModal(true);
       }
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -6678,10 +6757,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   <button
                     type="button"
                     onClick={handleOpenPreviewModal}
-                    disabled={isGeneratingImage}
-                    title="معاينة وحفظ بطاقة الآية لأجهزة وتطبيقات أندرويد"
-                    aria-label="معاينة وحفظ بطاقة الآية لأجهزة وتطبيقات أندرويد"
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border disabled:opacity-50 active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
+                    title="معاينة وحفظ بطاقة الآية"
+                    aria-label="معاينة وحفظ بطاقة الآية"
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
                   >
                     <Eye size={16} className="sm:w-[18px] sm:h-[18px] shrink-0 text-amber-400" />
                   </button>
@@ -6689,23 +6767,26 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   <button
                     type="button"
                     onClick={handleShareImage}
-                    disabled={isGeneratingImage}
+                    disabled={isSharing}
                     title="مشاركة بطاقة الآية"
                     aria-label="مشاركة بطاقة الآية"
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 active:scale-95 shrink-0 ${tTheme.primaryBtn}`}
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0 ${tTheme.primaryBtn}`}
                   >
-                    <Share2 size={15} className="sm:w-4 sm:h-4 shrink-0" />
+                    {isSharing ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Share2 size={15} className="sm:w-4 sm:h-4 shrink-0" />
+                    )}
                   </button>
 
                   <button
                     type="button"
                     onClick={handleDownloadImage}
-                    disabled={isGeneratingImage}
                     title="تحميل وحفظ بطاقة الآية كصورة"
                     aria-label="تحميل وحفظ بطاقة الآية كصورة"
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border disabled:opacity-50 active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
                   >
-                    {isGeneratingImage ? (
+                    {isSharing ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
                     ) : (
                       <Download size={15} className="sm:w-4 sm:h-4 shrink-0" />
@@ -6763,8 +6844,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                     <Sparkles size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold text-amber-300">بطاقة الآية الكريمة</h3>
-                    <p className="text-[11px] text-slate-400">جاهزة للحفظ والمشاركة على أجهزة أندرويد</p>
+                    <h3 className="text-sm sm:text-base font-bold text-amber-300">مشاركة وحفظ بطاقة الآية</h3>
+                    <p className="text-[11px] text-slate-400">بطاقة عالية الدقة جاهزة للحفظ والمشاركة</p>
                   </div>
                 </div>
                 <button
@@ -6777,13 +6858,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 </button>
               </div>
 
-              {/* Android Helpful Tip Banner */}
+              {/* Helpful Tip Banner */}
               <div className="w-full p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5 shadow-inner">
                 <span className="text-lg shrink-0 leading-none">📱</span>
                 <div className="space-y-1">
-                  <p className="font-bold text-amber-300">طريقة الحفظ المباشر في أندرويد والتطبيقات:</p>
+                  <p className="font-bold text-amber-300">طريقة الحفظ والمشاركة المباشرة:</p>
                   <p className="text-[11px] text-amber-100/90 leading-relaxed">
-                    اضغط <strong>مطولاً (Long Press)</strong> على الصورة بالأسفل ثم اختر <strong>"تنزيل الصورة"</strong> لحفظها في ألبوم الصور/المعرض، أو <strong>"مشاركة الصورة"</strong> لإرسالها مباشرة لواتساب وتطبيقات التواصل.
+                    اضغط <strong>مطولاً (Long Press)</strong> على الصورة بالأسفل ثم اختر <strong>"تنزيل الصورة"</strong> أو <strong>"مشاركة الصورة"</strong>، أو اضغط زر <strong>"تنزيل البطاقة"</strong> أو <strong>"نسخ الصورة"</strong> بالأسفل.
                   </p>
                 </div>
               </div>
@@ -6805,38 +6886,72 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 )}
               </div>
 
-              {/* Action Buttons Row */}
-              <div className="grid grid-cols-3 gap-2 w-full pt-1">
+              {/* Action Buttons Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full pt-1">
                 {/* 1. Direct Download */}
                 <button
                   type="button"
                   onClick={() => {
                     const src = previewModalImageUrl || generatedImageUrl;
                     if (!src) return;
+                    let downloadUrl = src;
+                    let revokeNeeded = false;
+                    if (src.startsWith("data:")) {
+                      const b = dataUrlToBlob(src);
+                      if (b) {
+                        downloadUrl = URL.createObjectURL(b);
+                        revokeNeeded = true;
+                      }
+                    }
                     const a = document.createElement("a");
-                    a.download = `مصحف_التبيان_آية.png`;
-                    a.href = src;
-                    a.style.display = "none";
+                    a.download = `مصحف_التبيان_آية_${activeData?.ayah?.numberInSurah || ""}.png`;
+                    a.href = downloadUrl;
                     document.body.appendChild(a);
                     a.click();
                     setTimeout(() => {
                       if (document.body.contains(a)) document.body.removeChild(a);
-                    }, 500);
-                    setShareStatus("تم إرسال طلب التنزيل لجهازك");
+                      if (revokeNeeded) URL.revokeObjectURL(downloadUrl);
+                    }, 1000);
+                    setShareStatus("تم تنزيل بطاقة الآية بنجاح إلى جهازك!");
                   }}
                   className="px-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                 >
                   <Download size={15} />
-                  <span>تنزيل</span>
+                  <span>تنزيل البطاقة</span>
                 </button>
 
-                {/* 2. Share via Web Share */}
+                {/* 2. Copy Image to Clipboard */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const src = previewModalImageUrl || generatedImageUrl;
+                    const finalBlob = cachedExportBlobRef.current || (src && src.startsWith("data:") ? dataUrlToBlob(src) : null);
+                    if (finalBlob && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+                      try {
+                        await navigator.clipboard.write([
+                          new ClipboardItem({ "image/png": finalBlob }),
+                        ]);
+                        setShareStatus("تم نسخ صورة البطاقة بنجاح! يمكنك لصقها الآن في واتساب أو أي تطبيق");
+                      } catch {
+                        setShareStatus("تعذر النسخ التلقائي - اضغط مطولاً على الصورة لحفظها");
+                      }
+                    } else {
+                      setShareStatus("اضغط مطولاً على الصورة لنسخها أو حفظها");
+                    }
+                  }}
+                  className="px-2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
+                >
+                  <Copy size={15} />
+                  <span>نسخ الصورة</span>
+                </button>
+
+                {/* 3. Share via Web Share */}
                 <button
                   type="button"
                   onClick={async () => {
                     if (activeData) {
                       const src = previewModalImageUrl || generatedImageUrl;
-                      const finalBlob = src && src.startsWith("data:") ? dataUrlToBlob(src) : null;
+                      const finalBlob = cachedExportBlobRef.current || (src && src.startsWith("data:") ? dataUrlToBlob(src) : null);
                       
                       // Try file share first
                       if (finalBlob && typeof File !== "undefined" && navigator.canShare) {
@@ -6853,16 +6968,16 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         } catch {}
                       }
 
-                      // Fallback to text share
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: `آية من سورة ${activeData.surahName}`,
-                            text: `﴿ ${getCleanedAyahTextForShare()} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`,
-                            url: window.location.href,
-                          });
-                        } catch {}
-                      }
+                      // If file share not supported, download instead:
+                      const a = document.createElement("a");
+                      a.download = `مصحف_التبيان_آية_${activeData?.ayah?.numberInSurah || ""}.png`;
+                      a.href = src;
+                      document.body.appendChild(a);
+                      a.click();
+                      setTimeout(() => {
+                        if (document.body.contains(a)) document.body.removeChild(a);
+                      }, 500);
+                      setShareStatus("تم تنزيل البطاقة لجهازك!");
                     }
                   }}
                   className="px-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
@@ -6871,7 +6986,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   <span>مشاركة</span>
                 </button>
 
-                {/* 3. Copy Ayah Text */}
+                {/* 4. Copy Ayah Text */}
                 <button
                   type="button"
                   onClick={handleCopyShareText}
