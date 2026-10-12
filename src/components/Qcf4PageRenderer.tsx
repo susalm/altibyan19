@@ -127,6 +127,7 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
       >
         {(() => {
           let headerCount = 0;
+          const isOpeningPage = pageNumber === 1 || pageNumber === 2;
           return pageData.lines.map((line, lIdx) => {
             const isSurahHeaderLine = line.words.some(w => w.type === "surah_header");
             const isBismillahLine = line.words.some(w => w.type === "bismillah");
@@ -138,8 +139,8 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
                 key={`line-${lIdx}`}
                 className={`w-full flex items-center ${
                   isLongLine ? "justify-between" : "justify-center gap-1.5 sm:gap-3"
-                } py-0.5 my-auto text-slate-900 dark:text-slate-100 transition-colors flex-nowrap`}
-                style={{ minHeight: "1.8em" }}
+                } ${isOpeningPage ? "py-1 sm:py-2 my-auto" : "py-0.5 my-auto"} text-slate-900 dark:text-slate-100 transition-colors flex-nowrap`}
+                style={{ minHeight: isOpeningPage ? "2.3em" : "1.8em" }}
               >
                 {line.words.map((word, wIdx) => {
                   const isSurahHeader = word.type === "surah_header";
@@ -183,14 +184,14 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
                       <div
                         key={`w-${lIdx}-${wIdx}`}
                         onClick={() => onAyahClick?.({ surah: sNum || 0, ayah: 0, text: "" })}
-                        className="w-full my-1 cursor-pointer flex items-center justify-center"
+                        className={`w-full ${isOpeningPage ? "my-1.5 sm:my-2" : "my-1"} cursor-pointer flex items-center justify-center`}
                       >
                         <SurahHeaderFrame
                           surahName={word.char || ""}
                           surahNumber={sNum}
                           theme={theme}
                           isDark={isDark}
-                          className="w-full max-h-[56px]"
+                          className={`w-full ${isOpeningPage ? "max-h-[58px]" : "max-h-[54px]"}`}
                         />
                       </div>
                     );
@@ -204,7 +205,10 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
                       className={`w-full py-0.5 my-0.5 flex items-center justify-center cursor-pointer ${
                         isDark ? "text-emerald-300" : "text-emerald-800"
                       }`}
-                      style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif", fontSize: "clamp(1.15rem, 5cqw, 2.6rem)" }}
+                      style={{ 
+                        fontFamily: "QCF4_QBSML, 'Amiri', serif", 
+                        fontSize: isOpeningPage ? "clamp(1.35rem, 5.6cqw, 2.95rem)" : "clamp(1.15rem, 5cqw, 2.6rem)" 
+                      }}
                     >
                       <span>{getBismillahGlyph() || word.char}</span>
                     </div>
@@ -233,7 +237,7 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
                     }`}
                     style={{ 
                       fontFamily: wordFont,
-                      fontSize: "clamp(1.15rem, 4.7cqw, 2.65rem)",
+                      fontSize: isOpeningPage ? "clamp(1.25rem, 5.1cqw, 2.85rem)" : "clamp(1.15rem, 4.7cqw, 2.65rem)",
                       lineHeight: "1.3"
                     }}
                     title={word.verse_key ? `آية ${word.verse_key}` : undefined}

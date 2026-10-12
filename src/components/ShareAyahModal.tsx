@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Palette,
   Square,
-  Type,
   Move,
   FileText,
   SlidersHorizontal,
@@ -150,6 +149,7 @@ export const gradientPresets: GradientPreset[] = [
 
 // Solid Colors Palette
 export const solidColorPresets = [
+  { id: "mushaf-cream", name: "ورق المصحف", value: "#FCFAF7", textDefault: "#1C1917" },
   { id: "soft-rose", name: "وردي ناعم", value: "#F8C8DC", textDefault: "#4A0E2E" },
   { id: "soft-mint", name: "نعناعي هادئ", value: "#D1E7DD", textDefault: "#0F5132" },
   { id: "cream-light", name: "كريمي دافئ", value: "#FFF9E6", textDefault: "#1C1917" },
@@ -418,12 +418,13 @@ export const shareColorsPalette = [
 ];
 
 // Helper to create Authentic Medina Mushaf Surah Header Frame SVG Data URL for Canvas
-export function createSurahHeaderSvg(borderColor: string = "#C5A85C", accentColor: string = "#C5A85C", triangleAccent: string = "#52b7eb"): string {
+export function createSurahHeaderSvg(borderColor: string = "#C5A85C", accentColor: string = "#C5A85C", triangleAccent?: string): string {
+  const activeTriangle = triangleAccent || accentColor || borderColor;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 10 900 90" fill="none">
     <defs>
       <g id="star">
         <polygon points="0,-28 8,-14 20,-20 14,-8 28,0 14,8 20,20 8,14 0,28 -8,14 -20,20 -14,8 -28,0 -14,-8 -20,-20 -8,-14" fill="${accentColor}" stroke="${borderColor}" stroke-width="1.2" />
-        <polygon points="0,-21 6,-10 15,-15 10,-6 21,0 10,6 15,15 6,10 0,21 -6,10 -15,15 -10,6 -21,0 -10,-6 -15,-15 -6,-10" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.8" />
+        <polygon points="0,-21 6,-10 15,-15 10,-6 21,0 10,6 15,15 6,10 0,21 -6,10 -15,15 -10,6 -21,0 -10,-6 -15,-15 -6,-10" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.8" />
         <polygon points="0,-12 3.5,-6 8.5,-8.5 6,-3.5 12,0 6,3.5 8.5,8.5 3.5,6 0,12 -3.5,6 -8.5,8.5 -6,3.5 -12,0 -6,-3.5 -8.5,-8.5 -3.5,-6" fill="none" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="0" y1="-28" x2="0" y2="28" stroke="${borderColor}" stroke-width="0.7" />
         <line x1="-28" y1="0" x2="28" y2="0" stroke="${borderColor}" stroke-width="0.7" />
@@ -433,21 +434,21 @@ export function createSurahHeaderSvg(borderColor: string = "#C5A85C", accentColo
         <circle cx="0" cy="0" r="3.0" fill="${accentColor}" stroke="${borderColor}" stroke-width="0.5" />
         <circle cx="0" cy="0" r="1.2" fill="#ffffff" />
         <polygon points="-58,-40 -50,-32 -58,-24 -66,-32" fill="none" stroke="${borderColor}" stroke-width="0.8" />
-        <polygon points="-58,-37 -52,-32 -58,-27 -64,-32" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
+        <polygon points="-58,-37 -52,-32 -58,-27 -64,-32" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
         <polygon points="-58,40 -50,32 -58,24 -66,32" fill="none" stroke="${borderColor}" stroke-width="0.8" />
-        <polygon points="-58,37 -52,32 -58,27 -64,32" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
+        <polygon points="-58,37 -52,32 -58,27 -64,32" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
         <polygon points="58,-40 66,-32 58,-24 50,-32" fill="none" stroke="${borderColor}" stroke-width="0.8" />
-        <polygon points="58,-37 64,-32 58,-27 52,-32" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
+        <polygon points="58,-37 64,-32 58,-27 52,-32" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
         <polygon points="58,40 66,32 58,24 50,32" fill="none" stroke="${borderColor}" stroke-width="0.8" />
-        <polygon points="58,37 64,32 58,27 52,32" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
+        <polygon points="58,37 64,32 58,27 52,32" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.5" />
         <line x1="-20" y1="-20" x2="-58" y2="-32" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="-20" y1="20" x2="-58" y2="32" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="20" y1="-20" x2="58" y2="-32" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="20" y1="20" x2="58" y2="32" stroke="${borderColor}" stroke-width="0.6" />
-        <circle cx="-58" cy="-32" r="1.4" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.4" />
-        <circle cx="-58" cy="32" r="1.4" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.4" />
-        <circle cx="58" cy="-32" r="1.4" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.4" />
-        <circle cx="58" cy="32" r="1.4" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.4" />
+        <circle cx="-58" cy="-32" r="1.4" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.4" />
+        <circle cx="-58" cy="32" r="1.4" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.4" />
+        <circle cx="58" cy="-32" r="1.4" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.4" />
+        <circle cx="58" cy="32" r="1.4" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.4" />
       </g>
     </defs>
     <g transform="translate(0, 55) scale(1, 0.82) translate(0, -55)">
@@ -456,39 +457,39 @@ export function createSurahHeaderSvg(borderColor: string = "#C5A85C", accentColo
       <path d="M 10,12 L 890,12 L 890,98 L 10,98 Z" fill="none" stroke="${borderColor}" stroke-width="1.6" />
       <g>
         <polygon points="10,10 84,55 10,100" fill="none" stroke="${borderColor}" stroke-width="1.1" />
-        <polygon points="15,18 78,55 15,92" fill="${triangleAccent}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
-        <polygon points="25,55 48,28 72,55 48,82" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
-        <polygon points="34,55 48,36 62,55 48,74" fill="${triangleAccent}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
+        <polygon points="15,18 78,55 15,92" fill="${activeTriangle}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
+        <polygon points="25,55 48,28 72,55 48,82" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
+        <polygon points="34,55 48,36 62,55 48,74" fill="${activeTriangle}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="10" y1="55" x2="84" y2="55" stroke="${borderColor}" stroke-width="0.9" />
         <circle cx="48" cy="55" r="2.2" fill="#ffffff" stroke="${borderColor}" stroke-width="0.6" />
-        <circle cx="84" cy="55" r="1.8" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.6" />
+        <circle cx="84" cy="55" r="1.8" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.6" />
       </g>
       <g>
         <polygon points="240,12 140,55 240,98" fill="none" stroke="${borderColor}" stroke-width="1.1" />
-        <polygon points="234,18 146,55 234,92" fill="${triangleAccent}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
-        <polygon points="220,55 192,28 152,55 192,82" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
-        <polygon points="210,55 192,36 162,55 192,74" fill="${triangleAccent}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
+        <polygon points="234,18 146,55 234,92" fill="${activeTriangle}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
+        <polygon points="220,55 192,28 152,55 192,82" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
+        <polygon points="210,55 192,36 162,55 192,74" fill="${activeTriangle}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="240" y1="55" x2="140" y2="55" stroke="${borderColor}" stroke-width="0.9" />
         <circle cx="192" cy="55" r="2.2" fill="#ffffff" stroke="${borderColor}" stroke-width="0.6" />
-        <circle cx="140" cy="55" r="1.8" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.6" />
+        <circle cx="140" cy="55" r="1.8" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.6" />
       </g>
       <g>
         <polygon points="890,12 816,55 890,98" fill="none" stroke="${borderColor}" stroke-width="1.1" />
-        <polygon points="884,18 822,55 884,92" fill="${triangleAccent}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
-        <polygon points="875,55 852,28 828,55 852,82" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
-        <polygon points="866,55 852,36 838,55 852,74" fill="${triangleAccent}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
+        <polygon points="884,18 822,55 884,92" fill="${activeTriangle}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
+        <polygon points="875,55 852,28 828,55 852,82" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
+        <polygon points="866,55 852,36 838,55 852,74" fill="${activeTriangle}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="890" y1="55" x2="816" y2="55" stroke="${borderColor}" stroke-width="0.9" />
         <circle cx="852" cy="55" r="2.2" fill="#ffffff" stroke="${borderColor}" stroke-width="0.6" />
-        <circle cx="816" cy="55" r="1.8" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.6" />
+        <circle cx="816" cy="55" r="1.8" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.6" />
       </g>
       <g>
         <polygon points="660,12 760,55 660,98" fill="none" stroke="${borderColor}" stroke-width="1.1" />
-        <polygon points="666,18 754,55 666,92" fill="${triangleAccent}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
-        <polygon points="680,55 708,28 748,55 708,82" fill="${triangleAccent}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
-        <polygon points="690,55 708,36 738,55 708,74" fill="${triangleAccent}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
+        <polygon points="666,18 754,55 666,92" fill="${activeTriangle}" fill-opacity="0.4" stroke="${borderColor}" stroke-width="0.7" />
+        <polygon points="680,55 708,28 748,55 708,82" fill="${activeTriangle}" fill-opacity="0.75" stroke="${borderColor}" stroke-width="0.9" />
+        <polygon points="690,55 708,36 738,55 708,74" fill="${activeTriangle}" fill-opacity="0.95" stroke="${borderColor}" stroke-width="0.6" />
         <line x1="660" y1="55" x2="760" y2="55" stroke="${borderColor}" stroke-width="0.9" />
         <circle cx="708" cy="55" r="2.2" fill="#ffffff" stroke="${borderColor}" stroke-width="0.6" />
-        <circle cx="760" cy="55" r="1.8" fill="${triangleAccent}" stroke="${borderColor}" stroke-width="0.6" />
+        <circle cx="760" cy="55" r="1.8" fill="${activeTriangle}" stroke="${borderColor}" stroke-width="0.6" />
       </g>
       <g transform="translate(112, 55)"><use href="#star" /></g>
       <g transform="translate(788, 55)"><use href="#star" /></g>
@@ -502,26 +503,56 @@ export function createSurahHeaderSvg(borderColor: string = "#C5A85C", accentColo
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+function shadeColor(color: string, percent: number): string {
+  let hex = (color || "#C5A85C").replace("#", "").trim();
+  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+  const num = parseInt(hex, 16);
+  if (isNaN(num)) return percent < 0 ? "#8C7436" : "#E2CF8E";
+  let r = (num >> 16) + Math.round(255 * (percent / 100));
+  let g = ((num >> 8) & 0x00FF) + Math.round(255 * (percent / 100));
+  let b = (num & 0x0000FF) + Math.round(255 * (percent / 100));
+  r = Math.min(255, Math.max(0, r));
+  g = Math.min(255, Math.max(0, g));
+  b = Math.min(255, Math.max(0, b));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
 // Authentic Medina Mushaf Surah Header SVG for High-Resolution Export
-export function createAuthenticSurahHeaderSvg(frameColor: string = "#C5A85C", textColor: string = "#FAF8F5"): string {
+export function createAuthenticSurahHeaderSvg(frameColor: string = "#C5A85C", _textColor: string = "#FAF8F5"): string {
   try {
-    const { scopedDefs, scopedBody } = getAuthenticFrameSvgInner("share_modal_canvas");
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240.20621 30.23196" width="240.20621" height="30.23196" fill="none" style="--surah-frame-stroke:${frameColor};--surah-inner-stroke:${frameColor};--surah-inner-fill:rgba(0,0,0,0.04);--surah-accent-solid:${frameColor};--surah-accent-deep:${frameColor};--surah-highlight:#ffffff;--surah-grad-high:#ffffff;--surah-grad-mid:${frameColor};--surah-grad-deep:${frameColor};color:${frameColor};">
+    const activeColor = frameColor || "#C5A85C";
+    const deepShade = shadeColor(activeColor, -30);
+    const midShade = activeColor;
+    const highShade = shadeColor(activeColor, 40);
+
+    const { scopedDefs, scopedBody } = getAuthenticFrameSvgInner("share_modal_canvas", {
+      frameStroke: activeColor,
+      innerStroke: activeColor,
+      innerFill: "transparent",
+      accentSolid: midShade,
+      accentDeep: deepShade,
+      highlight: "#ffffff",
+      gradHigh: highShade,
+      gradMid: midShade,
+      gradDeep: deepShade,
+      textColor: activeColor,
+    });
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240.20621 30.23196" width="240.20621" height="30.23196" fill="none" overflow="visible">
       <defs>
         <style>
-          .surah_frame_outer_border { fill: none !important; stroke: currentColor !important; }
-          .surah_frame_cartouche_bg { fill: none !important; stroke: none !important; }
-          .surah_frame_inner_contour { fill: rgba(0,0,0,0.04) !important; stroke: currentColor !important; }
+          .surah_frame_outer_border, [id*="path3763"], [id*="path4079"] { fill: none !important; fill-opacity: 0 !important; stroke: ${activeColor} !important; stroke-width: 1.5px !important; stroke-opacity: 1 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
+          .surah_frame_cartouche_bg, [id*="path4395"], [class*="cartouche"], [id*="cartouche"] { fill: none !important; fill-opacity: 0 !important; stroke: none !important; }
+          .surah_frame_inner_contour { fill: none !important; fill-opacity: 0 !important; stroke: ${activeColor} !important; }
         </style>
         ${scopedDefs}
       </defs>
-      <g class="surah_header_frame">
-        ${scopedBody}
-      </g>
+      ${scopedBody}
+      <rect x="0.8" y="0.8" width="238.6" height="28.63" rx="0.6" fill="none" stroke="${activeColor}" stroke-width="1.5" stroke-opacity="1" opacity="1" class="surah_frame_outer_border" />
     </svg>`;
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   } catch {
-    return createSurahHeaderSvg(frameColor, frameColor);
+    return createSurahHeaderSvg(frameColor, frameColor, frameColor);
   }
 }
 
@@ -552,7 +583,7 @@ export const ShareSurahHeaderFrame: React.FC<{
   if (headerStyle === "classic") {
     return (
       <div
-        className={`w-full my-1.5 mx-auto flex items-center justify-center ${className}`}
+        className={`w-full my-1 mx-auto flex items-center justify-center ${className}`}
         style={{ maxWidth: `${widthPercentage}%`, ...style }}
       >
         <div className="relative w-full aspect-[900/105] flex items-center justify-center">
@@ -586,7 +617,7 @@ export const ShareSurahHeaderFrame: React.FC<{
   if (headerStyle === "minimal") {
     return (
       <div
-        className={`w-full my-1.5 mx-auto flex items-center justify-center ${className}`}
+        className={`w-full my-1 mx-auto flex items-center justify-center ${className}`}
         style={{ maxWidth: `${widthPercentage}%`, ...style }}
       >
         <div
@@ -613,19 +644,86 @@ export const ShareSurahHeaderFrame: React.FC<{
     );
   }
 
-  // Official / Default: Authentic Medina Mushaf Surah Header Frame
+  // Official / Default: Authentic Medina Mushaf Surah Header Frame from Quran-soura-112.svg
+  // Render high-fidelity vector inline SVG directly in the DOM for instant, 100% reliable display
+  const frameId = useMemo(
+    () => `share_hdr_${surahNumber || "def"}_${(frameColor || "").replace(/[^a-zA-Z0-9]/g, "")}`,
+    [surahNumber, frameColor]
+  );
+
+  const framePalette = useMemo(() => {
+    const col = frameColor || "#C5A85C";
+    const darkShade = shadeColor(col, -30);
+    const lightShade = shadeColor(col, 40);
+    return {
+      frameStroke: col,
+      innerStroke: col,
+      innerFill: "transparent",
+      accentSolid: col,
+      accentDeep: darkShade,
+      highlight: "#ffffff",
+      gradHigh: lightShade,
+      gradMid: col,
+      gradDeep: darkShade,
+      textColor: textColor || col,
+    };
+  }, [frameColor, textColor]);
+
+  const { scopedDefs, scopedBody } = useMemo(
+    () => getAuthenticFrameSvgInner(frameId, framePalette),
+    [frameId, framePalette]
+  );
+
   return (
     <div
-      className={`w-full my-1 mx-auto flex items-center justify-center transition-all ${className}`}
+      className={`w-full my-0 mx-auto flex items-center justify-center transition-all ${className}`}
       style={{ maxWidth: `${widthPercentage}%`, ...style }}
     >
-      <SurahHeaderFrame
-        surahNumber={surahNumber}
-        surahName={surahName || ""}
-        customFrameColor={frameColor}
-        customTextColor={textColor}
-        className="w-full"
-      />
+      <div className="relative w-full aspect-[240.20621/30.23196] flex items-center justify-center">
+        <svg
+          viewBox="0 0 240.20621 30.23196"
+          overflow="visible"
+          className="w-full h-full object-contain pointer-events-none select-none block"
+          style={{ color: frameColor, overflow: "visible" }}
+        >
+          <defs
+            dangerouslySetInnerHTML={{
+              __html: `
+                <style>
+                  .surah_frame_outer_border, [id*="path3763"], [id*="path4079"] { fill: none !important; fill-opacity: 0 !important; stroke: ${frameColor} !important; stroke-width: 1.5px !important; stroke-opacity: 1 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
+                  .surah_frame_cartouche_bg, [id*="path4395"], [class*="cartouche"], [id*="cartouche"] { fill: none !important; fill-opacity: 0 !important; stroke: none !important; }
+                  .surah_frame_inner_contour { fill: none !important; fill-opacity: 0 !important; stroke: ${frameColor} !important; }
+                </style>
+                ${scopedDefs}
+              `,
+            }}
+          />
+          <g className="surah_header_frame" dangerouslySetInnerHTML={{ __html: scopedBody }} />
+          <rect x="0.8" y="0.8" width="238.6" height="28.63" rx="0.6" fill="none" stroke={frameColor} strokeWidth="1.5" strokeOpacity="1" opacity="1" className="surah_frame_outer_border" />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
+          <span
+            style={{
+              fontFamily: "'QCF4_QBSML', 'Amiri', serif",
+              fontSize: "clamp(18px, 5.8cqi, 40px)",
+              color: textColor,
+              fontWeight: "normal",
+              textShadow: "none",
+              boxShadow: "none",
+              filter: "none",
+              WebkitFilter: "none",
+              transform: "translateY(-14%)",
+              direction: "rtl",
+              textAlign: "center",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {glyph || (surahNumber ? getSurahHeaderGlyph(surahNumber, surahName) : (surahName || ""))}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
@@ -705,9 +803,9 @@ export const DEFAULT_SHARE_STYLE: SavedShareStyle = {
   gradientType: "linear",
   gradientAngle: 135,
   radialSpread: 75,
-  gradientColor1: "#1C1917",
-  gradientColor2: "#685023",
-  selectedSolidColor: "#1C1917",
+  gradientColor1: "#FCFAF7",
+  gradientColor2: "#EFECE6",
+  selectedSolidColor: "#FCFAF7",
   selectedPatternId: "islamic-concentric-diamond",
   patternOpacity: 0.3,
   patternColor: "#C5A85C",
@@ -718,32 +816,32 @@ export const DEFAULT_SHARE_STYLE: SavedShareStyle = {
   selectedAspectRatio: "auto",
   customWidth: 1080,
   customHeight: 1350,
-  showAyahFrame: true,
-  selectedFrameStyle: "rectangle",
+  showAyahFrame: false,
+  selectedFrameStyle: "none",
   frameColor: "#C5A85C",
   frameWidth: 2,
   frameInset: 24,
-  showSurahHeaderFrame: false, // Replaced by Bismillah/Istiadhah!
-  showOpeningHeader: true, // Active opening header
+  showSurahHeaderFrame: true, // Surah frame at top
+  showOpeningHeader: true, // Active opening header (Bismillah / Istiadhah)
   openingHeaderMode: "auto", // Auto: Bismillah for beginning, Istiadhah for middle
   openingHeaderSize: 30,
-  openingHeaderColor: "#FAF8F5",
+  openingHeaderColor: "#1C1917",
   openingHeaderFont: "match_ayah",
   surahHeaderStyle: "authentic",
   surahHeaderColor: "#C5A85C",
-  surahHeaderTextColor: "#FAF8F5",
+  surahHeaderTextColor: "#1C1917",
   surahHeaderScale: 100,
   selectedQuranFont: "qcf4",
   textFontSize: 28,
   textShadowOpacity: 0,
   textAlign: "justify",
-  textColor: "#FAF8F5",
-  logoColor: "#FAF8F5",
+  textColor: "#1C1917",
+  logoColor: "#1C1917",
   showIstiadhah: false,
-  istiadhahColor: "#FAF8F5",
+  istiadhahColor: "#1C1917",
   istiadhahSize: 38,
   showSurahInfo: false,
-  showWatermark: false,
+  showWatermark: true,
   surahInfoOffsetY: 0,
   surahInfoOffsetX: 0,
   surahInfoScale: 100,
@@ -775,20 +873,27 @@ export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedSha
       if (parsed && typeof parsed === "object") {
         // Enforce solid single-color background and remove istiadhah, watermark, and footer surah info by default
         parsed.bgCategory = "solid";
-        parsed.selectedSolidColor = parsed.selectedSolidColor || parsed.gradientColor1 || "#1C1917";
+        parsed.selectedSolidColor = parsed.selectedSolidColor || "#FCFAF7";
+        if ((parsed.selectedSolidColor === "#1C1917" || !parsed.selectedSolidColor) && !customDefault) {
+          parsed.selectedSolidColor = "#FCFAF7";
+          parsed.textColor = "#1C1917";
+          parsed.openingHeaderColor = "#1C1917";
+          parsed.surahHeaderTextColor = "#1C1917";
+          parsed.logoColor = "#1C1917";
+        }
         parsed.showIstiadhah = false;
-        parsed.showSurahInfo = false;
-        parsed.showWatermark = false;
+        parsed.showSurahInfo = parsed.showSurahInfo ?? false;
+        parsed.showWatermark = parsed.showWatermark ?? true;
+        parsed.showAyahFrame = false;
+        parsed.selectedFrameStyle = "none";
 
         // Opening Header (Bismillah / Istiadhah) default configuration
         parsed.showOpeningHeader = parsed.showOpeningHeader ?? true;
+        parsed.showSurahHeaderFrame = parsed.showSurahHeaderFrame ?? true;
         parsed.openingHeaderMode = parsed.openingHeaderMode || "auto";
         parsed.openingHeaderSize = parsed.openingHeaderSize ?? 30;
-        parsed.openingHeaderColor = parsed.openingHeaderColor || parsed.textColor || "#FAF8F5";
+        parsed.openingHeaderColor = parsed.openingHeaderColor || parsed.textColor || "#1C1917";
         parsed.openingHeaderFont = parsed.openingHeaderFont || "match_ayah";
-        if (parsed.showSurahHeaderFrame === true && parsed.openingHeaderMode === undefined) {
-          parsed.showSurahHeaderFrame = false;
-        }
 
         // Discard deprecated legacy purple presets (#2e0854 / #6d156c)
         if (parsed.gradientColor1 === "#2e0854" || parsed.gradientColor2 === "#6d156c") {
@@ -1066,14 +1171,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const initialStyle = useMemo(() => getInitialShareStyle(theme, isDark), [theme, isDark]);
 
   // Background Maker State
-  const [bgCategory, setBgCategory] = useState<"gradient" | "solid" | "pattern" | "texture" | "none">(() => initialStyle.bgCategory || "gradient");
+  const [bgCategory, setBgCategory] = useState<"gradient" | "solid" | "pattern" | "texture" | "none">(() => initialStyle.bgCategory || "solid");
   const [gradientType, setGradientType] = useState<"linear" | "radial">(() => initialStyle.gradientType || "linear");
   const [showPattern, setShowPattern] = useState<boolean>(() => initialStyle.showPattern ?? false);
   const [gradientAngle, setGradientAngle] = useState<number>(() => initialStyle.gradientAngle ?? 135);
   const [radialSpread, setRadialSpread] = useState<number>(() => initialStyle.radialSpread ?? 75);
-  const [gradientColor1, setGradientColor1] = useState<string>(() => initialStyle.gradientColor1 || DEFAULT_SHARE_STYLE.gradientColor1 || "#1C1917");
-  const [gradientColor2, setGradientColor2] = useState<string>(() => initialStyle.gradientColor2 || DEFAULT_SHARE_STYLE.gradientColor2 || "#685023");
-  const [selectedSolidColor, setSelectedSolidColor] = useState<string>(() => initialStyle.selectedSolidColor || "#1C1917");
+  const [gradientColor1, setGradientColor1] = useState<string>(() => initialStyle.gradientColor1 || DEFAULT_SHARE_STYLE.gradientColor1 || "#FCFAF7");
+  const [gradientColor2, setGradientColor2] = useState<string>(() => initialStyle.gradientColor2 || DEFAULT_SHARE_STYLE.gradientColor2 || "#EFECE6");
+  const [selectedSolidColor, setSelectedSolidColor] = useState<string>(() => initialStyle.selectedSolidColor || "#FCFAF7");
   const [selectedPatternId, setSelectedPatternId] = useState<string>(() => initialStyle.selectedPatternId || "islamic-concentric-diamond");
   const [patternOpacity, setPatternOpacity] = useState<number>(() => initialStyle.patternOpacity ?? 0.3);
   const [patternColor, setPatternColor] = useState<string>(() => initialStyle.patternColor || "#D4AF37");
@@ -1090,8 +1195,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   // Frames & Borders State
   const [frameSubTab, setFrameSubTab] = useState<"ayah" | "adjust">("ayah");
-  const [showAyahFrame, setShowAyahFrame] = useState<boolean>(() => (initialStyle.showAyahFrame ?? (initialStyle.selectedFrameStyle !== "none")));
-  const [selectedFrameStyle, setSelectedFrameStyle] = useState<FrameStyleType>(() => initialStyle.selectedFrameStyle || "rectangle");
+  const [showAyahFrame, setShowAyahFrame] = useState<boolean>(() => initialStyle.showAyahFrame ?? false);
+  const [selectedFrameStyle, setSelectedFrameStyle] = useState<FrameStyleType>(() => initialStyle.selectedFrameStyle || "none");
   const [frameColor, setFrameColor] = useState<string>(() => initialStyle.frameColor || "#D4AF37");
   const [frameWidth, setFrameWidth] = useState<number>(() => initialStyle.frameWidth ?? 2);
   const [frameInset, setFrameInset] = useState<number>(() => initialStyle.frameInset ?? 24);
@@ -1100,13 +1205,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const [showOpeningHeader, setShowOpeningHeader] = useState<boolean>(() => initialStyle.showOpeningHeader ?? true);
   const [openingHeaderMode, setOpeningHeaderMode] = useState<"auto" | "bismillah" | "istiadhah" | "surah_frame">(() => initialStyle.openingHeaderMode || "auto");
   const [openingHeaderSize, setOpeningHeaderSize] = useState<number>(() => initialStyle.openingHeaderSize ?? 30);
-  const [openingHeaderColor, setOpeningHeaderColor] = useState<string>(() => initialStyle.openingHeaderColor || initialStyle.textColor || "#FAF8F5");
+  const [openingHeaderColor, setOpeningHeaderColor] = useState<string>(() => initialStyle.openingHeaderColor || initialStyle.textColor || "#1C1917");
   const [openingHeaderFont, setOpeningHeaderFont] = useState<"match_ayah" | "qcf4" | "amiri" | "uthman" | "cairo">(() => (initialStyle.openingHeaderFont as any) || "match_ayah");
 
   // Surah Header Frame Controls
-  const [showSurahHeaderFrame, setShowSurahHeaderFrame] = useState<boolean>(() => initialStyle.showSurahHeaderFrame ?? false);
+  const [showSurahHeaderFrame, setShowSurahHeaderFrame] = useState<boolean>(() => initialStyle.showSurahHeaderFrame ?? true);
   const [surahHeaderStyle, setSurahHeaderStyle] = useState<"authentic" | "classic" | "minimal">(() => initialStyle.surahHeaderStyle || "authentic");
-  const [surahHeaderTextColor, setSurahHeaderTextColor] = useState<string>(() => initialStyle.textColor || "#FAF8F5");
+  const [surahHeaderTextColor, setSurahHeaderTextColor] = useState<string>(() => initialStyle.textColor || "#1C1917");
   const [surahHeaderScale, setSurahHeaderScale] = useState<number>(() => initialStyle.surahHeaderScale ?? 100);
 
   // Typography & Style State
@@ -1128,16 +1233,16 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const [textFontSize, setTextFontSize] = useState<number>(() => initialStyle.textFontSize ?? 28);
   const [textShadowOpacity, setTextShadowOpacity] = useState<number>(() => initialStyle.textShadowOpacity ?? 0);
   const [textAlign, setTextAlign] = useState<"justify" | "center" | "right" | "left">(() => initialStyle.textAlign || "justify");
-  const [textColor, setTextColor] = useState<string>(() => initialStyle.textColor || "#FAF8F5");
+  const [textColor, setTextColor] = useState<string>(() => initialStyle.textColor || "#1C1917");
   const [surahHeaderColor, setSurahHeaderColor] = useState<string>(() => initialStyle.surahHeaderColor || "#C5A85C");
-  const [logoColor, setLogoColor] = useState<string | undefined>(() => initialStyle.logoColor || undefined);
+  const [logoColor, setLogoColor] = useState<string | undefined>(() => initialStyle.logoColor || "#1C1917");
 
   // Metadata State (Istiadhah, Surah Info, Watermark)
   const [showIstiadhah, setShowIstiadhah] = useState<boolean>(() => initialStyle.showIstiadhah ?? false);
-  const [istiadhahColor, setIstiadhahColor] = useState<string>(() => initialStyle.istiadhahColor || initialStyle.textColor || "#FAF8F5");
+  const [istiadhahColor, setIstiadhahColor] = useState<string>(() => initialStyle.istiadhahColor || initialStyle.textColor || "#1C1917");
   const [istiadhahSize, setIstiadhahSize] = useState<number>(() => initialStyle.istiadhahSize ?? 38);
   const [showSurahInfo, setShowSurahInfo] = useState<boolean>(() => initialStyle.showSurahInfo ?? false);
-  const [showWatermark, setShowWatermark] = useState<boolean>(() => initialStyle.showWatermark ?? false);
+  const [showWatermark, setShowWatermark] = useState<boolean>(() => initialStyle.showWatermark ?? true);
 
   // Element Offsets & Positions (تحريك العناصر)
   const [textOffsetY, setTextOffsetY] = useState<number>(() => initialStyle.textOffsetY ?? 0);
@@ -1369,7 +1474,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   // Surah & Ayah Selector State
   const [currentShareData, setCurrentShareData] = useState<ShareAyahData | null>(shareData);
-  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode || initialStyle.shareMode || "single");
+  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode === "range" ? "range" : "range");
   const [rangeFrom, setRangeFrom] = useState<number>(() => shareData?.ayah?.numberInSurah || initialStyle.rangeFrom || 1);
   const [rangeTo, setRangeTo] = useState<number>(() => shareData?.ayahTo || initialStyle.rangeTo || 1);
   const [selectedPageNumber, setSelectedPageNumber] = useState<number>(() => shareData?.pageNumber || shareData?.ayah?.page || initialStyle.selectedPageNumber || 1);
@@ -1459,7 +1564,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   const activeData = currentShareData || shareData;
 
-  // Dynamic Auto-sizing: Adjusts dimensions, aspect ratio, and typography automatically to fit verse length
+  // Dynamic Auto-sizing: Adjusts dimensions and typography automatically to fit verse length
   const autoDimensions = useMemo(() => {
     const rawText = activeData?.ayah?.text || "";
     const wordCount = qcf4Words?.length || 0;
@@ -1479,145 +1584,31 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       return {
         width: 1080,
         height: 1920,
-        ratioClass: "aspect-[9/16]",
-        aspectStyle: "9 / 16",
+        ratioClass: "h-auto min-h-[220px]",
+        aspectStyle: undefined,
         fontSize: isOpeningMushafPage ? 17 : 13.5,
         isTall: true,
-        label: "صفحة المصحف (9:16)",
+        label: "صفحة المصحف",
       };
     }
 
-    const isCompactMode = !showIstiadhah && !showSurahInfo && !showWatermark;
+    // Dynamic height scaling smoothly according to verse length without rigid height constraints
+    // (حذف الفراغ الزائد أسفل البطاقة وجعل الارتفاع ملائماً تماماً للنصوص)
+    const estimatedHeight = Math.max(
+      180,
+      Math.min(4200, Math.round(110 + (effectiveCharLen * 1.4) + (showSurahHeaderFrame ? 75 : 0) + (showOpeningHeader ? 55 : 0) + (showSurahInfo ? 25 : 0)))
+    );
 
-    if (isCompactMode) {
-      // 1. Very short verse (under ~95 characters or <= 14 words, e.g. 1-2 lines, like Al-Kawthar, Al-Ikhlas, short single ayahs)
-      if (effectiveCharLen <= 95) {
-        return {
-          width: 1080,
-          height: 680,
-          ratioClass: "aspect-[27/17]",
-          aspectStyle: "27 / 17",
-          fontSize: 33,
-          isTall: false,
-          label: "مدمج متناسق (آيات قصيرة)",
-        };
-      }
-
-      // 2. Short-to-medium verse or 2-verse range (96 - 240 chars, ~3-5 lines like Ibrahim 40-41)
-      if (effectiveCharLen <= 240) {
-        return {
-          width: 1080,
-          height: 900,
-          ratioClass: "aspect-[6/5]",
-          aspectStyle: "6 / 5",
-          fontSize: 28,
-          isTall: false,
-          label: "متوازن مدمج (آيات متوسطة)",
-        };
-      }
-
-      // 3. Medium-long verse or range (241 - 460 chars, ~6-9 lines like Ayat Al-Kursi)
-      if (effectiveCharLen <= 460) {
-        return {
-          width: 1080,
-          height: 1220,
-          ratioClass: "aspect-[54/61]",
-          aspectStyle: "54 / 61",
-          fontSize: 26,
-          isTall: true,
-          label: "طولي متوازن (مقاطع متوسطة)",
-        };
-      }
-
-      // 4. Long verse or multi-verse range (461 - 750 chars, 10-14 lines)
-      if (effectiveCharLen <= 750) {
-        return {
-          width: 1080,
-          height: 1540,
-          ratioClass: "aspect-[27/38]",
-          aspectStyle: "27 / 38",
-          fontSize: 23,
-          isTall: true,
-          label: "طولي كامل (مقاطع ممتدة)",
-        };
-      }
-
-      // 5. Extra long verse (over 750 chars, e.g. Ayat Al-Dayn, Al-Baqarah 282, or wide range)
-      return {
-        width: 1080,
-        height: 1920,
-        ratioClass: "aspect-[9/16]",
-        aspectStyle: "9 / 16",
-        fontSize: 20,
-        isTall: true,
-        label: "طولي ممتد (مقاطع طويلة)",
-      };
-    }
-
-    // Standard Spacious Mode (when Istiadhah or footers are enabled)
-    // 1. Very short verse (under ~95 characters or <= 14 words)
-    if (effectiveCharLen <= 95) {
-      return {
-        width: 1080,
-        height: 1080,
-        ratioClass: "aspect-square",
-        aspectStyle: "1 / 1",
-        fontSize: 34,
-        isTall: false,
-        label: "مربع متناسق (1:1) للآيات القصيرة",
-      };
-    }
-
-    // 2. Short-to-medium verse or 2-verse range (96 - 240 chars, ~3-5 lines like Ibrahim 40-41)
-    if (effectiveCharLen <= 240) {
-      return {
-        width: 1080,
-        height: 1350,
-        ratioClass: "aspect-[4/5]",
-        aspectStyle: "4 / 5",
-        fontSize: 28,
-        isTall: false,
-        label: "طولي متوازن (4:5) للآيات المتوسطة",
-      };
-    }
-
-    // 3. Medium-long verse or range (241 - 460 chars, ~6-9 lines like Ayat Al-Kursi)
-    if (effectiveCharLen <= 460) {
-      return {
-        width: 1080,
-        height: 1620,
-        ratioClass: "aspect-[2/3]",
-        aspectStyle: "2 / 3",
-        fontSize: 26,
-        isTall: true,
-        label: "طولي متوسط (2:3) للمقاطع الطويلة",
-      };
-    }
-
-    // 4. Long verse or multi-verse range (461 - 750 chars, 10-14 lines)
-    if (effectiveCharLen <= 750) {
-      return {
-        width: 1080,
-        height: 1920,
-        ratioClass: "aspect-[9/16]",
-        aspectStyle: "9 / 16",
-        fontSize: 23,
-        isTall: true,
-        label: "طولي كامل (9:16) للآيات الممتدة",
-      };
-    }
-
-    // 5. Extra long verse (over 750 chars, e.g. Ayat Al-Dayn, Al-Baqarah 282, or wide range)
     return {
       width: 1080,
-      height: 2160,
-      ratioClass: "aspect-[1/2]",
-      aspectStyle: "1 / 2",
-      fontSize: 20,
-      isTall: true,
-      label: "طولي فائق (1:2) للآيات الطويلة جداً",
+      height: estimatedHeight,
+      ratioClass: "h-auto min-h-[220px]",
+      aspectStyle: undefined,
+      fontSize: effectiveCharLen > 500 ? 22 : effectiveCharLen > 250 ? 26 : 28,
+      isTall: estimatedHeight > 1080,
+      label: "تمدد تلقائي متجاوب",
     };
-  }, [activeData, shareMode, rangeFrom, rangeTo, selectedPageNumber, qcf4Words, showIstiadhah, showSurahInfo, showWatermark]);
+  }, [activeData, shareMode, rangeFrom, rangeTo, selectedPageNumber, qcf4Words, showSurahHeaderFrame, showOpeningHeader, showSurahInfo, showWatermark]);
 
   const currentSurahObj = useMemo(() => {
     if (!activeData) return surahsList[0];
@@ -2376,110 +2367,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     window.addEventListener("pointercancel", onPointerUp, { passive: false });
   };
 
-  // Floating Controls: Exact design from IMG_1787
-  const renderLayerControls = (element: "ayah" | "header" | "info" | "watermark", _label?: string) => {
-    if (selectedLayer !== element) return null;
-
-    return (
-      <div className="layer-controls-box prevent-drag absolute -inset-1 sm:-inset-1.5 pointer-events-none z-30 select-none">
-        {/* Active Selection Bounding Box (Solid Blue Border) */}
-        <div className="absolute inset-0 border-2 border-blue-500 rounded-[2px] pointer-events-none shadow-xs" />
-
-        {/* Stem Line connecting to Rotation Handle */}
-        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 w-[2px] h-3.5 bg-blue-500 pointer-events-none" />
-
-        {/* Top-Center Rotation & Re-center Handle */}
-        <button
-          type="button"
-          onPointerDown={(e) => handleStartRotate(e, element)}
-          className="pointer-events-auto absolute -top-[33px] left-1/2 -translate-x-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border-2 border-blue-500 shadow-md flex items-center justify-center text-blue-500 hover:bg-blue-50 hover:scale-110 active:scale-95 transition-transform cursor-grab active:cursor-grabbing touch-none select-none z-40"
-          title="اسحب للتدوير، أو انقر لإعادة التوسيط والضبط (0°)"
-        >
-          <RotateCw size={13} className="stroke-[2.5]" />
-        </button>
-
-        {/* Top-Right Corner Red Delete Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleDeleteLayer(element);
-          }}
-          className="pointer-events-auto absolute -top-3 -right-3 sm:-top-3.5 sm:-right-3.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-red-600 hover:bg-red-700 active:scale-90 text-white border-2 border-white shadow-md flex items-center justify-center cursor-pointer transition-transform z-40 touch-none select-none"
-          title="حذف العنصر"
-        >
-          <Trash2 size={12} className="stroke-[2.5]" />
-        </button>
-
-        {/* Top-Left Corner Blue Move Handle */}
-        <div
-          onPointerDown={(e) => handleStartDrag(e, element)}
-          className="move-handle pointer-events-auto absolute -top-3 -left-3 sm:-top-3.5 sm:-left-3.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-600 text-white border-2 border-white shadow-md flex items-center justify-center cursor-move hover:scale-110 active:scale-95 transition-transform z-40 touch-none select-none"
-          title="اسحب لتحريك العنصر"
-        >
-          <Move size={12} className="stroke-[2.5]" />
-        </div>
-
-        {/* Bottom-Right Corner Blue Scale Handle */}
-        <div
-          onPointerDown={(e) => handleStartCornerResize(e, element)}
-          className="pointer-events-auto absolute -bottom-2.5 -right-2.5 sm:-bottom-3 sm:-right-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-500 border-2 border-white shadow-md flex items-center justify-center cursor-nwse-resize hover:scale-110 active:scale-125 transition-transform z-40 touch-none select-none"
-          title="اسحب للتكبير أو التصغير"
-        />
-
-        {/* Bottom-Left Corner Blue Scale Handle */}
-        <div
-          onPointerDown={(e) => handleStartCornerResize(e, element)}
-          className="pointer-events-auto absolute -bottom-2.5 -left-2.5 sm:-bottom-3 sm:-left-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-500 border-2 border-white shadow-md flex items-center justify-center cursor-nesw-resize hover:scale-110 active:scale-125 transition-transform z-40 touch-none select-none"
-          title="اسحب للتكبير أو التصغير"
-        />
-
-        {/* Top Midpoint Edge Handle (White pill with 3 blue bars) */}
-        <div
-          onPointerDown={(e) => handleStartCornerResize(e, element)}
-          className="pointer-events-auto absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-2.5 sm:w-7 sm:h-3 rounded-full bg-white border border-blue-500 shadow-xs flex items-center justify-center gap-0.5 cursor-ns-resize hover:scale-110 active:scale-125 transition-transform z-40 touch-none select-none"
-          title="اسحب لتعديل القياس"
-        >
-          <span className="w-0.5 h-1.5 bg-blue-500 rounded-full" />
-          <span className="w-0.5 h-1.5 bg-blue-500 rounded-full" />
-          <span className="w-0.5 h-1.5 bg-blue-500 rounded-full" />
-        </div>
-
-        {/* Bottom Midpoint Edge Handle */}
-        <div
-          onPointerDown={(e) => handleStartCornerResize(e, element)}
-          className="pointer-events-auto absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-6 h-2.5 sm:w-7 sm:h-3 rounded-full bg-white border border-blue-500 shadow-xs flex items-center justify-center gap-0.5 cursor-ns-resize hover:scale-110 active:scale-125 transition-transform z-40 touch-none select-none"
-          title="اسحب لتعديل القياس"
-        >
-          <span className="w-0.5 h-1.5 bg-blue-500 rounded-full" />
-          <span className="w-0.5 h-1.5 bg-blue-500 rounded-full" />
-          <span className="w-0.5 h-1.5 bg-blue-500 rounded-full" />
-        </div>
-
-        {/* Left Midpoint Edge Handle */}
-        <div
-          onPointerDown={(e) => handleStartCornerResize(e, element)}
-          className="pointer-events-auto absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-6 sm:w-3 sm:h-7 rounded-full bg-white border border-blue-500 shadow-xs flex flex-col items-center justify-center gap-0.5 cursor-ew-resize hover:scale-110 active:scale-125 transition-transform z-40 touch-none select-none"
-          title="اسحب لتعديل القياس"
-        >
-          <span className="h-0.5 w-1.5 bg-blue-500 rounded-full" />
-          <span className="h-0.5 w-1.5 bg-blue-500 rounded-full" />
-          <span className="h-0.5 w-1.5 bg-blue-500 rounded-full" />
-        </div>
-
-        {/* Right Midpoint Edge Handle */}
-        <div
-          onPointerDown={(e) => handleStartCornerResize(e, element)}
-          className="pointer-events-auto absolute -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-6 sm:w-3 sm:h-7 rounded-full bg-white border border-blue-500 shadow-xs flex flex-col items-center justify-center gap-0.5 cursor-ew-resize hover:scale-110 active:scale-125 transition-transform z-40 touch-none select-none"
-          title="اسحب لتعديل القياس"
-        >
-          <span className="h-0.5 w-1.5 bg-blue-500 rounded-full" />
-          <span className="h-0.5 w-1.5 bg-blue-500 rounded-full" />
-          <span className="h-0.5 w-1.5 bg-blue-500 rounded-full" />
-        </div>
-      </div>
-    );
+  // Floating Controls: Disabled per design to fix card elements permanently in place
+  const renderLayerControls = (_element: "ayah" | "header" | "info" | "watermark", _label?: string) => {
+    return null;
   };
 
   // Image Generation & Export State
@@ -2494,6 +2384,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const cachedExportBlobRef = useRef<Blob | null>(null);
   const cachedDataUrlRef = useRef<string>("");
   const isCardDirtyRef = useRef<boolean>(true);
+  const drawCanvasRef = useRef<(() => Promise<void>) | null>(null);
 
   const cardPreviewRef = useRef<HTMLDivElement>(null);
 
@@ -2715,15 +2606,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setShareStatus(null);
 
     const activeAspect = aspectRatioOptions.find((a) => a.id === selectedAspectRatio) || aspectRatioOptions[0];
-    const width =
-      selectedAspectRatio === "auto"
-        ? autoDimensions.width
-        : selectedAspectRatio === "custom"
-        ? Math.max(300, Math.min(4000, customWidth))
-        : activeAspect.width;
+    const domWidth = cardPreviewRef.current?.offsetWidth || 1080;
+    const domHeight = cardPreviewRef.current?.offsetHeight || cardPreviewRef.current?.scrollHeight || 0;
+    const scale = 1080 / (domWidth || 1080);
+    const width = 1080;
     const height =
       selectedAspectRatio === "auto"
-        ? autoDimensions.height
+        ? (domHeight > 0 ? Math.max(500, Math.round(domHeight * scale)) : autoDimensions.height)
         : selectedAspectRatio === "custom"
         ? Math.max(300, Math.min(4000, customHeight))
         : activeAspect.height;
@@ -2742,6 +2631,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     const drawCanvas = async () => {
       try {
         await ensureQbsmlLoaded().catch(() => {});
+        if (qcf4Font) {
+          await loadQcf4Font(qcf4Font).catch(() => {});
+        }
         if (document.fonts) {
           await document.fonts.ready;
         }
@@ -3073,17 +2965,18 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         }
 
         ctx.textBaseline = "middle";
+        ctx.direction = "rtl";
 
         const frameTopY = (showAyahFrame && selectedFrameStyle !== "none") ? (frameInset / 380) * width : 0;
         const frameBottomY = (showAyahFrame && selectedFrameStyle !== "none") ? (frameInset / 380) * width : 0;
 
         const topLimit = showIstiadhah
-          ? ((selectedAspectRatio === "9:16" || isTallRatio) ? height * 0.13 : height * 0.15)
+          ? ((selectedAspectRatio === "9:16" || isTallRatio) ? height * 0.12 : height * 0.13)
           : (showAyahFrame && selectedFrameStyle !== "none")
           ? frameTopY + 14 * scaleRatio
           : height * 0.05;
         const bottomLimit = (showSurahInfo || showWatermark)
-          ? ((selectedAspectRatio === "9:16" || isTallRatio) ? height * 0.90 : height * 0.88)
+          ? height - Math.max(54 * scaleRatio, 62)
           : (showAyahFrame && selectedFrameStyle !== "none")
           ? height - frameBottomY - 14 * scaleRatio
           : height * 0.95;
@@ -3092,18 +2985,38 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         const ayahDeltaY = (textOffsetY / previewH) * height;
         const ayahDeltaX = (textOffsetX / previewW) * width;
 
-        // Preload authentic Surah Header SVG banner
+        // Preload authentic Surah Header SVG banner from Quran-soura-112.svg
         const surahHeaderImg = new window.Image();
-        surahHeaderImg.src = createAuthenticSurahHeaderSvg(surahHeaderColor || "#C5A85C", surahHeaderTextColor || textColor);
+        surahHeaderImg.src = surahHeaderColor ? createAuthenticSurahHeaderSvg(surahHeaderColor, surahHeaderTextColor || textColor) : "/quran-soura-112-frame.svg";
         await new Promise<void>((resolve) => {
           if (surahHeaderImg.complete && surahHeaderImg.naturalWidth > 0) {
             resolve();
           } else {
             surahHeaderImg.onload = () => resolve();
             surahHeaderImg.onerror = () => {
-              surahHeaderImg.src = createSurahHeaderSvg(surahHeaderColor || "#C5A85C", surahHeaderColor || "#C5A85C");
+              surahHeaderImg.src = "/standalone-frame.svg";
               surahHeaderImg.onload = () => resolve();
-              surahHeaderImg.onerror = () => resolve();
+              surahHeaderImg.onerror = () => {
+                surahHeaderImg.src = createAuthenticSurahHeaderSvg(surahHeaderColor || "#C5A85C", surahHeaderTextColor || textColor);
+                surahHeaderImg.onload = () => resolve();
+                surahHeaderImg.onerror = () => resolve();
+              };
+            };
+          }
+        });
+
+        // Preload approved app icon (/app-logo-512.png with fallback to /IMG_1767.png)
+        const appLogoImg = new window.Image();
+        appLogoImg.src = "/app-logo-512.png";
+        await new Promise<void>((resolve) => {
+          if (appLogoImg.complete && appLogoImg.naturalWidth > 0) {
+            resolve();
+          } else {
+            appLogoImg.onload = () => resolve();
+            appLogoImg.onerror = () => {
+              appLogoImg.src = "/IMG_1767.png";
+              appLogoImg.onload = () => resolve();
+              appLogoImg.onerror = () => resolve();
             };
           }
         });
@@ -3148,11 +3061,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               const headerWord = line.words.find((w) => w.type === "surah_header");
               const headerGlyph = headerWord?.char || getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName);
               ctx.save();
-              const hFontSize = Math.round(pageLineFontSize * (isOpeningMushafPage ? 1.3 : 1.15) * 1.7);
-              ctx.font = `bold ${hFontSize}px "QCF4_QBSML", "Amiri", serif`;
-              ctx.fillStyle = surahHeaderTextColor || textColor;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
 
               // Authentic Medina Mushaf Banner Frame
               const bannerW = Math.min(availableW * 0.98, (isOpeningMushafPage ? 360 : 340) * scaleRatio);
@@ -3164,7 +3072,24 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 ctx.drawImage(surahHeaderImg, bannerX, bannerY, bannerW, bannerH);
               }
 
-              ctx.fillText(headerGlyph, width / 2 + ayahDeltaX, lineY - 3.5 * scaleRatio);
+              const useQbsml = isQbsmlLoaded();
+              const cartoucheCenterY = bannerY + bannerH * 0.44;
+              if (useQbsml) {
+                // Exact optical proportion for Medina cartouche (normal weight, no synthetic bold distortion)
+                const glyphFontSize = Math.round(bannerH * 0.58);
+                ctx.font = `${glyphFontSize}px "QCF4_QBSML", "Amiri", serif`;
+                ctx.fillStyle = surahHeaderTextColor || textColor || "#1C1917";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(headerGlyph, width / 2 + ayahDeltaX, cartoucheCenterY);
+              } else {
+                let textFontSize = Math.round(bannerH * 0.36);
+                ctx.font = `bold ${textFontSize}px "Amiri", "UthmanicHafs", serif`;
+                ctx.fillStyle = surahHeaderTextColor || textColor || "#1C1917";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(headerGlyph, width / 2 + ayahDeltaX, cartoucheCenterY);
+              }
               ctx.restore();
               return;
             }
@@ -3230,19 +3155,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           const rawAyahText = activeData.ayah.text || "";
           let cleanedAyahText = rawAyahText;
           if (activeData.surahNumber !== 1 && ((shareMode === "single" && activeData.ayah.numberInSurah === 1) || (shareMode === "range" && rangeFrom === 1))) {
-            const bismillahVariants = [
-              "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-              "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ",
-              "بِسْمِ اللَّهِ الرَّحْمٰنِ الرَّحِيمِ",
-              "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ",
-              "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ"
-            ];
-            for (const b of bismillahVariants) {
-              if (cleanedAyahText.startsWith(b)) {
-                cleanedAyahText = cleanedAyahText.replace(b, "").trim();
-                break;
-              }
-            }
+            const bismillahRegex = /^(?:بِسْمِ\s*[\u0671\u0627]للَّ?هِ\s*[\u0671\u0627]لرَّحْمَ[ـٰ\u0670]?نِ\s*[\u0671\u0627]لرَّحِيمِ|بِسْمِ\s*[\u0671\u0627]للهِ\s*[\u0671\u0627]لرحمن\s*[\u0671\u0627]لرحيم|بِسْمِ\s*اللهِ\s*الرَّحْمٰنِ\s*الرَّحِيمِ|بسم\s*الله\s*الرحمن\s*الرحيم)[\s\r\n]*/u;
+            cleanedAyahText = cleanedAyahText.replace(bismillahRegex, "").trim();
           }
 
           const wordsList: WordItem[] = isQcfValid
@@ -3312,18 +3226,20 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             isPageSurahStart;
 
           const isBismillah =
-            openingHeaderMode === "bismillah" ||
-            (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9);
+            (openingHeaderMode === "bismillah" ||
+            (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9)) &&
+            shareMode !== "page";
           const isIstiadhah =
-            openingHeaderMode === "istiadhah" ||
-            (openingHeaderMode === "auto" && (!hasSurahStart || Number(targetSurahNum) === 9));
-          const isSurahFrame = openingHeaderMode === "surah_frame";
-          const shouldDrawOpeningHeader = showOpeningHeader;
+            (openingHeaderMode === "istiadhah" ||
+            (openingHeaderMode === "auto" && (!hasSurahStart || Number(targetSurahNum) === 9))) &&
+            shareMode !== "page";
+          const shouldDrawSurahFrame = showSurahHeaderFrame && (shareMode !== "page" || isPageSurahStart);
+          const shouldDrawOpeningHeader = (showOpeningHeader || showIstiadhah) && shareMode !== "page";
 
           const bannerFontSize = Math.max(20, Math.round(curFontSize * 1.1 * 1.6));
           const bannerScaleFactor = surahHeaderScale ? surahHeaderScale / 100 : 1;
           const bannerW = Math.min(availableW * 0.98, 340 * scaleRatio * bannerScaleFactor);
-          const bannerH = isSurahFrame ? bannerW * (30.23196 / 240.20621) : 0;
+          const bannerH = shouldDrawSurahFrame ? bannerW * (30.23196 / 240.20621) : 0;
 
           const curHeaderFontSize = Math.round(openingHeaderSize * scaleRatio);
           const ayahFontFamilyCanvas = getAyahFontFamily(true);
@@ -3339,11 +3255,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           }
           const headerColorToUse = isBismillah ? (openingHeaderColor || textColor) : (istiadhahColor || textColor);
 
-          const headerTextH = shouldDrawOpeningHeader
-            ? (isSurahFrame ? bannerH : Math.max(24 * scaleRatio, curHeaderFontSize * 1.3))
-            : 0;
-          const headerGap = shouldDrawOpeningHeader ? Math.max(8 * scaleRatio, curHeaderFontSize * 0.3) : 0;
-          const headerExtraH = shouldDrawOpeningHeader ? headerTextH + headerGap : 0;
+          const openingTextH = shouldDrawOpeningHeader ? Math.max(24 * scaleRatio, curHeaderFontSize * 1.3) : 0;
+          const headerGap = (shouldDrawSurahFrame && shouldDrawOpeningHeader) ? Math.max(8 * scaleRatio, curHeaderFontSize * 0.3) : 0;
+          const headerExtraH = (shouldDrawSurahFrame ? bannerH : 0) + (shouldDrawOpeningHeader ? openingTextH : 0) + headerGap;
 
           const spaceWidth = Math.max(6, Math.round(curFontSize * 0.25));
           const lineHeight = Math.min(
@@ -3381,35 +3295,64 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             ctx.fill();
           }
 
-          // Draw Opening Header (Bismillah / Istiadhah / Surah Frame) independently of Ayah offset
-          if (shouldDrawOpeningHeader) {
-            const baseHeaderY = topLimit + (isSurahFrame ? bannerH / 2 + 10 * scaleRatio : Math.max(16 * scaleRatio, curHeaderFontSize * 0.8));
+          // 1. Draw Surah Frame at the top (raised slightly)
+          if (shouldDrawSurahFrame) {
+            const baseHeaderY = topLimit + bannerH / 2 + 3 * scaleRatio;
             const headerDrawX = width / 2 + (surahHeaderOffsetX / previewW) * width;
             const headerDrawY = baseHeaderY + (surahHeaderOffsetY / previewH) * height;
 
-            if (isSurahFrame) {
-              const bannerX = headerDrawX - bannerW / 2;
-              const bannerBoxY = headerDrawY - bannerH / 2;
+            const bannerX = headerDrawX - bannerW / 2;
+            const bannerBoxY = headerDrawY - bannerH / 2;
 
-              if (surahHeaderImg && surahHeaderImg.complete && surahHeaderImg.naturalWidth > 0) {
-                ctx.drawImage(surahHeaderImg, bannerX, bannerBoxY, bannerW, bannerH);
-              }
-
-              const useQbsml = isQbsmlLoaded();
-              const headerGlyph = useQbsml
-                ? getSurahHeaderGlyph(targetSurahNum, targetSurahName)
-                : (targetSurahName?.startsWith("سُورَةُ") || targetSurahName?.startsWith("سورة") ? targetSurahName : `سُورَةُ ${targetSurahName}`);
-
+            if (surahHeaderImg && surahHeaderImg.complete && surahHeaderImg.naturalWidth > 0) {
+              ctx.drawImage(surahHeaderImg, bannerX, bannerBoxY, bannerW, bannerH);
+              // Ensure crisp outer surrounding border on canvas export
               ctx.save();
-              ctx.font = useQbsml
-                ? `bold ${bannerFontSize}px "QCF4_QBSML", "Amiri", serif`
-                : `bold ${Math.round(bannerFontSize * 0.95)}px "Amiri", "UthmanicHafs", serif`;
-              ctx.fillStyle = surahHeaderTextColor || textColor;
+              ctx.strokeStyle = surahHeaderColor || frameColor || "#C5A85C";
+              ctx.lineWidth = Math.max(1.5, 1.5 * scaleRatio);
+              ctx.strokeRect(bannerX + 0.5, bannerBoxY + 0.5, bannerW - 1, bannerH - 1);
+              ctx.restore();
+            }
+
+            const useQbsml = isQbsmlLoaded();
+            const headerGlyph = useQbsml
+              ? getSurahHeaderGlyph(targetSurahNum, targetSurahName)
+              : (targetSurahName?.startsWith("سُورَةُ") || targetSurahName?.startsWith("سورة") ? targetSurahName : `سُورَةُ ${targetSurahName}`);
+
+            ctx.save();
+            const cartoucheCenterY = bannerBoxY + bannerH * 0.44;
+            if (useQbsml) {
+              // Exact optical proportion for Medina cartouche (normal weight, no synthetic bold distortion)
+              const glyphFontSize = Math.round(bannerH * 0.58);
+              ctx.font = `${glyphFontSize}px "QCF4_QBSML", "Amiri", serif`;
+              ctx.fillStyle = surahHeaderTextColor || textColor || "#1C1917";
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-              ctx.fillText(headerGlyph, headerDrawX, headerDrawY - 3.5 * scaleRatio);
-              ctx.restore();
-            } else if (isBismillah) {
+              ctx.fillText(headerGlyph, headerDrawX, cartoucheCenterY);
+            } else {
+              let textFontSize = Math.round(bannerH * 0.36);
+              ctx.font = `bold ${textFontSize}px "Amiri", "UthmanicHafs", serif`;
+              const maxCartoucheW = bannerW * 0.42;
+              const measuredW = ctx.measureText(headerGlyph).width;
+              if (measuredW > maxCartoucheW && measuredW > 0) {
+                textFontSize = Math.max(12, Math.floor(textFontSize * (maxCartoucheW / measuredW)));
+                ctx.font = `bold ${textFontSize}px "Amiri", "UthmanicHafs", serif`;
+              }
+              ctx.fillStyle = surahHeaderTextColor || textColor || "#1C1917";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(headerGlyph, headerDrawX, cartoucheCenterY);
+            }
+            ctx.restore();
+          }
+
+          // 2. Draw Opening Header (Bismillah / Istiadhah) underneath Surah Frame
+          if (shouldDrawOpeningHeader) {
+            const baseOpeningY = topLimit + (shouldDrawSurahFrame ? bannerH + 18 * scaleRatio : 0) + Math.max(16 * scaleRatio, curHeaderFontSize * 0.8);
+            const headerDrawX = width / 2 + (surahHeaderOffsetX / previewW) * width;
+            const headerDrawY = baseOpeningY + (surahHeaderOffsetY / previewH) * height;
+
+            if (isBismillah) {
               ctx.save();
               const useQbsml = (openingHeaderFont === "qcf4" || (openingHeaderFont === "match_ayah" && selectedQuranFont === "qcf4")) && isQbsmlLoaded();
               ctx.font = useQbsml
@@ -3489,36 +3432,55 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
             lines.forEach((line, i) => {
               const lineY = startY + i * lineHeight;
+              const isLastLine = i === lines.length - 1;
+
               if (selectedQuranFont !== "qcf4") {
                 const lineString = line.words.map((w) => w.char).join(" ");
                 ctx.font = `${curFontSize}px ${baseFontFamily}`;
                 ctx.fillStyle = textColor;
-                ctx.textAlign = textAlign === "center" ? "center" : textAlign === "right" ? "right" : "left";
-                const drawX =
-                  textAlign === "center"
-                    ? width / 2 + ayahDeltaX
-                    : textAlign === "right"
-                    ? (width + maxTextWidth) / 2 + ayahDeltaX
-                    : (width - maxTextWidth) / 2 + ayahDeltaX;
-                ctx.fillText(lineString, drawX, lineY);
-              } else {
-                let startRightX = 0;
-                if (textAlign === "center") {
-                  startRightX = (width + line.totalWidth) / 2 + ayahDeltaX;
-                } else if (textAlign === "right") {
-                  startRightX = (width + maxTextWidth) / 2 + ayahDeltaX;
+                ctx.direction = "rtl";
+
+                if (isLastLine) {
+                  // توسيط السطر الأخير
+                  ctx.textAlign = "center";
+                  ctx.fillText(lineString, width / 2 + ayahDeltaX, lineY);
+                } else if (textAlign === "center") {
+                  ctx.textAlign = "center";
+                  ctx.fillText(lineString, width / 2 + ayahDeltaX, lineY);
+                } else if (textAlign === "left") {
+                  ctx.textAlign = "left";
+                  ctx.fillText(lineString, (width - maxTextWidth) / 2 + ayahDeltaX, lineY);
                 } else {
-                  startRightX = (width - maxTextWidth) / 2 + line.totalWidth + ayahDeltaX;
+                  // محاذاة لليمين
+                  ctx.textAlign = "right";
+                  ctx.fillText(lineString, (width + maxTextWidth) / 2 + ayahDeltaX, lineY);
+                }
+              } else {
+                ctx.direction = "rtl";
+                const isCenter = textAlign === "center" || isLastLine;
+                const isLeft = textAlign === "left" && !isLastLine;
+                const wordsWidthTotal = line.widths.reduce((a, b) => a + b, 0);
+                const wordGap = (!isLastLine && textAlign === "justify" && line.words.length > 1)
+                  ? (maxTextWidth - wordsWidthTotal) / (line.words.length - 1)
+                  : spaceWidth;
+                const calculatedLineWidth = wordsWidthTotal + (line.words.length - 1) * wordGap;
+
+                let currentRight: number;
+                if (isCenter) {
+                  currentRight = (width + calculatedLineWidth) / 2 + ayahDeltaX;
+                } else if (isLeft) {
+                  currentRight = (width - maxTextWidth) / 2 + calculatedLineWidth + ayahDeltaX;
+                } else {
+                  currentRight = (width + maxTextWidth) / 2 + ayahDeltaX;
                 }
 
-                let currentRight = startRightX;
                 line.words.forEach((item, wIdx) => {
                   const wWidth = line.widths[wIdx];
                   ctx.font = `${curFontSize}px ${item.font ? `"${item.font}", ` : ""}${baseFontFamily}`;
                   ctx.fillStyle = textColor;
                   ctx.textAlign = "right";
                   ctx.fillText(item.char, currentRight, lineY);
-                  currentRight -= (wWidth + spaceWidth);
+                  currentRight -= (wWidth + wordGap);
                 });
               }
             });
@@ -3526,13 +3488,25 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           }
         }
 
-        // 6. Footer (Al-Tibyan Logo on Bottom Right, Surah Info on Bottom Left)
-        const footerBaseY = (selectedAspectRatio === "9:16" || isTallRatio) ? height * 0.94 : height * 0.93;
+        // 6. Visible Divider Line & Footer (حذف الفراغ الزائد أسفل البطاقة)
+        const footerBaseY = height - Math.max(20 * scaleRatio, 24);
 
-        // Bottom Left: Surah Name Badge / Icon
+        // الحد الظاهر بين الآيات وشعار التطبيق (Visible Divider Line between Ayahs and Logo)
+        ctx.save();
+        const dividerY = Math.round(footerBaseY - Math.max(16 * scaleRatio, 18));
+        ctx.beginPath();
+        ctx.moveTo(width * 0.08, dividerY);
+        ctx.lineTo(width * 0.92, dividerY);
+        ctx.strokeStyle = logoColor || textColor || "#1C1917";
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = Math.max(1.5, Math.round(width * 0.0016));
+        ctx.stroke();
+        ctx.restore();
+
+        // Bottom Left: Surah Name Badge / Icon (على يسار السطر)
         if (showSurahInfo) {
           ctx.save();
-          const infoX = width * 0.22 + (surahInfoOffsetX / previewW) * width;
+          const infoX = width * 0.20 + (surahInfoOffsetX / previewW) * width;
           const infoY = footerBaseY + (surahInfoOffsetY / previewH) * height;
           const activeSurahColor = logoColor || textColor || "#FAF8F5";
           const infoScaleFactor = (surahInfoScale || 100) / 100;
@@ -3590,32 +3564,48 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           ctx.restore();
         }
 
-        // Bottom Right: "مصحف التبيان" in Cairo font without icon
-        if (showWatermark) {
+        // Bottom Right: شعار التطبيق المعتمد واسم التطبيق مكبر 100% بدقة فائقة على يمين السطر
+        if (showWatermark !== false) {
           ctx.save();
-          const logoX = width * 0.82 + (watermarkOffsetX / previewW) * width;
-          const logoY = footerBaseY + (watermarkOffsetY / previewH) * height;
-          const activeLogoColor = logoColor || textColor || "#FAF8F5";
+          const activeLogoColor = logoColor || textColor || "#1C1917";
           const logoScaleFactor = (watermarkScale || 100) / 100;
-          ctx.translate(logoX, logoY);
+
+          const fontSize = Math.max(18, Math.round(width * 0.024));
+          // تكبير الشعار بنسبة 100% (مضاعفة الحجم من 1.35 إلى 2.7) بدقة عالية
+          const iconSize = Math.round(fontSize * 2.7);
+          const gap = Math.round(fontSize * 0.45);
+
+          ctx.font = `bold ${fontSize}px 'Cairo', sans-serif`;
+          ctx.fillStyle = activeLogoColor;
+          ctx.textBaseline = "middle";
+
+          const textMetrics = ctx.measureText("مصحف التبيان");
+          const textW = textMetrics.width;
+
+          // تثبيت الشعار واسم التطبيق على يمين السطر (Right of the line)
+          const rightBaseX = width * 0.92 + (watermarkOffsetX / previewW) * width;
+          const logoY = footerBaseY + (watermarkOffsetY / previewH) * height;
+
+          ctx.translate(rightBaseX, logoY);
           ctx.scale(logoScaleFactor, logoScaleFactor);
-          ctx.translate(-logoX, -logoY);
+          ctx.translate(-rightBaseX, -logoY);
 
-          try {
-            const fontSize = Math.round(width * 0.018);
-            ctx.font = `bold ${fontSize}px 'Cairo', sans-serif`;
-            ctx.fillStyle = activeLogoColor;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
+          // في اليمين: الشعار في أقصى اليمين، واسم التطبيق على يساره
+          const iconX = -iconSize;
+          const iconY = -iconSize / 2;
+          const textX = iconX - gap;
 
-            ctx.fillText("مصحف التبيان", logoX, logoY);
-          } catch (e) {
-            ctx.font = `bold ${Math.round(width * 0.018)}px 'Cairo', sans-serif`;
-            ctx.fillStyle = activeLogoColor;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("مصحف التبيان", logoX, logoY);
+          if (appLogoImg.complete && appLogoImg.naturalWidth > 0) {
+            try {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = "high";
+              ctx.drawImage(appLogoImg, iconX, iconY, iconSize, iconSize);
+            } catch (e) {
+              // fallback gracefully
+            }
           }
+          ctx.textAlign = "right";
+          ctx.fillText("مصحف التبيان", textX, 0);
           ctx.restore();
         }
 
@@ -3651,59 +3641,11 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       }
     };
 
+    drawCanvasRef.current = drawCanvas;
+
     isCardDirtyRef.current = true;
     const timer = setTimeout(async () => {
-      if (cardPreviewRef.current) {
-        try {
-          if (document.fonts) {
-            await document.fonts.ready;
-          }
-          const exportFilter = (node: Node) =>
-            !(
-              node instanceof HTMLElement &&
-              (node.classList.contains("prevent-drag") ||
-                node.classList.contains("layer-controls-box") ||
-                node.hasAttribute("data-export-ignore"))
-            );
-          
-          try {
-            const blob = await toBlob(cardPreviewRef.current, {
-              pixelRatio: 1.5,
-              cacheBust: false,
-              skipFonts: true,
-              filter: exportFilter,
-            });
-            if (blob) {
-              cachedExportBlobRef.current = blob;
-              const objectUrl = URL.createObjectURL(blob);
-              cachedDataUrlRef.current = objectUrl;
-              isCardDirtyRef.current = false;
-              setGeneratedImageUrl(objectUrl);
-              return;
-            }
-          } catch (blobErr) {
-            console.warn("Fast toBlob pre-render skipped:", blobErr);
-          }
-
-          const dataUrl = await toPng(cardPreviewRef.current, {
-            pixelRatio: 1.5,
-            cacheBust: false,
-            skipFonts: true,
-            filter: exportFilter,
-          });
-          if (dataUrl) {
-            cachedDataUrlRef.current = dataUrl;
-            cachedExportBlobRef.current = dataUrlToBlob(dataUrl);
-            isCardDirtyRef.current = false;
-            setGeneratedImageUrl(dataUrl);
-            return;
-          }
-        } catch {
-          await drawCanvas();
-        }
-      } else {
-        await drawCanvas();
-      }
+      await drawCanvas();
     }, 120);
 
     return () => clearTimeout(timer);
@@ -3800,19 +3742,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       ((shareMode === "single" && activeData.ayah.numberInSurah === 1) ||
         (shareMode === "range" && rangeFrom === 1))
     ) {
-      const bismillahVariants = [
-        "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-        "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ",
-        "بِسْمِ اللَّهِ الرَّحْمٰنِ الرَّحِيمِ",
-        "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ",
-        "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ",
-      ];
-      for (const b of bismillahVariants) {
-        if (t.startsWith(b)) {
-          t = t.replace(b, "").trim();
-          break;
-        }
-      }
+      const bismillahRegex = /^(?:بِسْمِ\s*[\u0671\u0627]للَّ?هِ\s*[\u0671\u0627]لرَّحْمَ[ـٰ\u0670]?نِ\s*[\u0671\u0627]لرَّحِيمِ|بِسْمِ\s*[\u0671\u0627]للهِ\s*[\u0671\u0627]لرحمن\s*[\u0671\u0627]لرحيم|بِسْمِ\s*اللهِ\s*الرَّحْمٰنِ\s*الرَّحِيمِ|بسم\s*الله\s*الرحمن\s*الرحيم)[\s\r\n]*/u;
+      t = t.replace(bismillahRegex, "").trim();
     }
     return t;
   };
@@ -3822,6 +3753,22 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     if (!forceFresh && !isCardDirtyRef.current && cachedExportBlobRef.current) {
       const url = cachedDataUrlRef.current || (generatedImageUrl ? generatedImageUrl : URL.createObjectURL(cachedExportBlobRef.current));
       return { url, blob: cachedExportBlobRef.current };
+    }
+
+    // 1. PRIMARY: High-resolution direct Canvas rendering
+    // Eliminates all font skipping and foreignObject clipping, ensuring authentic Medina Mushaf vector frame & calligraphy
+    if (drawCanvasRef.current) {
+      try {
+        setIsGeneratingImage(true);
+        await drawCanvasRef.current();
+        if (cachedExportBlobRef.current && cachedDataUrlRef.current) {
+          return { url: cachedDataUrlRef.current, blob: cachedExportBlobRef.current };
+        }
+      } catch (canvasErr) {
+        console.warn("drawCanvas primary rendering skipped, trying DOM fallback:", canvasErr);
+      } finally {
+        setIsGeneratingImage(false);
+      }
     }
 
     // 1. PRIMARY: Fast direct capture from live DOM card (cardPreviewRef.current)
@@ -3843,9 +3790,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
         try {
           blob = await toBlob(cardPreviewRef.current, {
-            pixelRatio: 1.5,
+            pixelRatio: Math.max(2.5, typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2),
             cacheBust: false,
-            skipFonts: true,
+            skipFonts: false,
             filter: exportFilter,
           });
         } catch (fastBlobErr) {
@@ -3857,9 +3804,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         } else {
           try {
             dataUrl = await toPng(cardPreviewRef.current, {
-              pixelRatio: 1.5,
+              pixelRatio: Math.max(2.5, typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2),
               cacheBust: false,
-              skipFonts: true,
+              skipFonts: false,
               filter: exportFilter,
             });
             blob = dataUrl ? dataUrlToBlob(dataUrl) : null;
@@ -4242,28 +4189,28 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setSelectedAspectRatio(defaultToUse.selectedAspectRatio || "auto");
     setCustomWidth(defaultToUse.customWidth ?? 1080);
     setCustomHeight(defaultToUse.customHeight ?? 1350);
-    setShowAyahFrame(defaultToUse.showAyahFrame ?? true);
-    setSelectedFrameStyle(defaultToUse.selectedFrameStyle || "rectangle");
+    setShowAyahFrame(defaultToUse.showAyahFrame ?? false);
+    setSelectedFrameStyle(defaultToUse.selectedFrameStyle || "none");
     setFrameColor(defaultToUse.frameColor || "#C5A85C");
     setFrameWidth(defaultToUse.frameWidth ?? 2);
     setFrameInset(defaultToUse.frameInset ?? 24);
     setShowOpeningHeader(defaultToUse.showOpeningHeader ?? true);
     setOpeningHeaderMode(defaultToUse.openingHeaderMode || "auto");
     setOpeningHeaderSize(defaultToUse.openingHeaderSize ?? 30);
-    setOpeningHeaderColor(defaultToUse.openingHeaderColor || defaultToUse.textColor || "#FAF8F5");
+    setOpeningHeaderColor(defaultToUse.openingHeaderColor || defaultToUse.textColor || "#1C1917");
     setOpeningHeaderFont(defaultToUse.openingHeaderFont || "match_ayah");
-    setShowSurahHeaderFrame(defaultToUse.showSurahHeaderFrame ?? false);
+    setShowSurahHeaderFrame(defaultToUse.showSurahHeaderFrame ?? true);
     setSurahHeaderStyle(defaultToUse.surahHeaderStyle || "authentic");
     setSurahHeaderColor(defaultToUse.surahHeaderColor || "#C5A85C");
-    setSurahHeaderTextColor(defaultToUse.textColor || "#FAF8F5");
+    setSurahHeaderTextColor(defaultToUse.textColor || "#1C1917");
     setSurahHeaderScale(defaultToUse.surahHeaderScale ?? 100);
     setSelectedQuranFont(defaultToUse.selectedQuranFont || "qcf4");
     setTextFontSize(defaultToUse.textFontSize ?? 28);
     setTextShadowOpacity(defaultToUse.textShadowOpacity ?? 0);
     setTextAlign(defaultToUse.textAlign || "justify");
-    setTextColor(defaultToUse.textColor || "#FAF8F5");
+    setTextColor(defaultToUse.textColor || "#1C1917");
     setSurahHeaderColor(defaultToUse.surahHeaderColor || "#C5A85C");
-    setLogoColor(defaultToUse.logoColor);
+    setLogoColor(defaultToUse.logoColor || "#1C1917");
     setTextOffsetY(defaultToUse.textOffsetY ?? 0);
     setTextOffsetX(defaultToUse.textOffsetX ?? 0);
     setSurahHeaderOffsetY(defaultToUse.surahHeaderOffsetY ?? 0);
@@ -4277,10 +4224,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setShowAyahText(defaultToUse.showAyahText ?? true);
     setSelectedLayer(null);
     setShowIstiadhah(defaultToUse.showIstiadhah ?? false);
-    setIstiadhahColor(defaultToUse.istiadhahColor || defaultToUse.textColor || "#FAF8F5");
+    setIstiadhahColor(defaultToUse.istiadhahColor || defaultToUse.textColor || "#1C1917");
     setIstiadhahSize(defaultToUse.istiadhahSize ?? 38);
     setShowSurahInfo(defaultToUse.showSurahInfo ?? false);
-    setShowWatermark(defaultToUse.showWatermark ?? false);
+    setShowWatermark(defaultToUse.showWatermark ?? true);
     setIsMovementLocked(true);
     setActiveTab("typography");
 
@@ -4314,11 +4261,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   };
 
   // Helper to render opening header (Bismillah for beginning, Istiadhah for middle)
+  // Helper to render opening header (Surah Header Frame on top, and Isti'adha or Bismillah below it)
   const renderOpeningHeader = () => {
-    if (!showOpeningHeader) return null;
+    if ((shareMode as string) === "page") return null;
+    if (!showSurahHeaderFrame && !showOpeningHeader && !showIstiadhah) return null;
 
     const isPageSurahStart =
-      shareMode === "page" &&
+      (shareMode as string) === "page" &&
       surahsList.some((s) => getSurahStartPage(s.number) === selectedPageNumber);
     const pageStartingSurah = isPageSurahStart
       ? surahsList.find((s) => getSurahStartPage(s.number) === selectedPageNumber)
@@ -4329,34 +4278,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       (shareMode === "single" && Number(activeData?.ayah?.numberInSurah) === 1) ||
       (shareMode === "range" && Number(rangeFrom) === 1) ||
       isPageSurahStart;
-
-    if (openingHeaderMode === "surah_frame") {
-      return (
-        <div
-          data-layer="header"
-          onPointerDown={(e) => handleStartDrag(e, "header")}
-          className={`absolute top-4 sm:top-5 left-0 right-0 z-20 px-3 flex items-center justify-center select-none transition-transform ${
-            !isMovementLocked ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-blue-400/50 rounded-lg py-0.5" : "cursor-default"
-          }`}
-          style={{
-            transform: `translate3d(${surahHeaderOffsetX}px, ${surahHeaderOffsetY}px, 0) scale(${surahHeaderScale ? surahHeaderScale / 100 : 1}) rotate(${surahHeaderRotation}deg)`,
-            transformOrigin: "center center",
-            touchAction: "none",
-          }}
-          title="إطار اسم السورة (انقر للتحديد، اسحب للتحريك، باعد بإصبعين للتكبير)"
-        >
-          {renderLayerControls("header", "إطار السورة")}
-          <ShareSurahHeaderFrame
-            surahNumber={targetSurahNum}
-            surahName={targetSurahName}
-            frameColor={surahHeaderColor || "#C5A85C"}
-            textColor={surahHeaderTextColor || textColor}
-            headerStyle={surahHeaderStyle}
-            scale={surahHeaderScale ? surahHeaderScale / 100 : 1}
-          />
-        </div>
-      );
-    }
 
     const isBismillah =
       openingHeaderMode === "bismillah" ||
@@ -4386,42 +4307,48 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     const useQbsmlBismillah = isBismillah && (openingHeaderFont === "qcf4" || (openingHeaderFont === "match_ayah" && selectedQuranFont === "qcf4")) && isQbsmlLoaded();
 
     return (
-      <div
-        data-layer="header"
-        onPointerDown={(e) => handleStartDrag(e, "header")}
-        className={`absolute top-4 sm:top-5 left-0 right-0 z-20 px-3 flex items-center justify-center select-none transition-transform ${
-          !isMovementLocked ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-blue-400/50 rounded-lg py-0.5" : "cursor-default"
-        }`}
-        style={{
-          transform: `translate3d(${surahHeaderOffsetX}px, ${surahHeaderOffsetY}px, 0) scale(${surahHeaderScale ? surahHeaderScale / 100 : 1}) rotate(${surahHeaderRotation}deg)`,
-          transformOrigin: "center center",
-          touchAction: "none",
-        }}
-        title={isBismillah ? "البسملة (انقر للتحديد، اسحب للتحريك، باعد بإصبعين للتكبير)" : "الاستعاذة (انقر للتحديد، اسحب للتحريك، باعد بإصبعين للتكبير)"}
-      >
-        {renderLayerControls("header", isBismillah ? "البسملة" : "الاستعاذة")}
-        {isBismillah ? (
-          <div
-            className="w-full text-center tracking-normal select-none pointer-events-none"
-            style={{
-              fontFamily: useQbsmlBismillah ? "'QCF4_QBSML', 'Amiri', serif" : fontToApply,
-              fontSize: `${openingHeaderSize}px`,
-              color: headerColor,
-              lineHeight: 1.25,
-            }}
-          >
-            {useQbsmlBismillah ? (
-              getBismillahGlyph()
-            ) : (
-              "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
-            )}
-          </div>
-        ) : (
-          <div className="w-full flex items-center justify-center select-none pointer-events-none px-2 py-0.5">
-            <IstiadhahCalligraphy
-              color={headerColor}
-              height={Math.max(22, openingHeaderSize)}
+      <div className="relative z-10 w-full flex flex-col items-center justify-center select-none cursor-default -mt-1 sm:-mt-2 mb-1.5 sm:mb-2 shrink-0 space-y-1">
+        {/* سطر أعلى البطاقة: إطار اسم السورة (مرفوع قليلاً للأعلى) */}
+        {showSurahHeaderFrame && (
+          <div className="w-full flex items-center justify-center px-1">
+            <ShareSurahHeaderFrame
+              surahNumber={targetSurahNum}
+              surahName={targetSurahName}
+              frameColor={surahHeaderColor || "#C5A85C"}
+              textColor={surahHeaderTextColor || textColor}
+              headerStyle={surahHeaderStyle}
+              scale={surahHeaderScale ? surahHeaderScale / 100 : 1}
             />
+          </div>
+        )}
+
+        {/* وتحته: الاستعاذة أو البسملة */}
+        {(showOpeningHeader || showIstiadhah) && (
+          <div className="w-full px-3 flex items-center justify-center select-none pointer-events-none">
+            {isBismillah ? (
+              <div
+                className="w-full text-center tracking-normal select-none pointer-events-none"
+                style={{
+                  fontFamily: useQbsmlBismillah ? "'QCF4_QBSML', 'Amiri', serif" : fontToApply,
+                  fontSize: `${openingHeaderSize}px`,
+                  color: headerColor,
+                  lineHeight: 1.25,
+                }}
+              >
+                {useQbsmlBismillah ? (
+                  getBismillahGlyph()
+                ) : (
+                  "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+                )}
+              </div>
+            ) : (
+              <div className="w-full flex items-center justify-center select-none pointer-events-none px-2 py-0.5">
+                <IstiadhahCalligraphy
+                  color={headerColor}
+                  height={Math.max(22, openingHeaderSize)}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -4477,48 +4404,23 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               {/* LIVE CARD PREVIEW */}
               <div className="w-full flex flex-col items-center">
                 {/* Header bar above card */}
-                <div className="w-full max-w-[min(100%,360px)] sm:max-w-[420px] md:max-w-[480px] lg:max-w-[540px] flex items-center justify-between px-1 mb-2">
+                <div className="w-full flex items-center justify-between px-1 mb-2">
                   <div className="flex items-center gap-1 sm:gap-1.5">
                     <span className="text-[11px] sm:text-xs font-bold text-slate-300 flex items-center gap-1">
                       <Sparkles size={11} className={`sm:w-3 sm:h-3 ${tTheme.accentText}`} />
                       <span>معاينة البطاقة</span>
                     </span>
                   </div>
-                  {selectedAspectRatio === "auto" && (
-                    <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium flex items-center gap-1">
-                      <span>مقاس تلقائي:</span>
-                      <span className="font-bold">{autoDimensions.label}</span>
-                    </span>
-                  )}
                 </div>
 
                 <div
                   ref={cardPreviewRef}
                   id="share-ayah-card-preview"
-                  onTouchStart={handleCardTouchStart}
-                  onTouchMove={handleCardTouchMove}
-                  onTouchEnd={handleCardTouchEnd}
-                  onTouchCancel={handleCardTouchEnd}
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setSelectedLayer(null);
-                    }
-                  }}
-                  className={`w-full max-w-[min(100%,360px)] sm:max-w-[420px] md:max-w-[480px] lg:max-w-[540px] rounded-2xl overflow-hidden shadow-2xl relative border border-white/10 flex items-center justify-center select-none transition-all duration-300 ${
-                    selectedAspectRatio === "auto"
-                      ? autoDimensions.ratioClass
-                      : selectedAspectRatio !== "custom"
-                      ? (aspectRatioOptions.find((a) => a.id === selectedAspectRatio)?.ratioClass || "aspect-[9/16]")
-                      : ""
-                  }`}
+                  dir="rtl"
+                  className={`w-full max-w-full rounded-2xl overflow-hidden shadow-2xl relative border-0 flex flex-col items-center justify-between select-none transition-all duration-300 min-h-0 h-auto pt-3 sm:pt-4 pb-1 sm:pb-1.5 px-3 sm:px-5`}
                   style={{
-                    touchAction: isMovementLocked ? "auto" : "none",
-                    aspectRatio:
-                      selectedAspectRatio === "auto"
-                        ? autoDimensions.aspectStyle
-                        : selectedAspectRatio === "custom"
-                        ? `${customWidth} / ${customHeight}`
-                        : undefined,
+                    direction: "rtl",
+                    touchAction: "auto",
                     background: bgCategory === "none" ? "transparent" : currentBackgroundCss,
                   }}
                 >
@@ -4534,220 +4436,27 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       }}
                     />
                   )}
-                  {/* Texture Background Layer */}
-                  {bgCategory === "texture" && showTexture && selectedTextureId && (
-                    <div
-                      className="absolute inset-0 pointer-events-none transition-all duration-300 z-0 bg-cover bg-center"
-                      style={{
-                        backgroundImage: `url("${texturePresets.find((t) => t.id === selectedTextureId)?.imageUrl || texturePresets[0].imageUrl}")`,
-                        opacity: textureOpacity,
-                      }}
-                    />
-                  )}
 
-                  {/* Contrast Vignette Layer for Textures */}
-                  {bgCategory === "texture" && (
-                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/35 via-black/10 to-black/45 z-0" />
-                  )}
-
-                  {/* Pattern Overlay Layer */}
-                  {showPattern && selectedPatternId && selectedPatternId !== "none" && (
-                    <div
-                      className="absolute inset-0 pointer-events-none transition-all duration-300 z-[1]"
-                      style={{
-                        backgroundImage: `url("${
-                          (() => {
-                            const pat = patternPresets.find((p) => p.id === selectedPatternId);
-                            if (!pat) return patternPresets[0].svgPattern;
-                            return pat.rawSvg ? createSvgDataUrl(pat.rawSvg, patternColor) : pat.svgPattern;
-                          })()
-                        }")`,
-                        backgroundRepeat: "repeat",
-                        backgroundSize: "60px 60px",
-                        opacity: patternOpacity,
-                      }}
-                    />
-                  )}
-
-                  {/* Frame & Borders */}
-                  {showAyahFrame && selectedFrameStyle !== "none" && (
-                    <>
-                      {selectedFrameStyle === "rectangle" && (
-                        <>
-                          <div
-                            className="absolute border pointer-events-none transition-all duration-200"
-                            style={{
-                              inset: `${frameInset}px`,
-                              borderColor: frameColor,
-                              borderWidth: `${frameWidth}px`,
-                            }}
-                          />
-                          <div
-                            className="absolute border pointer-events-none opacity-35"
-                            style={{
-                              inset: `${frameInset + 6}px`,
-                              borderColor: frameColor,
-                              borderWidth: `1px`,
-                            }}
-                          />
-                          {/* Corner Diamonds */}
-                          <div className="absolute w-2 h-2 rotate-45 pointer-events-none -translate-x-1/2 -translate-y-1/2" style={{ top: `${frameInset}px`, left: `${frameInset}px`, backgroundColor: frameColor }} />
-                          <div className="absolute w-2 h-2 rotate-45 pointer-events-none translate-x-1/2 -translate-y-1/2" style={{ top: `${frameInset}px`, right: `${frameInset}px`, backgroundColor: frameColor }} />
-                          <div className="absolute w-2 h-2 rotate-45 pointer-events-none -translate-x-1/2 translate-y-1/2" style={{ bottom: `${frameInset}px`, left: `${frameInset}px`, backgroundColor: frameColor }} />
-                          <div className="absolute w-2 h-2 rotate-45 pointer-events-none translate-x-1/2 translate-y-1/2" style={{ bottom: `${frameInset}px`, right: `${frameInset}px`, backgroundColor: frameColor }} />
-                        </>
-                      )}
-
-                      {selectedFrameStyle === "andalusian" && (
-                        <>
-                          <div
-                            className="absolute border pointer-events-none transition-all duration-200"
-                            style={{
-                              inset: `${frameInset}px`,
-                              borderColor: frameColor,
-                              borderWidth: `${frameWidth}px`,
-                            }}
-                          />
-                          <div
-                            className="absolute border pointer-events-none opacity-35"
-                            style={{
-                              inset: `${frameInset + 6}px`,
-                              borderColor: frameColor,
-                              borderWidth: `1px`,
-                            }}
-                          />
-                          {/* Corner Andalusian floral brackets */}
-                          <div className="absolute w-4 h-4 border-t-2 border-r-2 rounded-tl-lg pointer-events-none" style={{ top: `${frameInset - 1}px`, right: `${frameInset - 1}px`, borderColor: frameColor }} />
-                          <div className="absolute w-4 h-4 border-t-2 border-l-2 rounded-tr-lg pointer-events-none" style={{ top: `${frameInset - 1}px`, left: `${frameInset - 1}px`, borderColor: frameColor }} />
-                          <div className="absolute w-4 h-4 border-b-2 border-r-2 rounded-bl-lg pointer-events-none" style={{ bottom: `${frameInset - 1}px`, right: `${frameInset - 1}px`, borderColor: frameColor }} />
-                          <div className="absolute w-4 h-4 border-b-2 border-l-2 rounded-br-lg pointer-events-none" style={{ bottom: `${frameInset - 1}px`, left: `${frameInset - 1}px`, borderColor: frameColor }} />
-                        </>
-                      )}
-
-                      {selectedFrameStyle === "vintage-border" && (
-                        <>
-                          <div
-                            className="absolute border pointer-events-none transition-all duration-200"
-                            style={{
-                              inset: `${frameInset}px`,
-                              borderColor: frameColor,
-                              borderWidth: `${frameWidth}px`,
-                            }}
-                          />
-                          <div
-                            className="absolute border border-dotted pointer-events-none opacity-60"
-                            style={{
-                              inset: `${frameInset + 6}px`,
-                              borderColor: frameColor,
-                              borderWidth: `1.5px`,
-                            }}
-                          />
-                          {/* Corner knots */}
-                          <div className="absolute w-2 h-2 pointer-events-none -translate-x-1/2 -translate-y-1/2" style={{ top: `${frameInset}px`, left: `${frameInset}px`, backgroundColor: frameColor }} />
-                          <div className="absolute w-2 h-2 pointer-events-none translate-x-1/2 -translate-y-1/2" style={{ top: `${frameInset}px`, right: `${frameInset}px`, backgroundColor: frameColor }} />
-                          <div className="absolute w-2 h-2 pointer-events-none -translate-x-1/2 translate-y-1/2" style={{ bottom: `${frameInset}px`, left: `${frameInset}px`, backgroundColor: frameColor }} />
-                          <div className="absolute w-2 h-2 pointer-events-none translate-x-1/2 translate-y-1/2" style={{ bottom: `${frameInset}px`, right: `${frameInset}px`, backgroundColor: frameColor }} />
-                        </>
-                      )}
-
-                      {selectedFrameStyle === "rounded" && (
-                        <>
-                          <div
-                            className="absolute border rounded-2xl pointer-events-none transition-all duration-200"
-                            style={{
-                              inset: `${frameInset}px`,
-                              borderColor: frameColor,
-                              borderWidth: `${frameWidth}px`,
-                            }}
-                          />
-                          <div
-                            className="absolute border rounded-xl pointer-events-none opacity-35"
-                            style={{
-                              inset: `${frameInset + 6}px`,
-                              borderColor: frameColor,
-                              borderWidth: `1px`,
-                            }}
-                          />
-                        </>
-                      )}
-
-                      {selectedFrameStyle === "minimal" && (
-                        <>
-                          <div
-                            className="absolute border pointer-events-none transition-all duration-200"
-                            style={{
-                              inset: `${frameInset}px`,
-                              borderColor: frameColor,
-                              borderWidth: `1px`,
-                            }}
-                          />
-                          {/* Minimal corner cross ticks */}
-                          <div className="absolute w-2 h-2 border-t-2 border-l-2 pointer-events-none" style={{ top: `${frameInset - 3}px`, left: `${frameInset - 3}px`, borderColor: frameColor }} />
-                          <div className="absolute w-2 h-2 border-t-2 border-r-2 pointer-events-none" style={{ top: `${frameInset - 3}px`, right: `${frameInset - 3}px`, borderColor: frameColor }} />
-                          <div className="absolute w-2 h-2 border-b-2 border-l-2 pointer-events-none" style={{ bottom: `${frameInset - 3}px`, left: `${frameInset - 3}px`, borderColor: frameColor }} />
-                          <div className="absolute w-2 h-2 border-b-2 border-r-2 pointer-events-none" style={{ bottom: `${frameInset - 3}px`, right: `${frameInset - 3}px`, borderColor: frameColor }} />
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {/* Opening Header (Basmala / Isti'adha / Surah Frame) - Fully Independent Drag (Up/Down/Left/Right) */}
-                  {showOpeningHeader ? (
+                  {/* سطر أعلى البطاقة: إطار اسم السورة وتحته الاستعاذة أو البسملة */}
+                  {(showSurahHeaderFrame || showOpeningHeader || showIstiadhah) && (
                     renderOpeningHeader()
-                  ) : showIstiadhah ? (
-                    <div
-                      data-layer="header"
-                      onPointerDown={(e) => handleStartDrag(e, "header")}
-                      className={`absolute top-4 sm:top-5 left-0 right-0 text-center z-20 select-none ${
-                        isDraggingElement === "header" ? "transition-none scale-105" : "transition-transform duration-75"
-                      } ${
-                        !isMovementLocked ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                      }`}
-                      style={{
-                        transform: `translate3d(${surahHeaderOffsetX}px, ${surahHeaderOffsetY}px, 0)`,
-                        touchAction: "none",
-                      }}
-                    >
-                      {renderLayerControls("header", "الاستعاذة")}
-                      <div className={`inline-flex items-center justify-center relative transition-all ${
-                        !isMovementLocked ? "hover:ring-1 hover:ring-emerald-400/50 cursor-grab active:cursor-grabbing ring-1 ring-emerald-400/30 rounded-full px-2 py-1" : ""
-                      } ${
-                        isDraggingElement === "header" ? "ring-2 ring-emerald-400/90 rounded-full px-2 py-1" : ""
-                      }`}>
-                        <IstiadhahCalligraphy
-                          color={istiadhahColor || textColor}
-                          height={istiadhahSize}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
+                  )}
 
-                  {/* TEXT CONTAINER (Ayah text window) - Draggable, Rotatable & Scalable just like other layers */}
+                  {/* TEXT CONTAINER (Ayah text window) - Stably positioned, full width, auto-expanding vertically */}
                   {showAyahText && (
                     <div
-                      data-layer="ayah"
-                      onPointerDown={(e) => handleStartDrag(e, "ayah")}
+                      dir="rtl"
                       className={
                         shareMode === "page"
-                          ? `w-[94%] max-w-[340px] px-2.5 py-1.5 rounded-xl h-[78%] flex flex-col justify-between items-stretch text-center z-10 select-none relative ${
-                              isDraggingElement === "ayah" ? "transition-none shadow-2xl scale-[1.01]" : "transition-shadow"
-                            } ${
-                              !isMovementLocked ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-blue-400/40" : "cursor-default"
-                            }`
-                          : `w-fit max-w-[90%] mx-auto px-4 py-3 rounded-2xl flex flex-col items-center justify-center text-center z-10 select-none relative ${
-                              isDraggingElement === "ayah" ? "transition-none shadow-2xl scale-[1.01]" : "transition-shadow"
-                            } ${
-                              !isMovementLocked ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-blue-400/40" : "cursor-default"
-                            }`
+                          ? "w-full flex-1 flex flex-col justify-between items-stretch text-center z-10 select-none relative cursor-default my-1 px-2"
+                          : "w-full flex flex-col items-center justify-center text-center z-10 select-none relative cursor-default my-0.5 sm:my-1 px-1 sm:px-2 py-0"
                       }
                       style={{
-                        transform: `translate3d(${textOffsetX}px, ${textOffsetY}px, 0) scale(${ayahScale ? ayahScale / 100 : 1}) rotate(${textRotation}deg)`,
-                        transformOrigin: "center center",
+                        direction: "rtl",
                         backgroundColor: textShadowOpacity > 0 ? `rgba(0, 0, 0, ${textShadowOpacity})` : undefined,
-                        touchAction: "none",
+                        touchAction: "auto",
                       }}
                     >
-                      {renderLayerControls("ayah", "نص الآيات")}
                     {isLoadingVerse ? (
                       <div className="flex flex-col items-center justify-center gap-2 py-6 text-emerald-300/80">
                         <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
@@ -4757,6 +4466,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       <div
                         className="w-full h-full flex flex-col justify-between items-stretch text-center select-none pointer-events-none"
                         dir="rtl"
+                        style={{ direction: "rtl" }}
                       >
                         {qcf4Lines.map((line, lIdx) => {
                           const isOpeningMushafPage = (selectedPageNumber === 1 || selectedPageNumber === 2) || (activeData?.surahNumber === 1) || (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
@@ -4767,6 +4477,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           return (
                             <div
                               key={`share-page-line-${lIdx}`}
+                              dir="rtl"
                               className={`w-full flex items-center ${
                                 isSurahHeader || isBismillah
                                   ? "justify-center"
@@ -4779,6 +4490,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                   : "justify-center gap-1.5"
                               } py-0 text-center flex-nowrap`}
                               style={{
+                                direction: "rtl",
                                 minHeight: isOpeningMushafPage ? "1.75em" : "1.15em",
                                 lineHeight: isOpeningMushafPage ? 1.35 : 1.1,
                               }}
@@ -4794,6 +4506,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                     <div
                                       key={`pw-${lIdx}-${wIdx}`}
                                       className="w-full flex items-center justify-center py-0.5"
+                                      dir="rtl"
                                     >
                                       <ShareSurahHeaderFrame
                                         surahNumber={activeData?.surahNumber || 1}
@@ -4813,11 +4526,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                     <div
                                       key={`pw-${lIdx}-${wIdx}`}
                                       className="w-full text-center my-0.5 select-none flex items-center justify-center -translate-y-1 sm:-translate-y-1.5"
+                                      dir="rtl"
                                       style={{
                                         fontFamily: "'QCF4_QBSML', 'Amiri', serif",
                                         fontSize: `${Math.max(16, isOpeningMushafPage ? textFontSize * 1.35 : textFontSize * 1.25)}px`,
                                         color: textColor,
                                         lineHeight: 1.2,
+                                        direction: "rtl",
                                       }}
                                     >
                                       {getBismillahGlyph()}
@@ -4828,11 +4543,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                 return (
                                   <span
                                     key={`pw-${lIdx}-${wIdx}`}
+                                    dir="rtl"
                                     style={{
                                       fontFamily: `"${wordFont}", 'QCF4_QBSML', 'Amiri', serif`,
                                       fontSize: `${textFontSize}px`,
                                       color: textColor,
                                       lineHeight: isOpeningMushafPage ? 1.35 : 1.15,
+                                      direction: "rtl",
                                     }}
                                   >
                                     {w.char || w.text}
@@ -4844,43 +4561,50 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         })}
                       </div>
                     ) : selectedQuranFont === "qcf4" && isQcf4Loaded && qcf4Words.length > 0 ? (
-                      <div className="w-full h-full flex-1 flex flex-col items-center justify-center select-none pointer-events-none text-center" dir="rtl">
-                        <div
-                          className="w-full flex flex-wrap items-center justify-center gap-x-1 gap-y-1.5 select-none pointer-events-none text-center"
-                          style={{
-                            direction: "rtl",
-                            justifyContent:
-                              textAlign === "right"
-                                ? "flex-start"
-                                : textAlign === "left"
-                                ? "flex-end"
-                                : "center",
-                            textAlign: textAlign as any,
-                          }}
-                        >
-                          {qcf4Words.map((w, idx) => (
-                            <span
-                              key={`qcf4-w-${activeData?.surahNumber || 1}-${activeData?.ayah?.numberInSurah || 1}-${idx}`}
-                              style={{
-                                fontFamily: w.font || qcf4Font || "'QCF4_QBSML', 'Amiri', 'UthmanicHafs', serif",
-                                fontSize: `${textFontSize}px`,
-                                color: textColor,
-                                lineHeight: 1.8,
-                              }}
-                            >
-                              {w.char || w.text}
-                            </span>
-                          ))}
-                        </div>
+                      <div
+                        className={`w-full select-none pointer-events-none flex flex-wrap items-center ${
+                          textAlign === "right"
+                            ? "justify-start"
+                            : textAlign === "left"
+                            ? "justify-end"
+                            : "justify-center"
+                        } gap-x-1 sm:gap-x-1.5 gap-y-1 text-center`}
+                        dir="rtl"
+                        style={{
+                          direction: "rtl",
+                          lineHeight: 1.85,
+                        }}
+                      >
+                        {qcf4Words.map((w, idx) => (
+                          <span
+                            key={`qcf4-w-${activeData?.surahNumber || 1}-${activeData?.ayah?.numberInSurah || 1}-${idx}`}
+                            dir="rtl"
+                            style={{
+                              fontFamily: w.font || qcf4Font || "'QCF4_QBSML', 'Amiri', 'UthmanicHafs', serif",
+                              fontSize: `${textFontSize}px`,
+                              color: textColor,
+                              display: "inline-block",
+                              direction: "rtl",
+                              whiteSpace: "nowrap",
+                            }}
+                            className="shrink-0"
+                          >
+                            {w.char || w.text}
+                          </span>
+                        ))}
                       </div>
                     ) : (
-                      <div className="w-full h-full flex-1 flex flex-col items-center justify-center select-none pointer-events-none text-center" dir="rtl">
+                      <div className="w-full flex flex-col items-center justify-center select-none pointer-events-none" dir="rtl" style={{ direction: "rtl" }}>
                         <p
-                          className={`w-full select-none pointer-events-none text-center ${shareMode === "page" ? "line-clamp-none" : ""}`}
+                          className={`w-full select-none pointer-events-none ${shareMode === "page" ? "line-clamp-none" : ""}`}
+                          dir="rtl"
                           style={{
                             fontSize: `${textFontSize}px`,
                             color: textColor,
-                            textAlign: textAlign as any,
+                            textAlign: textAlign === "right" ? "right" : textAlign === "left" ? "left" : "justify",
+                            textAlignLast: "center",
+                            textJustify: "inter-word",
+                            direction: "rtl",
                             lineHeight: shareMode === "page" ? 1.55 : 1.85,
                             fontFamily:
                               selectedQuranFont === "amiri"
@@ -4917,454 +4641,116 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   </div>
                   )}
 
-                  {/* Footer Surah Info (Bottom Left) - Draggable (Up/Down/Left/Right) */}
-                  {showSurahInfo && (
+                  {/* حد ظاهر بين الآيات وسطر شعار التطبيق */}
+                  <div
+                    className="relative z-10 w-full mt-1.5 mb-1 sm:mt-2 sm:mb-1 border-t select-none pointer-events-none"
+                    style={{
+                      borderColor: logoColor || textColor || "#1C1917",
+                      opacity: 0.35,
+                      borderTopWidth: "1.5px",
+                    }}
+                  />
+
+                  {/* سطر أسفل البطاقة: على اليمين شعار التطبيق (مكبر 100%) واسم التطبيق، وعلى اليسار معلومات السورة/الصفحة (منزل قليلاً للأسفل) */}
+                  <div
+                    className="relative z-10 w-full flex items-center justify-between shrink-0 px-1 pt-0 pb-0.5 select-none cursor-default"
+                    dir="rtl"
+                  >
+                    {/* على يمين السطر: شعار التطبيق مكبر 100% بدقة فائقة واسم التطبيق (مصحف التبيان بخط القاهرة) */}
                     <div
-                      data-layer="info"
-                      onPointerDown={(e) => handleStartDrag(e, "info")}
-                      className={`absolute bottom-3.5 left-4 z-20 select-none ${
-                        isDraggingElement === "info" ? "transition-none scale-105" : "transition-transform duration-75"
-                      } ${
-                        !isMovementLocked ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-blue-400/40" : "cursor-default"
-                      }`}
-                      style={{
-                        transform: `translate3d(${surahInfoOffsetX}px, ${surahInfoOffsetY}px, 0) scale(${surahInfoScale ? surahInfoScale / 100 : 1}) rotate(${surahInfoRotation}deg)`,
-                        transformOrigin: "center center",
-                        touchAction: "none",
-                      }}
-                      title="شارة السورة (انقر للتحديد، اسحب للتحريك، باعد بإصبعين للتكبير)"
+                      className="flex items-center select-none cursor-default gap-2 sm:gap-2.5"
                     >
-                      {renderLayerControls("info", "شارة السورة")}
-                      <span
-                        className={`text-[11px] font-bold px-2.5 py-1 rounded-full border shadow-sm inline-flex items-center gap-1.5 transition-all backdrop-blur-[2px] ${
-                          !isMovementLocked ? "hover:ring-1 hover:ring-blue-400/40 cursor-grab active:cursor-grabbing" : ""
-                        }`}
+                      {/* شعار التطبيق المعتمد */}
+                      <img
+                        src="/app-logo-256.png"
+                        srcSet="/app-logo-256.png 1x, /app-logo-512.png 2x"
+                        alt="شعار مصحف التبيان"
+                        className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0 select-none pointer-events-none drop-shadow-md rounded-lg"
                         style={{
-                          color: logoColor || textColor,
-                          borderColor: `${logoColor || textColor}35`,
-                          backgroundColor: `${logoColor || textColor}12`,
+                          imageRendering: "auto",
+                          WebkitFontSmoothing: "antialiased",
+                        }}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = "/IMG_1767.png";
+                        }}
+                      />
+                      {/* اسم التطبيق على يسار الشعار (مصحف التبيان بخط القاهرة) */}
+                      <span
+                        className="font-bold tracking-wide select-none leading-none whitespace-nowrap"
+                        style={{
+                          color: logoColor || textColor || "#1C1917",
+                          fontFamily: "'Cairo', sans-serif",
+                          fontSize: "16px",
                         }}
                       >
-                        <span className="text-sm font-normal leading-none flex items-center gap-1.5" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
-                          {getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName) ? (
-                            <>
-                              <span className="opacity-95">{getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName)}</span>
+                        مصحف التبيان
+                      </span>
+                    </div>
+
+                    {/* على يسار السطر: معلومات السورة / الصفحة */}
+                    {showSurahInfo ? (
+                      <div className="flex items-center select-none cursor-default">
+                        <span
+                          className="text-[11px] font-bold px-2.5 py-1 rounded-full border shadow-xs inline-flex items-center gap-1.5 backdrop-blur-[2px]"
+                          style={{
+                            color: logoColor || textColor || "#1C1917",
+                            borderColor: `${logoColor || textColor || "#1C1917"}35`,
+                            backgroundColor: `${logoColor || textColor || "#1C1917"}12`,
+                          }}
+                        >
+                          <span className="text-sm font-normal leading-none flex items-center gap-1.5" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
+                            {getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName) ? (
+                              <>
+                                <span className="opacity-95">{getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName)}</span>
+                                <span className="font-bold text-xs" style={{ fontFamily: "'Amiri', serif" }}>
+                                  {activeData.surahName?.startsWith("سورة") ? activeData.surahName : `سورة ${activeData.surahName}`}
+                                </span>
+                              </>
+                            ) : (
                               <span className="font-bold text-xs" style={{ fontFamily: "'Amiri', serif" }}>
                                 {activeData.surahName?.startsWith("سورة") ? activeData.surahName : `سورة ${activeData.surahName}`}
                               </span>
+                            )}
+                          </span>
+                          {shareMode === "page" && (
+                            <>
+                              <span className="opacity-40">•</span>
+                              <span className="text-[10px] font-bold">
+                                {toArabicNumerals(selectedPageNumber)}
+                              </span>
                             </>
-                          ) : (
-                            <span className="font-bold text-xs" style={{ fontFamily: "'Amiri', serif" }}>
-                              {activeData.surahName?.startsWith("سورة") ? activeData.surahName : `سورة ${activeData.surahName}`}
-                            </span>
                           )}
                         </span>
-                        {shareMode === "page" && (
-                          <>
-                            <span className="opacity-40">•</span>
-                            <span className="text-[10px] font-bold">
-                              {toArabicNumerals(selectedPageNumber)}
-                            </span>
-                          </>
-                        )}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Al-Tibyan Logo (Bottom Right) - Draggable (Up/Down/Left/Right) */}
-                  {showWatermark && (
-                    <div
-                      data-layer="watermark"
-                      onPointerDown={(e) => handleStartDrag(e, "watermark")}
-                      className={`absolute bottom-3.5 right-4 z-20 select-none ${
-                        isDraggingElement === "watermark" ? "transition-none scale-105" : "transition-transform duration-75"
-                      } ${
-                        !isMovementLocked ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-blue-400/40" : "cursor-default"
-                      }`}
-                      style={{
-                        transform: `translate3d(${watermarkOffsetX}px, ${watermarkOffsetY}px, 0) scale(${watermarkScale ? watermarkScale / 100 : 1}) rotate(${watermarkRotation}deg)`,
-                        transformOrigin: "center center",
-                        touchAction: "none",
-                      }}
-                      title="شعار التبيان (انقر للتحديد، اسحب للتحريك، باعد بإصبعين للتكبير)"
-                    >
-                      {renderLayerControls("watermark", "شعار التبيان")}
-                      <div
-                        className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded transition-all ${
-                          !isMovementLocked ? "hover:ring-1 hover:ring-blue-400/40 cursor-grab active:cursor-grabbing" : ""
-                        }`}
-                      >
-                        <AlTibyanCalligraphy
-                          color={logoColor || textColor || "#FAF8F5"}
-                          height={18}
-                        />
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Aspect Ratio Selector Pills, Lock/Unlock Movement Toggle, and Reset Position Button */}
-                <div className="flex items-center justify-center gap-1 sm:gap-2 mt-2 sm:mt-3 overflow-x-auto no-scrollbar flex-nowrap max-w-full px-1">
-                  <div className={`flex items-center gap-0.5 sm:gap-1.5 p-0.5 sm:p-1 rounded-2xl border shrink-0 flex-nowrap ${tTheme.aspectContainer}`}>
-                    {aspectRatioOptions.map((opt) => (
-                      <button
-                        key={opt.id}
-                        onClick={() => setSelectedAspectRatio(opt.id)}
-                        className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0 ${
-                          selectedAspectRatio === opt.id
-                            ? tTheme.aspectActive
-                            : tTheme.aspectInactive
-                        }`}
-                        title={opt.id === "auto" ? `القياس التلقائي المتجاوب: ${autoDimensions.label}` : opt.subLabel}
-                      >
-                        {opt.id === "auto" && (
-                          <Sparkles
-                            size={10}
-                            className={`sm:w-3 sm:h-3 ${selectedAspectRatio === "auto" ? "text-amber-200" : tTheme.accentText}`}
-                          />
-                        )}
-                        <span className="text-[11px]">{opt.label}</span>
-                        {opt.id === "auto" && selectedAspectRatio === "auto" && (
-                          <span className="text-[8px] sm:text-[9px] opacity-90 font-mono">({autoDimensions.aspectStyle})</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Lock / Unlock Toggle Button on the left of Aspect Ratio Pills */}
-                  <button
-                    id="share-ayah-lock-toggle-btn"
-                    type="button"
-                    onClick={() => {
-                      const nextState = !isMovementLocked;
-                      setIsMovementLocked(nextState);
-                      setShareStatus(
-                        nextState
-                          ? "تم قفل محتويات البطاقة ومنع تحريكها"
-                          : "تم فتح قفل الحماية: يمكنك الآن سحب وتحريك نصوص وشعارات البطاقة بحرية"
-                      );
-                      setTimeout(() => setShareStatus(null), 3000);
-                    }}
-                    title={
-                      isMovementLocked
-                        ? "قفل الحماية مفعّل لمنع التحريك (اضغط لفتح القفل والسماح بالتحريك)"
-                        : "قفل الحماية مفتوح: يمكنك سحب أي عنصر (اضغط للقفل والتثبيت)"
-                    }
-                    className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-2xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-xs shrink-0 whitespace-nowrap ${
-                      isMovementLocked
-                        ? tTheme.quickBtn
-                        : "bg-emerald-500/20 border-emerald-400 text-emerald-400 ring-2 ring-emerald-400/30"
-                    }`}
-                  >
-                    {isMovementLocked ? (
-                      <>
-                        <Lock size={11} className="sm:w-3 sm:h-3 shrink-0 text-emerald-500" />
-                        <span className="text-[11px]">قفل التحريك</span>
-                      </>
                     ) : (
-                      <>
-                        <Unlock size={11} className="sm:w-3 sm:h-3 shrink-0 text-emerald-400 animate-pulse" />
-                        <span className="text-[11px]">التحريك متاح</span>
-                      </>
+                      <div className="w-0 shrink-0" />
                     )}
-                  </button>
-
-                  {(textOffsetX !== 0 || textOffsetY !== 0 || textRotation !== 0 || surahHeaderOffsetX !== 0 || surahHeaderOffsetY !== 0 || surahHeaderRotation !== 0 || surahInfoOffsetX !== 0 || surahInfoOffsetY !== 0 || surahInfoRotation !== 0 || watermarkOffsetX !== 0 || watermarkOffsetY !== 0 || watermarkRotation !== 0) && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {(surahHeaderOffsetX !== 0 || surahHeaderOffsetY !== 0 || surahHeaderRotation !== 0) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSurahHeaderOffsetX(0);
-                            setSurahHeaderOffsetY(0);
-                            setSurahHeaderRotation(0);
-                          }}
-                          title="إعادة ضبط موضع وتدوير الترويسة (البسملة/الاستعاذة) إلى المنتصف"
-                          className={`px-2 py-1.5 rounded-2xl text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 shadow-xs shrink-0 whitespace-nowrap ${tTheme.quickBtn}`}
-                        >
-                          <RotateCcw size={10} className={`shrink-0 ${tTheme.accentText}`} />
-                          <span>توسيط الترويسة</span>
-                        </button>
-                      )}
-                      {(textOffsetX !== 0 || textOffsetY !== 0 || textRotation !== 0) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTextOffsetX(0);
-                            setTextOffsetY(0);
-                            setTextRotation(0);
-                          }}
-                          title="إعادة ضبط موضع وتدوير الآيات إلى المنتصف"
-                          className={`px-2 py-1.5 rounded-2xl text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 shadow-xs shrink-0 whitespace-nowrap ${tTheme.quickBtn}`}
-                        >
-                          <RotateCcw size={10} className={`shrink-0 ${tTheme.accentText}`} />
-                          <span>توسيط الآيات</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTextOffsetX(0);
-                          setTextOffsetY(0);
-                          setTextRotation(0);
-                          setSurahHeaderOffsetX(0);
-                          setSurahHeaderOffsetY(0);
-                          setSurahHeaderRotation(0);
-                          setSurahInfoOffsetX(0);
-                          setSurahInfoOffsetY(0);
-                          setSurahInfoRotation(0);
-                          setWatermarkOffsetX(0);
-                          setWatermarkOffsetY(0);
-                          setWatermarkRotation(0);
-                          setSurahHeaderScale(100);
-                          setSurahInfoScale(100);
-                          setWatermarkScale(100);
-                          setAyahScale(100);
-                          setTextFontSize(shareMode === "page" ? 14 : 28);
-                          setShareStatus("تمت إعادة ضبط وتوسيط كافة العناصر إلى الوضع الافتراضي");
-                          setTimeout(() => setShareStatus(null), 3000);
-                        }}
-                        title="إعادة ضبط كافة العناصر إلى المنتصف والقياس الافتراضي"
-                        className={`px-2.5 py-1.5 rounded-2xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 shadow-xs shrink-0 whitespace-nowrap ${tTheme.quickBtn}`}
-                      >
-                        <RotateCcw size={11} className={`shrink-0 ${tTheme.accentText}`} />
-                        <span>إعادة ضبط الكل</span>
-                      </button>
-                    </div>
-                  )}
+                  </div>
                 </div>
-
-                {/* Custom Aspect Ratio Configuration Panel (Visible when selectedAspectRatio is 'custom') */}
-                {selectedAspectRatio === "custom" && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0, y: -6 }}
-                    animate={{ opacity: 1, height: "auto", y: 0 }}
-                    exit={{ opacity: 0, height: 0, y: -6 }}
-                    className={`mt-2.5 p-3 rounded-2xl border flex flex-col gap-2.5 max-w-[380px] w-full mx-auto shadow-md ${tTheme.innerBox}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[11px] font-bold flex items-center gap-1.5 ${tTheme.innerBoxHeader}`}>
-                        <SlidersHorizontal size={13} className={tTheme.accentText} />
-                        <span>أبعاد القياس المخصص</span>
-                      </span>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${tTheme.accentBadge}`}>
-                        {toArabicNumerals(customWidth)} × {toArabicNumerals(customHeight)} بكسل
-                      </span>
-                    </div>
-
-                    {/* Quick Popular Aspect Ratio Presets */}
-                    <div className="flex items-center gap-1 flex-wrap justify-center">
-                      {[
-                        { label: "4:5 إنستغرام", w: 1080, h: 1350 },
-                        { label: "3:4 عمودي", w: 1080, h: 1440 },
-                        { label: "2:3 صورة", w: 1080, h: 1620 },
-                        { label: "4:3 كلاسيك", w: 1440, h: 1080 },
-                        { label: "3:2 أفقي", w: 1620, h: 1080 },
-                      ].map((preset) => {
-                        const isMatch = customWidth === preset.w && customHeight === preset.h;
-                        return (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => {
-                              setCustomWidth(preset.w);
-                              setCustomHeight(preset.h);
-                            }}
-                            className={`px-2 py-0.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
-                              isMatch ? tTheme.toggleActive : tTheme.toggleInactive
-                            }`}
-                          >
-                            {preset.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Precise Custom Width & Height Inputs with Swap Button */}
-                    <div className="flex items-center justify-between gap-2 pt-0.5">
-                      <div className="flex-1 flex flex-col gap-1">
-                        <label className={`text-[10px] font-semibold ${tTheme.innerBoxSub}`}>
-                          العرض (px):
-                        </label>
-                        <input
-                          type="number"
-                          min={320}
-                          max={4000}
-                          step={10}
-                          value={customWidth}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            if (!isNaN(val)) setCustomWidth(val);
-                          }}
-                          onBlur={() => setCustomWidth((w) => Math.max(300, Math.min(4000, w || 1080)))}
-                          className={`w-full px-2 py-1 rounded-xl border text-center font-bold text-xs focus:outline-none transition-all ${tTheme.innerBox}`}
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const temp = customWidth;
-                          setCustomWidth(customHeight);
-                          setCustomHeight(temp);
-                        }}
-                        title="عكس الأبعاد (أفقي / طولي)"
-                        className={`mt-4 p-1.5 rounded-xl border shrink-0 transition-transform active:scale-90 hover:rotate-180 duration-300 cursor-pointer ${tTheme.quickBtn}`}
-                      >
-                        <ArrowLeftRight size={13} className={tTheme.accentText} />
-                      </button>
-
-                      <div className="flex-1 flex flex-col gap-1">
-                        <label className={`text-[10px] font-semibold ${tTheme.innerBoxSub}`}>
-                          الارتفاع (px):
-                        </label>
-                        <input
-                          type="number"
-                          min={320}
-                          max={4000}
-                          step={10}
-                          value={customHeight}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            if (!isNaN(val)) setCustomHeight(val);
-                          }}
-                          onBlur={() => setCustomHeight((h) => Math.max(300, Math.min(4000, h || 1350)))}
-                          className={`w-full px-2 py-1 rounded-xl border text-center font-bold text-xs focus:outline-none transition-all ${tTheme.innerBox}`}
-                        />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
               </div>
 
               {/* STUDIO CONTROL TABS */}
               <div className="w-full space-y-3 pt-1">
                 
-                {/* 🌟 SHARE SCOPE SELECTOR: آية واحدة | عدة آيات | صفحة كاملة */}
-                <div className={`p-0.5 sm:p-1 rounded-2xl border shadow-inner grid grid-cols-3 gap-1 ${tTheme.tabContainer}`}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShareMode("single");
-                      handleChangeVerse(activeData.surahNumber, activeData.ayah.numberInSurah || 1);
-                    }}
-                    className={`py-1 sm:py-1.5 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
-                      shareMode === "single" ? tTheme.tabActive : tTheme.tabInactive
-                    }`}
-                  >
-                    <BookOpen size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
-                    <span className="text-[11px]">آية واحدة</span>
-                  </button>
-
+                {/* 🌟 SHARE SCOPE SELECTOR: الآيات */}
+                <div className={`p-0.5 sm:p-1 rounded-2xl border shadow-inner flex items-center justify-center ${tTheme.tabContainer}`}>
                   <button
                     type="button"
                     onClick={() => {
                       setShareMode("range");
                       handleChangeRange(activeData.surahNumber, rangeFrom, rangeTo);
                     }}
-                    className={`py-1 sm:py-1.5 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
-                      shareMode === "range" ? tTheme.tabActive : tTheme.tabInactive
-                    }`}
+                    className={`w-full py-1 sm:py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${tTheme.tabActive}`}
                   >
-                    <Layers size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
-                    <span className="text-[11px]">عدة آيات</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShareMode("page");
-                      handleChangePage(selectedPageNumber);
-                    }}
-                    className={`py-1 sm:py-1.5 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
-                      shareMode === "page" ? tTheme.tabActive : tTheme.tabInactive
-                    }`}
-                  >
-                    <FileText size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
-                    <span className="text-[11px]">صفحة كاملة</span>
+                    <Layers size={12} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span>الآيات</span>
                   </button>
                 </div>
 
-                {/* 🌟 SELECTOR ROW ACCORDING TO MODE */}
+                {/* 🌟 SELECTOR ROW: الآيات */}
                 <div className={`p-2 sm:p-2.5 rounded-2xl border shadow-xs space-y-2 sm:space-y-2.5 ${tTheme.innerBox}`}>
-                  {/* Mode 1: Single Ayah */}
-                  {shareMode === "single" && (
-                    <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                      {/* Surah Selector Button with QCF4 Surah Glyph */}
-                      <div className="relative flex-1 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => setIsSurahDropdownOpen(!isSurahDropdownOpen)}
-                          className={`w-full py-1 sm:py-1.5 px-2 sm:px-3 rounded-xl border text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-between shadow-xs ${tTheme.selectedCard}`}
-                          title="اختيار السورة"
-                        >
-                          <div className="flex items-center gap-1.5 sm:gap-2 truncate">
-                            <BookOpen size={12} className={`sm:w-3.5 sm:h-3.5 shrink-0 ${tTheme.accentText}`} />
-                            <span
-                              className="text-xs xs:text-sm sm:text-base md:text-lg font-normal leading-none select-none truncate"
-                              style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}
-                            >
-                              {getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName) || `سورة ${activeData.surahName}`}
-                            </span>
-                          </div>
-                          <ChevronDown size={11} className={`sm:w-3 sm:h-3 shrink-0 opacity-70 transition-transform duration-200 ${isSurahDropdownOpen ? "rotate-180" : ""}`} />
-                        </button>
-
-                        <SurahSelectModal
-                          isOpen={isSurahDropdownOpen}
-                          onClose={() => setIsSurahDropdownOpen(false)}
-                          selectedSurahNumber={activeData.surahNumber}
-                          onSelectSurah={(num) => {
-                            handleChangeVerse(num, 1);
-                          }}
-                          isDark={true}
-                          theme="gold-velvet"
-                          align="right"
-                        />
-                      </div>
-
-                      {/* Ayah Stepper and Selector */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          disabled={activeData.ayah.numberInSurah <= 1 || isLoadingVerse}
-                          onClick={() => handleChangeVerse(activeData.surahNumber, activeData.ayah.numberInSurah - 1)}
-                          title="الآية السابقة"
-                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
-                        >
-                          <ChevronRight size={12} className="sm:w-3.5 sm:h-3.5" />
-                        </button>
-
-                        <div className="relative flex items-center">
-                          <select
-                            value={activeData.ayah.numberInSurah}
-                            disabled={isLoadingVerse}
-                            onChange={(e) => handleChangeVerse(activeData.surahNumber, parseInt(e.target.value, 10))}
-                            className={`py-1 sm:py-1.5 px-1.5 sm:px-2.5 text-[10px] xs:text-[11px] sm:text-xs font-bold rounded-xl border appearance-none text-center cursor-pointer min-w-[62px] sm:min-w-[70px] transition-all shadow-xs ${tTheme.subTabActive}`}
-                          >
-                            {Array.from({ length: currentSurahObj.numberOfAyahs }, (_, i) => i + 1).map((aNum) => (
-                              <option key={aNum} value={aNum} className="bg-slate-900 text-white">
-                                آية {toArabicNumerals(aNum)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={activeData.ayah.numberInSurah >= currentSurahObj.numberOfAyahs || isLoadingVerse}
-                          onClick={() => handleChangeVerse(activeData.surahNumber, activeData.ayah.numberInSurah + 1)}
-                          title="الآية التالية"
-                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border flex items-center justify-center cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tTheme.quickBtn}`}
-                        >
-                          <ChevronLeft size={12} className="sm:w-3.5 sm:h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mode 2: Multiple Ayahs (Range) */}
-                  {shareMode === "range" && (
+                  {/* Mode: Multiple Ayahs (Range) */}
+                  {shareMode !== "page" && (
                     <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2">
                       {/* Surah Selector */}
                       <div className="relative flex-1 min-w-[105px] sm:min-w-[140px]">
@@ -5502,1192 +4888,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   )}
                 </div>
 
-                {/* 3 Main Tabs (الخط | الخلفية | الإطار) */}
-                <div className={`grid grid-cols-3 gap-1 sm:gap-1.5 p-0.5 sm:p-1 rounded-2xl border shadow-inner ${tTheme.tabContainer}`}>
-                  <button
-                    onClick={() => setActiveTab("typography")}
-                    className={`py-1.5 sm:py-2 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
-                      activeTab === "typography"
-                        ? tTheme.tabActive
-                        : tTheme.tabInactive
-                    }`}
-                  >
-                    <Type size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
-                    <span className="text-[11px]">الخط</span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("background")}
-                    className={`py-1.5 sm:py-2 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
-                      activeTab === "background"
-                        ? tTheme.tabActive
-                        : tTheme.tabInactive
-                    }`}
-                  >
-                    <Palette size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
-                    <span className="text-[11px]">الخلفية</span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("frame")}
-                    className={`py-1.5 sm:py-2 px-1 sm:px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
-                      activeTab === "frame"
-                        ? tTheme.tabActive
-                        : tTheme.tabInactive
-                    }`}
-                  >
-                    <Square size={11} className="sm:w-3.5 sm:h-3.5 shrink-0" />
-                    <span className="text-[11px]">الإطار</span>
-                  </button>
-                </div>
-
-                {/* TAB 1: صانع الخلفية */}
-                {activeTab === "background" && (
-                  <div className={`space-y-3.5 p-3.5 rounded-2xl border backdrop-blur-xs ${tTheme.panelBg}`}>
-                    {/* Sub Category Selector - 5 Primary Categories in a single clean row */}
-                    <div className={`flex flex-nowrap items-center justify-between gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl w-full max-w-lg mx-auto border overflow-x-auto no-scrollbar ${tTheme.subTabsContainer}`}>
-                      <button
-                        id="bg-category-tab-gradient"
-                        onClick={() => setBgCategory("gradient")}
-                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
-                          bgCategory === "gradient"
-                            ? tTheme.subTabActive
-                            : tTheme.subTabInactive
-                        }`}
-                      >
-                        <Sparkles size={11} className="sm:w-3 sm:h-3 shrink-0" />
-                        <span className="whitespace-nowrap">تدرجات</span>
-                      </button>
-
-                      <button
-                        id="bg-category-tab-solid"
-                        onClick={() => setBgCategory("solid")}
-                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
-                          bgCategory === "solid"
-                            ? tTheme.subTabActive
-                            : tTheme.subTabInactive
-                        }`}
-                      >
-                        <Palette size={11} className="sm:w-3 sm:h-3 shrink-0" />
-                        <span className="whitespace-nowrap">لون</span>
-                      </button>
-
-                      <button
-                        id="bg-category-tab-pattern"
-                        onClick={() => setBgCategory("pattern")}
-                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
-                          bgCategory === "pattern"
-                            ? tTheme.subTabActive
-                            : tTheme.subTabInactive
-                        }`}
-                      >
-                        <SlidersHorizontal size={11} className="sm:w-3 sm:h-3 shrink-0" />
-                        <span className="whitespace-nowrap">نقوش</span>
-                      </button>
-
-                      <button
-                        id="bg-category-tab-texture"
-                        onClick={() => {
-                          setBgCategory("texture");
-                          setShowTexture(true);
-                        }}
-                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
-                          bgCategory === "texture"
-                            ? tTheme.subTabActive
-                            : tTheme.subTabInactive
-                        }`}
-                      >
-                        <Layers size={11} className="sm:w-3 sm:h-3 shrink-0" />
-                        <span className="whitespace-nowrap">خامات</span>
-                      </button>
-
-                      <button
-                        id="bg-category-tab-none"
-                        onClick={() => {
-                          setBgCategory("none");
-                          setShowTexture(false);
-                          setShowPattern(false);
-                          setTextShadowOpacity(0);
-                        }}
-                        className={`flex-1 min-w-0 py-1 sm:py-1.5 px-1 sm:px-1.5 text-[9px] xs:text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-0.5 sm:gap-1 whitespace-nowrap ${
-                          bgCategory === "none"
-                            ? tTheme.subTabActive
-                            : tTheme.subTabInactive
-                        }`}
-                      >
-                        <Ban size={11} className="sm:w-3 sm:h-3 shrink-0" />
-                        <span className="whitespace-nowrap">بلا خلفية</span>
-                      </button>
-                    </div>
-
-                    {/* Sub-View: التدرجات اللونية (Gradients View) */}
-                    {bgCategory === "gradient" && (
-                      <div className="space-y-3">
-                        {/* Gradient Control Field (حقل التحكم بالتدرج) with Linear & Radial Switcher & Parameters */}
-                        <div id="gradient-control-field" className={`p-3 rounded-xl border space-y-3 ${tTheme.innerBox}`}>
-                          {/* Linear vs Radial Mode Switcher with Icons */}
-                          <div className="flex items-center justify-between gap-2">
-                            <span className={`text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                              نمط التدرج
-                            </span>
-                            <div className={`flex gap-1 p-1 rounded-xl border ${tTheme.subTabsContainer}`}>
-                              <button
-                                id="gradient-mode-linear-btn"
-                                onClick={() => setGradientType("linear")}
-                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                                  gradientType === "linear"
-                                    ? tTheme.subTabActive
-                                    : tTheme.subTabInactive
-                                }`}
-                              >
-                                <Sparkles size={12} />
-                                <span>خطي</span>
-                              </button>
-                              <button
-                                id="gradient-mode-radial-btn"
-                                onClick={() => setGradientType("radial")}
-                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                                  gradientType === "radial"
-                                    ? tTheme.subTabActive
-                                    : tTheme.subTabInactive
-                                }`}
-                              >
-                                <SunMedium size={12} />
-                                <span>شعاعي</span>
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Linear Controls */}
-                          {gradientType === "linear" && (
-                            <div className="pt-2 border-t border-white/5 space-y-2">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className={`text-[11px] font-bold ${tTheme.innerBoxSub}`}>
-                                  زاوية واتجاه التدرج
-                                </span>
-                                <span className={`text-[11px] font-bold font-mono ${tTheme.accentText}`}>
-                                  {gradientAngle}°
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-1">
-                                  {[
-                                    { label: "0°", angle: 0 },
-                                    { label: "45°", angle: 45 },
-                                    { label: "90°", angle: 90 },
-                                    { label: "135°", angle: 135 },
-                                    { label: "180°", angle: 180 },
-                                    { label: "270°", angle: 270 },
-                                  ].map((ang) => (
-                                    <button
-                                      key={ang.angle}
-                                      onClick={() => setGradientAngle(ang.angle)}
-                                      className={`px-2 py-0.5 text-[10px] font-bold rounded border cursor-pointer transition-all ${
-                                        gradientAngle === ang.angle
-                                          ? tTheme.subTabActive
-                                          : "border-white/10 text-white/70 hover:bg-white/10"
-                                      }`}
-                                    >
-                                      {ang.label}
-                                    </button>
-                                  ))}
-                                </div>
-
-                                <div className="flex items-center gap-2 flex-1 min-w-[140px] justify-end">
-                                  <input
-                                    type="range"
-                                    min="0"
-                                    max="360"
-                                    value={gradientAngle}
-                                    onChange={(e) => setGradientAngle(parseInt(e.target.value))}
-                                    className={`w-full max-w-[130px] h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Radial Controls */}
-                          {gradientType === "radial" && (
-                            <div className="pt-2 border-t border-white/5 space-y-2">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1">
-                                  <SunMedium size={12} className={tTheme.accentText} />
-                                  <span className={`text-[11px] font-bold ${tTheme.innerBoxSub}`}>
-                                    انتشار وتوهج الشعاع
-                                  </span>
-                                </div>
-                                <span className={`text-[11px] font-bold font-mono ${tTheme.accentText}`}>
-                                  {radialSpread}%
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-1">
-                                  {[
-                                    { label: "مركز ضيق", val: 35 },
-                                    { label: "متوسط", val: 60 },
-                                    { label: "متوازن", val: 85 },
-                                    { label: "واسع", val: 120 },
-                                    { label: "غامر", val: 160 },
-                                  ].map((item) => (
-                                    <button
-                                      key={item.val}
-                                      onClick={() => setRadialSpread(item.val)}
-                                      className={`px-2 py-0.5 text-[10px] font-bold rounded border cursor-pointer transition-all ${
-                                        radialSpread === item.val
-                                          ? tTheme.subTabActive
-                                          : "border-white/10 text-white/70 hover:bg-white/10"
-                                      }`}
-                                    >
-                                      {item.label}
-                                    </button>
-                                  ))}
-                                </div>
-
-                                <div className="flex items-center gap-2 flex-1 min-w-[140px] justify-end">
-                                  <input
-                                    type="range"
-                                    min="15"
-                                    max="200"
-                                    value={radialSpread}
-                                    onChange={(e) => setRadialSpread(parseInt(e.target.value))}
-                                    className={`w-full max-w-[130px] h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Presets Grid - Compact Icon/Swatch Only */}
-                        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-1.5">
-                          {gradientPresets.map((preset) => {
-                            const isSelected = gradientColor1 === preset.color1 && gradientColor2 === preset.color2;
-                            const presetBackground =
-                              gradientType === "radial"
-                                ? `radial-gradient(circle at center, ${preset.color2} 0%, ${preset.color1} 100%)`
-                                : `linear-gradient(${gradientAngle}deg, ${preset.color1}, ${preset.color2})`;
-
-                            return (
-                              <button
-                                key={preset.id}
-                                title={preset.name}
-                                onClick={() => {
-                                  setGradientColor1(preset.color1);
-                                  setGradientColor2(preset.color2);
-                                  setTextColor(preset.textDefault);
-                                  setSurahHeaderTextColor(preset.textDefault);
-                                }}
-                                style={{
-                                  background: presetBackground,
-                                }}
-                                className={`h-8 rounded-lg relative shadow-xs transition-all duration-150 cursor-pointer border-2 flex items-center justify-center ${
-                                  isSelected
-                                    ? "border-amber-400 ring-2 ring-amber-400/40 scale-105"
-                                    : "border-white/15 hover:border-white/40 hover:scale-105"
-                                }`}
-                              >
-                                {isSelected && (
-                                  <div className="w-3.5 h-3.5 rounded-full bg-black/60 text-amber-400 flex items-center justify-center backdrop-blur-xs">
-                                    <Check size={8} className="stroke-[3px]" />
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Custom Colors Picker */}
-                        <div className={`p-2.5 rounded-xl border space-y-1.5 ${tTheme.innerBox}`}>
-                          <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>
-                            {gradientType === "radial" ? "ألوان التدرج الشعاعي" : "ألوان التدرج الخطي"}
-                          </span>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${tTheme.unselectedCard}`}>
-                              <span className={`text-[11px] sm:text-xs font-bold truncate ml-1 ${tTheme.innerBoxSub}`}>
-                                {gradientType === "radial" ? "لون المركز" : "لون البداية"}
-                              </span>
-                              <label
-                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                                title={gradientType === "radial" ? "اختر لون المركز" : "اختر لون البداية"}
-                              >
-                                <input
-                                  type="color"
-                                  value={gradientType === "radial" ? gradientColor2 : gradientColor1}
-                                  onChange={(e) => {
-                                    if (gradientType === "radial") {
-                                      setGradientColor2(e.target.value);
-                                    } else {
-                                      setGradientColor1(e.target.value);
-                                    }
-                                  }}
-                                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                                />
-                              </label>
-                            </div>
-
-                            <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${tTheme.unselectedCard}`}>
-                              <span className={`text-[11px] sm:text-xs font-bold truncate ml-1 ${tTheme.innerBoxSub}`}>
-                                {gradientType === "radial" ? "لون الأطراف" : "لون النهاية"}
-                              </span>
-                              <label
-                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                                title={gradientType === "radial" ? "اختر لون الأطراف" : "اختر لون النهاية"}
-                              >
-                                <input
-                                  type="color"
-                                  value={gradientType === "radial" ? gradientColor1 : gradientColor2}
-                                  onChange={(e) => {
-                                    if (gradientType === "radial") {
-                                      setGradientColor1(e.target.value);
-                                    } else {
-                                      setGradientColor2(e.target.value);
-                                    }
-                                  }}
-                                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                                />
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sub-View: لون موحد */}
-                    {bgCategory === "solid" && (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-1.5">
-                          {solidColorPresets.map((preset) => {
-                            const isSelected = selectedSolidColor === preset.value;
-                            return (
-                              <button
-                                key={preset.id}
-                                title={preset.name}
-                                onClick={() => {
-                                  setSelectedSolidColor(preset.value);
-                                  setTextColor(preset.textDefault);
-                                  setSurahHeaderTextColor(preset.textDefault);
-                                }}
-                                style={{ backgroundColor: preset.value }}
-                                className={`h-8 rounded-lg relative shadow-xs transition-all duration-150 cursor-pointer border-2 flex items-center justify-center ${
-                                  isSelected
-                                    ? "border-amber-400 ring-2 ring-amber-400/40 scale-105"
-                                    : "border-black/15 hover:border-white/40 hover:scale-105"
-                                }`}
-                              >
-                                {isSelected && (
-                                  <div className="w-3.5 h-3.5 rounded-full bg-black/60 text-amber-400 flex items-center justify-center backdrop-blur-xs">
-                                    <Check size={8} className="stroke-[3px]" />
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Custom Color Input */}
-                        <div className={`p-2.5 rounded-xl border flex items-center justify-between ${tTheme.innerBox}`}>
-                          <span className={`text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                            لون مخصص
-                          </span>
-                          <label
-                            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                            title="اختر لون مخصص"
-                          >
-                            <input
-                              type="color"
-                              value={selectedSolidColor}
-                              onChange={(e) => setSelectedSolidColor(e.target.value)}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sub-View: منوع خامة ونمط */}
-                    {bgCategory === "pattern" && (
-                      <div className="space-y-3">
-                        {/* Toggle Pattern Active */}
-                        <div className={`p-2 rounded-xl border flex items-center justify-between ${tTheme.innerBox}`}>
-                          <div className="flex items-center gap-1.5">
-                            <SlidersHorizontal size={12} className={tTheme.accentText} />
-                            <span className={`text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                              تفعيل النقش بالخلفية
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => setShowPattern(!showPattern)}
-                            className={`px-3 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-all border ${
-                              showPattern ? tTheme.subTabActive : tTheme.unselectedCard
-                            }`}
-                          >
-                            {showPattern ? "مفعّل ✓" : "معطّل"}
-                          </button>
-                        </div>
-
-                        {/* Pattern Cards Grid - Compact Icon Only */}
-                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 gap-1.5">
-                          {/* None Option */}
-                          <button
-                            onClick={() => {
-                              setSelectedPatternId("none");
-                              setShowPattern(false);
-                            }}
-                            title="بدون نقش"
-                            className={`h-11 rounded-lg transition-all cursor-pointer border relative overflow-hidden flex items-center justify-center group ${
-                              !showPattern || selectedPatternId === "none"
-                                ? tTheme.selectedCard
-                                : tTheme.unselectedCard
-                            }`}
-                          >
-                            <span className="text-[10px] text-white/60 font-medium">بدون</span>
-                            {(!showPattern || selectedPatternId === "none") && (
-                              <div className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5">
-                                <Check size={10} className={tTheme.accentText} />
-                              </div>
-                            )}
-                          </button>
-
-                          {patternPresets.map((pat) => {
-                            const isSelected = showPattern && selectedPatternId === pat.id;
-                            const swatchSvg = pat.rawSvg ? createSvgDataUrl(pat.rawSvg, patternColor) : pat.svgPattern;
-                            return (
-                              <button
-                                key={pat.id}
-                                onClick={() => {
-                                  setSelectedPatternId(pat.id);
-                                  setShowPattern(true);
-                                }}
-                                title={`${pat.name} - ${pat.desc}`}
-                                className={`h-11 rounded-lg transition-all cursor-pointer border relative overflow-hidden group ${
-                                  isSelected
-                                    ? tTheme.selectedCard
-                                    : tTheme.unselectedCard
-                                }`}
-                              >
-                                {/* Pattern preview swatch */}
-                                <div
-                                  className="w-full h-full bg-black/40"
-                                  style={{
-                                    backgroundImage: `url("${swatchSvg}")`,
-                                    backgroundRepeat: "repeat",
-                                    backgroundSize: "20px 20px",
-                                  }}
-                                />
-                                {isSelected && (
-                                  <div className="absolute top-1 right-1 bg-black/70 rounded-full p-0.5">
-                                    <Check size={10} className={tTheme.accentText} />
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Pattern Color & Opacity Controls */}
-                        <div className={`p-2.5 rounded-xl border space-y-2.5 ${tTheme.innerBox} ${!showPattern ? "opacity-50 pointer-events-none" : ""}`}>
-                          {/* Pattern Color Selector */}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <Palette size={12} className={tTheme.accentText} />
-                              <span className={`text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                                لون خطوط النقش
-                              </span>
-                            </div>
-                            {/* Custom Color Input */}
-                            <label
-                              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                              title="اختر لون خطوط النقش"
-                            >
-                              <input
-                                type="color"
-                                value={patternColor}
-                                onChange={(e) => setPatternColor(e.target.value)}
-                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                              />
-                            </label>
-                          </div>
-
-                          {/* Pattern Opacity Slider */}
-                          <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/5">
-                            <span className={`text-xs font-bold whitespace-nowrap ${tTheme.innerBoxHeader}`}>
-                              الوضوح: {Math.round(patternOpacity * 100)}%
-                            </span>
-                            <input
-                              type="range"
-                              min="5"
-                              max="80"
-                              value={Math.round(patternOpacity * 100)}
-                              onChange={(e) => setPatternOpacity(parseInt(e.target.value) / 100)}
-                              className={`flex-1 max-w-xs h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sub-View: خامات وتأثيرات واقعية */}
-                    {bgCategory === "texture" && (
-                      <div className="space-y-3">
-                        {/* Toggle Texture Active */}
-                        <div className={`p-2.5 rounded-xl border flex items-center justify-between ${tTheme.innerBox}`}>
-                          <div className="flex items-center gap-2">
-                            <Layers size={13} className={tTheme.accentText} />
-                            <div>
-                              <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>
-                                تفعيل الخامة بالخلفية
-                              </span>
-                              <span className={`text-[10px] ${tTheme.innerBoxSub}`}>
-                                خامات واقعية تضفي لمسة عريقة ودافئة
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => setShowTexture(!showTexture)}
-                            className={`px-3 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-all border ${
-                              showTexture ? tTheme.subTabActive : tTheme.unselectedCard
-                            }`}
-                          >
-                            {showTexture ? "مفعّلة ✓" : "معطّلة"}
-                          </button>
-                        </div>
-
-                        {/* Texture Cards Grid - Compact Icon Only */}
-                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 gap-1.5">
-                          {texturePresets.map((tex) => {
-                            const isSelected = showTexture && selectedTextureId === tex.id;
-                            return (
-                              <button
-                                key={tex.id}
-                                title={`${tex.name} - ${tex.desc}`}
-                                onClick={() => {
-                                  setSelectedTextureId(tex.id);
-                                  setShowTexture(true);
-                                  setTextColor(tex.defaultTextColor);
-                                  setIstiadhahColor(tex.defaultTextColor);
-                                  setFrameColor(tex.defaultFrameColor);
-                                  setSurahHeaderColor(tex.defaultFrameColor);
-                                  if (tex.defaultBgGradient) {
-                                    setGradientColor1(tex.defaultBgGradient.color1);
-                                    setGradientColor2(tex.defaultBgGradient.color2);
-                                  }
-                                }}
-                                className={`h-11 rounded-lg transition-all cursor-pointer border relative overflow-hidden group ${
-                                  isSelected
-                                    ? tTheme.selectedCard
-                                    : tTheme.unselectedCard
-                                }`}
-                              >
-                                {/* Thumbnail Image Swatch */}
-                                <div className="w-full h-full bg-black/40 relative">
-                                  <img
-                                    src={tex.imageUrl}
-                                    alt={tex.name}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                    referrerPolicy="no-referrer"
-                                  />
-                                </div>
-
-                                {isSelected && (
-                                  <div className="absolute top-1 right-1 bg-black/70 rounded-full p-0.5 z-10">
-                                    <Check size={10} className={tTheme.accentText} />
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Texture Opacity Slider */}
-                        <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${tTheme.innerBox} ${!showTexture ? "opacity-50 pointer-events-none" : ""}`}>
-                          <span className={`text-xs font-bold whitespace-nowrap ${tTheme.innerBoxHeader}`}>
-                            الوضوح: {Math.round(textureOpacity * 100)}%
-                          </span>
-                          <input
-                            type="range"
-                            min="20"
-                            max="100"
-                            value={Math.round(textureOpacity * 100)}
-                            onChange={(e) => setTextureOpacity(parseInt(e.target.value) / 100)}
-                            className={`flex-1 max-w-xs h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sub-View: بلا خلفية (شفاف Transparent PNG) */}
-                    {bgCategory === "none" && (
-                      <div className="space-y-3">
-                        <div className={`p-4 rounded-xl border space-y-3 text-center ${tTheme.innerBox}`}>
-                          <div className="w-10 h-10 mx-auto rounded-full bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
-                            <Ban size={20} />
-                          </div>
-                          <div>
-                            <h4 className={`text-xs sm:text-sm font-bold ${tTheme.innerBoxHeader}`}>
-                              خلفية شفافة (بلا خلفية)
-                            </h4>
-                            <p className={`text-[11px] sm:text-xs mt-1 leading-relaxed ${tTheme.innerBoxSub}`}>
-                              يتم تصدير وحفظ بطاقة الآية الكريمة بصيغة <b>PNG شفافة</b> بالكامل بدون أي لون أو خلفية، مثالية للتصميم، المونتاج، وستوري البرامج.
-                            </p>
-                          </div>
-
-                          {/* Quick Color Adjustments for Text & Frame */}
-                          <div className="pt-3 border-t border-white/10 space-y-2 text-right">
-                            <span className={`text-[11px] font-bold block ${tTheme.innerBoxSub}`}>
-                              ألوان مقترحة للنص مع الخلفية الشفافة:
-                            </span>
-                            <div className="flex flex-wrap items-center justify-center gap-2">
-                              {[
-                                { name: "أبيض ناصع", text: "#FFFFFF", frame: "#FFFFFF" },
-                                { name: "ذهبي فاخر", text: "#FFE082", frame: "#D4AF37" },
-                                { name: "أسود داكن", text: "#111827", frame: "#1F2937" },
-                                { name: "زمردي", text: "#6EE7B7", frame: "#10B981" },
-                                { name: "سماوي", text: "#7DD3FC", frame: "#0284C7" },
-                              ].map((preset) => (
-                                <button
-                                  key={preset.name}
-                                  onClick={() => {
-                                    setTextColor(preset.text);
-                                    setIstiadhahColor(preset.text);
-                                    setFrameColor(preset.frame);
-                                    setSurahHeaderColor(preset.frame);
-                                  }}
-                                  className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                                    textColor === preset.text ? tTheme.subTabActive : tTheme.quickBtn
-                                  }`}
-                                >
-                                  <span
-                                    className="w-3 h-3 rounded-full border border-white/40 inline-block shadow-xs"
-                                    style={{ backgroundColor: preset.text }}
-                                  />
-                                  <span>{preset.name}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* TAB 2: الإطار والحدود */}
-                {activeTab === "frame" && (
-                  <div className={`space-y-3.5 p-3.5 rounded-2xl border backdrop-blur-xs ${tTheme.panelBg}`}>
-                    <div className="space-y-3">
-                      {/* Quick Toggle Card */}
-                      <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${tTheme.innerBox}`}>
-                        <div className="flex items-center gap-2">
-                          <Square size={16} className={showAyahFrame && selectedFrameStyle !== "none" ? tTheme.accentText : "text-slate-400"} />
-                          <div>
-                            <span className="text-xs font-bold block">إطار الآية (البطاقة)</span>
-                            <span className={`text-[10px] block ${tTheme.innerBoxSub}`}>إظهار أو إخفاء الإطار المحيط ببطاقة الآية</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            const next = !showAyahFrame;
-                            setShowAyahFrame(next);
-                            if (next && selectedFrameStyle === "none") {
-                              setSelectedFrameStyle("rectangle");
-                            }
-                          }}
-                          className={`flex items-center gap-1.5 py-1 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                            showAyahFrame && selectedFrameStyle !== "none" ? tTheme.toggleActive : tTheme.toggleInactive
-                          }`}
-                        >
-                          <span>{showAyahFrame && selectedFrameStyle !== "none" ? "مُفعّل" : "مُعطّل"}</span>
-                          <span className={`w-2 h-2 rounded-full ${showAyahFrame && selectedFrameStyle !== "none" ? tTheme.toggleDotActive : tTheme.toggleDotInactive}`} />
-                        </button>
-                      </div>
-
-                      {/* Frame Style Options */}
-                      <div className="space-y-1.5">
-                        <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>نمط إطار الآية:</span>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {frameStyleOptions.map((frameOpt) => {
-                            const isSelected = (showAyahFrame && selectedFrameStyle === frameOpt.id) || (!showAyahFrame && frameOpt.id === "none");
-                            return (
-                              <button
-                                key={frameOpt.id}
-                                onClick={() => {
-                                  if (frameOpt.id === "none") {
-                                    setShowAyahFrame(false);
-                                    setSelectedFrameStyle("none");
-                                  } else {
-                                    setShowAyahFrame(true);
-                                    setSelectedFrameStyle(frameOpt.id);
-                                  }
-                                }}
-                                className={`p-2.5 rounded-xl text-center font-bold text-xs transition-all cursor-pointer border ${
-                                  isSelected
-                                    ? tTheme.selectedCard
-                                    : tTheme.unselectedCard
-                                }`}
-                              >
-                                {frameOpt.name}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Inline Adjustments for Ayah Frame */}
-                      <div className="space-y-2.5 pt-1">
-                        <div className={`space-y-1 p-2.5 rounded-xl border ${tTheme.innerBox}`}>
-                          <div className={`flex justify-between text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                            <span>سُمك إطار الآية</span>
-                            <span className={tTheme.accentText}>{frameWidth} بكسل</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="1"
-                            max="6"
-                            value={frameWidth}
-                            onChange={(e) => setFrameWidth(parseInt(e.target.value))}
-                            className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                          />
-                        </div>
-
-                        <div className={`space-y-1 p-2.5 rounded-xl border ${tTheme.innerBox}`}>
-                          <div className={`flex justify-between text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                            <span>الهامش الداخلي للإطار</span>
-                            <span className={tTheme.accentText}>{frameInset} بكسل</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="10"
-                            max="45"
-                            value={frameInset}
-                            onChange={(e) => setFrameInset(parseInt(e.target.value))}
-                            className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                          />
-                        </div>
-
-                        {/* Frame Color */}
-                        <div className={`space-y-1.5 p-2.5 rounded-xl border ${tTheme.innerBox}`}>
-                          <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>لون إطار الآية</span>
-                          <div className="flex flex-wrap gap-2 items-center">
-                            {frameColorPalette.map((color) => (
-                              <button
-                                key={`af-${color}`}
-                                onClick={() => setFrameColor(color)}
-                                style={{ backgroundColor: color }}
-                                className={`w-6 h-6 rounded-full border border-white/20 transition-transform cursor-pointer flex items-center justify-center ${
-                                  frameColor === color ? "scale-115 ring-2 ring-amber-400" : "hover:scale-105"
-                                }`}
-                                title={`اختر اللون ${color}`}
-                              >
-                                {frameColor === color && (
-                                  <Check
-                                    size={10}
-                                    className={
-                                      color === "#FFFFFF" || color === "#FAF8F5" || color === "#E2C376" || color === "#C5A85C"
-                                        ? "text-slate-900"
-                                        : "text-white"
-                                    }
-                                  />
-                                )}
-                              </button>
-                            ))}
-                            {/* Custom Color Input */}
-                            <label
-                              className="w-6 h-6 rounded-full border border-white/20 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                              title="لون مخصص لإطار الآية"
-                            >
-                              <input
-                                type="color"
-                                value={frameColor}
-                                onChange={(e) => setFrameColor(e.target.value)}
-                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 3: الخط وبيانات الآية */}
-                {activeTab === "typography" && (
-                  <div className={`space-y-3.5 p-3.5 rounded-2xl border backdrop-blur-xs ${tTheme.panelBg}`}>
-                    {/* Font Size Slider */}
-                    <div className={`space-y-2 p-2.5 rounded-xl border ${tTheme.innerBox}`}>
-                      <div className={`flex justify-between items-center text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                        <span>حجم الخط</span>
-                        <span className={tTheme.accentText}>{textFontSize} بكسل</span>
-                      </div>
-
-                      {/* Precision Range Slider */}
-                      <input
-                        type="range"
-                        min={shareMode === "page" ? "6" : "14"}
-                        max={shareMode === "page" ? "22" : "50"}
-                        value={textFontSize}
-                        onChange={(e) => setTextFontSize(parseInt(e.target.value))}
-                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                      />
-                    </div>
-
-                    {/* Independent Opening Header (البسملة / الاستعاذة) Controls */}
-                    <div className={`space-y-2 p-2.5 rounded-xl border ${tTheme.innerBox}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>
-                            البسملة / الاستعاذة (ترويسة مستقلة):
-                          </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                            showOpeningHeader ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-slate-500/20 text-slate-400"
-                          }`}>
-                            {showOpeningHeader
-                              ? (openingHeaderMode === "auto" ? "تلقائي ذكي" : openingHeaderMode === "bismillah" ? "بسملة دائماً" : openingHeaderMode === "istiadhah" ? "استعاذة دائماً" : "إطار السورة")
-                              : "مُعطّلة"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setShowOpeningHeader(!showOpeningHeader)}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
-                              showOpeningHeader ? tTheme.toggleActive : tTheme.toggleInactive
-                            }`}
-                          >
-                            {showOpeningHeader ? "إخفاء" : "إظهار"}
-                          </button>
-                          {showOpeningHeader && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpeningHeaderSize(textFontSize);
-                                setOpeningHeaderColor(textColor);
-                              }}
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${tTheme.unselectedCard}`}
-                              title="مطابقة الحجم واللون تلقائياً مع الآية"
-                            >
-                              مطابقة الآية
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {showOpeningHeader && (
-                        <div className="space-y-2 pt-1 border-t border-white/5">
-                          {/* Size Slider */}
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span className={tTheme.innerBoxSub}>حجم خط البسملة / الاستعاذة:</span>
-                              <span className={`font-mono font-bold ${tTheme.accentText}`}>{openingHeaderSize} بكسل</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="16"
-                              max="54"
-                              value={openingHeaderSize}
-                              onChange={(e) => setOpeningHeaderSize(parseInt(e.target.value))}
-                              className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Shading/Backdrop */}
-                    <div className={`space-y-1 p-2.5 rounded-xl border ${tTheme.innerBox}`}>
-                      <div className={`flex justify-between text-xs font-bold ${tTheme.innerBoxHeader}`}>
-                        <span>تعتيم الخلفية خلف النص</span>
-                        <span className={tTheme.accentText}>{Math.round(textShadowOpacity * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="85"
-                        value={Math.round(textShadowOpacity * 100)}
-                        onChange={(e) => setTextShadowOpacity(parseInt(e.target.value) / 100)}
-                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${tTheme.sliderTrack} ${tTheme.sliderAccent}`}
-                      />
-                    </div>
-
-                    {/* Text Alignment */}
-                    <div className={`flex justify-between items-center p-2.5 rounded-xl border ${tTheme.innerBox}`}>
-                      <span className={`text-xs font-bold ${tTheme.innerBoxHeader}`}>المحاذاة:</span>
-                      <div className="flex gap-1">
-                        {[
-                          { align: "right", icon: <AlignRight size={13} />, title: "محاذاة لليمين" },
-                          { align: "justify", icon: <AlignJustify size={13} />, title: "ضبط الأسطر (كالمصحف)" },
-                          { align: "center", icon: <AlignCenter size={13} />, title: "توسيط من غير ضبط" },
-                          { align: "left", icon: <AlignLeft size={13} />, title: "محاذاة لليسار" },
-                        ].map((btn) => (
-                          <button
-                            key={btn.align}
-                            type="button"
-                            title={btn.title}
-                            onClick={() => setTextAlign(btn.align as any)}
-                            className={`p-1.5 rounded-lg cursor-pointer transition-all border ${
-                              textAlign === btn.align
-                                ? tTheme.subTabActive
-                                : tTheme.unselectedCard
-                            }`}
-                          >
-                            {btn.icon}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Color Picker Controls: دوائر شبكة الألوان المخصصة */}
-                    <div className={`p-2.5 rounded-xl border space-y-2 ${tTheme.innerBox}`}>
-                      <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>
-                        الألوان (النص واسم السورة / الاستعاذة / زخرفة الإطار / مصحف التبيان):
-                      </span>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {/* 1. Text Color Picker Circle */}
-                        <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${tTheme.toggleActive}`}>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[11px] sm:text-xs font-bold truncate ml-1">نص الآيات والاسم</span>
-                            <span className="text-[9px] text-emerald-400 font-medium">متابعة ومزامنة تامة</span>
-                          </div>
-                          <label
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                            title="اختر لون نص الآيات واسم السورة داخل الإطار"
-                          >
-                            <input
-                              type="color"
-                              value={textColor}
-                              onChange={(e) => {
-                                const newColor = e.target.value;
-                                setTextColor(newColor);
-                                setSurahHeaderTextColor(newColor);
-                              }}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                            />
-                          </label>
-                        </div>
-
-                        {/* 2. Istiadhah Color Picker Circle */}
-                        <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${showIstiadhah ? tTheme.toggleActive : tTheme.toggleInactive}`}>
-                          <span className="text-[11px] sm:text-xs font-bold truncate ml-1">الاستعاذة</span>
-                          <label
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                            title="اختر لون الاستعاذة"
-                          >
-                            <input
-                              type="color"
-                              value={istiadhahColor || textColor}
-                              onChange={(e) => {
-                                setIstiadhahColor(e.target.value);
-                                if (!showIstiadhah) {
-                                   setShowIstiadhah(true);
-                                }
-                              }}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                            />
-                          </label>
-                        </div>
-
-                        {/* 3. Bismillah Color Picker Circle (البسملة) */}
-                        <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${showOpeningHeader ? tTheme.toggleActive : tTheme.toggleInactive}`}>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[11px] sm:text-xs font-bold truncate ml-1">البسملة</span>
-                            <span className="text-[9px] opacity-70 font-normal">لون خط البسملة</span>
-                          </div>
-                          <label
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                            title="اختر لون البسملة"
-                          >
-                            <input
-                              type="color"
-                              value={openingHeaderColor || textColor}
-                              onChange={(e) => {
-                                const newColor = e.target.value;
-                                setOpeningHeaderColor(newColor);
-                                if (!showOpeningHeader) {
-                                  setShowOpeningHeader(true);
-                                }
-                              }}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                            />
-                          </label>
-                        </div>
-
-                        {/* 4. Watermark "مصحف التبيان" Color Picker Circle */}
-                        <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${showWatermark ? tTheme.toggleActive : tTheme.toggleInactive}`}>
-                          <span className="text-[11px] sm:text-xs font-bold truncate ml-1">مصحف التبيان</span>
-                          <label
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center cursor-pointer shadow-sm relative overflow-hidden transition-transform hover:scale-110 shrink-0 bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-400"
-                            title="اختر لون عبارة مصحف التبيان"
-                          >
-                            <input
-                              type="color"
-                              value={logoColor || textColor}
-                              onChange={(e) => {
-                                setLogoColor(e.target.value);
-                                if (!showWatermark) {
-                                  setShowWatermark(true);
-                                }
-                              }}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Verse Metadata, Frames & Watermark Toggles */}
-                    <div className={`space-y-1.5 pt-1.5 border-t ${tTheme.innerBox.split(" ")[1] || "border-slate-800"}`}>
-                      <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>إظهار / إخفاء العناصر والإطارات:</span>
-                      <div className="grid grid-cols-5 gap-1">
-                        {/* 1. إطار الآية */}
-                        <button
-                          id="toggle-ayah-frame-btn"
-                          onClick={() => {
-                            const next = !showAyahFrame;
-                            setShowAyahFrame(next);
-                            if (next && selectedFrameStyle === "none") {
-                              setSelectedFrameStyle("rectangle");
-                            }
-                          }}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
-                            showAyahFrame && selectedFrameStyle !== "none"
-                              ? tTheme.toggleActive
-                              : tTheme.toggleInactive
-                          }`}
-                          title="إظهار أو إخفاء إطار الآية"
-                        >
-                          <span className="truncate text-[10px]">إطار الآية</span>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${showAyahFrame && selectedFrameStyle !== "none" ? tTheme.toggleDotActive : tTheme.toggleDotInactive}`} />
-                        </button>
-
-                        {/* 2. البسملة (أيقونة مستقلة) */}
-                        <button
-                          id="toggle-bismillah-btn"
-                          onClick={() => {
-                            const isCurrentlyBismillah = showOpeningHeader && (openingHeaderMode === "bismillah" || openingHeaderMode === "auto");
-                            if (isCurrentlyBismillah) {
-                              setShowOpeningHeader(false);
-                            } else {
-                              setShowOpeningHeader(true);
-                              setOpeningHeaderMode("bismillah");
-                            }
-                          }}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
-                            showOpeningHeader && (openingHeaderMode === "bismillah" || openingHeaderMode === "auto")
-                              ? tTheme.toggleActive
-                              : tTheme.toggleInactive
-                          }`}
-                          title="إظهار أو إخفاء البسملة الشريفة (بسم الله الرحمن الرحيم)"
-                        >
-                          <span className="truncate text-[10px]">البسملة</span>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            showOpeningHeader && (openingHeaderMode === "bismillah" || openingHeaderMode === "auto")
-                              ? tTheme.toggleDotActive
-                              : tTheme.toggleDotInactive
-                          }`} />
-                        </button>
-
-                        {/* 3. الاستعاذة (أيقونة مستقلة) */}
-                        <button
-                          id="toggle-istiadhah-btn"
-                          onClick={() => {
-                            const isCurrentlyIstiadhah = showIstiadhah || (showOpeningHeader && openingHeaderMode === "istiadhah");
-                            if (isCurrentlyIstiadhah) {
-                              setShowIstiadhah(false);
-                              if (openingHeaderMode === "istiadhah") {
-                                setShowOpeningHeader(false);
-                              }
-                            } else {
-                              setShowIstiadhah(true);
-                              setShowOpeningHeader(true);
-                              setOpeningHeaderMode("istiadhah");
-                            }
-                          }}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
-                            showIstiadhah || (showOpeningHeader && openingHeaderMode === "istiadhah")
-                              ? tTheme.toggleActive
-                              : tTheme.toggleInactive
-                          }`}
-                          title="إظهار أو إخفاء الاستعاذة (أعوذ بالله من الشيطان الرجيم)"
-                        >
-                          <span className="truncate text-[10px]">الاستعاذة</span>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            showIstiadhah || (showOpeningHeader && openingHeaderMode === "istiadhah")
-                              ? tTheme.toggleDotActive
-                              : tTheme.toggleDotInactive
-                          }`} />
-                        </button>
-
-                        {/* 4. بيانات السورة */}
-                        <button
-                          id="toggle-surah-info-btn"
-                          onClick={() => setShowSurahInfo(!showSurahInfo)}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
-                            showSurahInfo
-                              ? tTheme.toggleActive
-                              : tTheme.toggleInactive
-                          }`}
-                          title="إظهار أو إخفاء شارة وبيانات السورة"
-                        >
-                          <span className="truncate text-[10px]">بيانات السورة</span>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${showSurahInfo ? tTheme.toggleDotActive : tTheme.toggleDotInactive}`} />
-                        </button>
-
-                        {/* 5. مصحف التبيان */}
-                        <button
-                          id="toggle-watermark-btn"
-                          onClick={() => setShowWatermark(!showWatermark)}
-                          className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap min-w-0 ${
-                            showWatermark
-                              ? tTheme.toggleActive
-                              : tTheme.toggleInactive
-                          }`}
-                          title="إظهار أو إخفاء شعار مصحف التبيان"
-                        >
-                          <span className="truncate text-[10px]">مصحف التبيان</span>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${showWatermark ? tTheme.toggleDotActive : tTheme.toggleDotInactive}`} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Direct Drag-and-drop Status & Controls (السحب المباشر) */}
-                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-2 ${tTheme.innerBox}`}>
-                      <div className="flex items-center gap-2">
-                        <Move size={14} className={tTheme.accentText} />
-                        <div>
-                          <span className={`text-xs font-bold block ${tTheme.innerBoxHeader}`}>
-                            تحريك العناصر بالسحب المباشر:
-                          </span>
-                          <span className={`text-[10px] block ${tTheme.subText}`}>
-                            اسحب أي عنصر (الآية، السورة، الشعار) لأعلى وأسفل أو يميناً ويساراً مباشرة على البطاقة
-                          </span>
-                        </div>
-                      </div>
-
-                      {(textOffsetX !== 0 || textOffsetY !== 0 || surahHeaderOffsetX !== 0 || surahHeaderOffsetY !== 0 || surahInfoOffsetX !== 0 || surahInfoOffsetY !== 0 || watermarkOffsetX !== 0 || watermarkOffsetY !== 0) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTextOffsetX(0);
-                            setTextOffsetY(0);
-                            setSurahHeaderOffsetX(0);
-                            setSurahHeaderOffsetY(0);
-                            setSurahInfoOffsetX(0);
-                            setSurahInfoOffsetY(0);
-                            setWatermarkOffsetX(0);
-                            setWatermarkOffsetY(0);
-                          }}
-                          title="إعادة ضبط مواضع كافة العناصر إلى المنتصف"
-                          className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${tTheme.quickBtn}`}
-                        >
-                          <RotateCcw size={11} />
-                          <span>توسيط الكل</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Status Notice */}
@@ -6726,23 +4926,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   </button>
 
                   <button
-                    id="share-ayah-save-default-footer-btn"
-                    type="button"
-                    onClick={handleSaveAsDefault}
-                    title="تعيين هذا التنسيق الحالي كافتراضي لجميع مشاركات الآيات القادمة"
-                    aria-label="تعيين هذا التنسيق الحالي كافتراضي لجميع مشاركات الآيات القادمة"
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border active:scale-95 shrink-0 ${
-                      isDefaultSaved ? "bg-emerald-500/20 border-emerald-500 text-emerald-400" : tTheme.secondaryBtn
-                    }`}
-                  >
-                    {isDefaultSaved ? (
-                      <Check size={16} className="sm:w-[18px] sm:h-[18px] shrink-0 text-emerald-400 stroke-[2.5px]" />
-                    ) : (
-                      <Bookmark size={15} className="sm:w-4 sm:h-4 shrink-0" />
-                    )}
-                  </button>
-
-                  <button
                     onClick={handleCopyShareText}
                     title="نسخ نص الآية الكريمة"
                     aria-label="نسخ نص الآية الكريمة"
@@ -6753,17 +4936,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                  {/* Android / Mobile Instant Save & View Card button */}
-                  <button
-                    type="button"
-                    onClick={handleOpenPreviewModal}
-                    title="معاينة وحفظ بطاقة الآية"
-                    aria-label="معاينة وحفظ بطاقة الآية"
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer border active:scale-95 shrink-0 ${tTheme.secondaryBtn}`}
-                  >
-                    <Eye size={16} className="sm:w-[18px] sm:h-[18px] shrink-0 text-amber-400" />
-                  </button>
-
                   <button
                     type="button"
                     onClick={handleShareImage}

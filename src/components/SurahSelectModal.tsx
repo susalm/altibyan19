@@ -191,7 +191,7 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
                       {toArabicNumerals(surah.number)}
                     </span>
                     <span
-                      className="text-[10px] font-normal leading-relaxed select-none py-1"
+                      className="text-sm font-normal leading-relaxed select-none py-0.5 -translate-y-0.5 inline-block"
                       style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}
                     >
                       {getSurahHeaderGlyph(surah.number, surah.name) || surah.name}

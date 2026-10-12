@@ -133,14 +133,14 @@ export default function SettingsScreen({
   const mushafProviderOptions = useMemo(() => {
     return [
       {
+        value: "qcf4",
+        label: isRtl ? "مصحف المدينة النبوية (النسخة الحديثة - الإصدار الرابع 1441هـ)" : "Medina Mushaf (Modern 4th Edition - 1441 AH)",
+        sublabel: isRtl ? "مجمع الملك فهد - النسخة الحديثة عالية الدقة بالخط العثماني والرموز والصفحات الكاملة" : "King Fahd Complex - Authentic modern 4th edition vector layout"
+      },
+      {
         value: "quran-svg",
         label: isRtl ? "رواية حفص - مصحف المدينة التفاعلي (رسم عثماني SVG)" : "Hafs Narration - Interactive Medina Mushaf (SVG)",
         sublabel: downloadedIds.includes("mushaf-core") ? (isRtl ? "محمل أوفلاين" : "Offline Loaded") : (isRtl ? "يتطلب اتصال بالشبكة" : "Requires network connection")
-      },
-      {
-        value: "qcf4",
-        label: isRtl ? "خط مصحف المدينة الإصدار الرابع (QCF4 - عثمان طه 1441هـ)" : "Medina Mushaf 4th Edition Font (QCF4 - Uthman Taha)",
-        sublabel: isRtl ? "مستودع (MohamadHajjRabee/quran-qcf4) - عرض دقيق بالرموز والخط العثماني الإصدار الرابع" : "Repository (MohamadHajjRabee/quran-qcf4) - Precise vector font & line layout"
       }
     ];
   }, [isRtl, downloadedIds]);

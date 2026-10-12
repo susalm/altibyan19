@@ -54,7 +54,7 @@
   src: url('/fonts/QCF4_QBSML.woff2') format('woff2'),
        url('/api/qcf4/font/QCF4_QBSML') format('woff2'),
        url('https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2/QCF4_QBSML.woff2') format('woff2');
-  font-display: swap;
+  font-display: block;
 }
 
 @font-face {
@@ -439,19 +439,25 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
 }
 
 .surah_frame_outer_border {
-  stroke: currentColor !important;
+  stroke: var(--surah-frame-stroke, currentColor) !important;
+  stroke-width: 1.5px !important;
+  stroke-opacity: 1 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
   fill: none !important;
-  stroke-width: 1.05;
+  fill-opacity: 0 !important;
 }
 
 .surah_frame_cartouche_bg {
-  fill: none !important;
+  fill: var(--surah-frame-bg, transparent) !important;
+  fill-opacity: 1 !important;
   stroke: none !important;
 }
 
 .surah_frame_inner_contour {
-  fill: var(--surah-inner-fill, rgba(0, 0, 0, 0.04)) !important;
-  stroke: currentColor !important;
+  fill: none !important;
+  fill-opacity: 0 !important;
+  stroke: var(--surah-frame-stroke, currentColor) !important;
 }
 
 .surah_frame_wing_bg {
@@ -545,21 +551,29 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
 }
 
 .surah_header_text {
-  font-family: QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif !important;
+  font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
   text-align: center !important;
   line-height: 1 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
   user-select: none !important;
+  font-weight: normal !important;
+  text-shadow: none !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  box-shadow: none !important;
+  -webkit-text-stroke: 0 !important;
+  stroke: none !important;
+  stroke-width: 0 !important;
 }
 
-#mushaf-svg-wrapper svg:not(.surah_header_frame_svg) .surah_header_text,
-#mushaf-svg-wrapper svg:not(.surah_header_frame_svg) .surah_header_frame text,
-.mushaf-page-list-item svg:not(.surah_header_frame_svg) .surah_header_text,
-.mushaf-page-list-item svg:not(.surah_header_frame_svg) .surah_header_frame text {
-  display: none !important;
-  visibility: hidden !important;
+#mushaf-svg-wrapper svg .surah_header_text,
+#mushaf-svg-wrapper svg .surah_header_frame text,
+.mushaf-page-list-item svg .surah_header_text,
+.mushaf-page-list-item svg .surah_header_frame text,
+.surah_header_frame_svg text,
+.surah_header_frame_svg .surah_header_text {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Opening pages (Al-Fatihah and Al-Baqarah): Raise the SVG page upwards to hide the duplicate surah title and elevate by 2 lines */
@@ -567,33 +581,23 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
 .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner {
   overflow: hidden !important;
   position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
 .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
-  margin-top: -34% !important;
-  margin-bottom: -12% !important;
-  transform: translateY(calc(-2% - 84px)) !important;
-  transition: transform 0.3s ease, margin-top 0.3s ease !important;
+  margin: 0 auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
 }
 
-@media (min-width: 640px) {
-  #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
-  .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
-    transform: translateY(calc(-2% - 104px)) !important;
-  }
-}
-
-@media (orientation: landscape) {
-  #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
-  .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
-    margin-top: -34% !important;
-    margin-bottom: -12% !important;
-    transform: translateY(calc(-2% - 84px)) !important;
-  }
-}
-
-.surah_header_frame {
+div.surah_header_frame {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -602,7 +606,17 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
   z-index: 25 !important;
 }
 
-.surah_header_frame_svg {
+.mushaf_injected_surah_frame_group,
+.mushaf_injected_surah_frame_vectors,
+.mushaf_injected_surah_frame_title {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+div > .surah_header_frame_svg,
+:not(svg) > .surah_header_frame_svg {
   width: 100% !important;
   height: auto !important;
   margin-top: 0px !important;
@@ -614,46 +628,87 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
   overflow: visible !important;
 }
 
-.surah_header_frame .surah_header_text {
+svg.surah_header_frame_svg:not(:root),
+svg svg.surah_header_frame_svg {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  width: revert !important;
+  height: revert !important;
+}
+
+svg.mushaf_injected_surah_frame,
+.mushaf_injected_surah_frame {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.surah_header_frame span.surah_header_text {
   display: inline-flex !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
 
 @media (orientation: landscape) {
-  .surah_header_frame .surah_header_text {
+  .surah_header_frame span.surah_header_text {
     font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
   }
 }
 
-[data-fullscreen="true"] .surah_header_frame .surah_header_text {
+[data-fullscreen="true"] .surah_header_frame span.surah_header_text {
   font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
+}
+
+.surah_header_text,
+.surah_header_frame text {
+  fill: #000000 !important;
+  color: #000000 !important;
 }
 
 .theme-navy-velvet .surah_header_text,
 .theme-navy-velvet .surah_header_frame text,
 [data-theme="navy-velvet"] .surah_header_text,
-[data-theme="navy-velvet"] .surah_header_frame text {
-  fill: #1b3168;
+[data-theme="navy-velvet"] .surah_header_frame text,
+.theme-gold-velvet .surah_header_text,
+.theme-gold-velvet .surah_header_frame text,
+[data-theme="gold-velvet"] .surah_header_text,
+[data-theme="gold-velvet"] .surah_header_frame text,
+.theme-emerald-velvet .surah_header_text,
+.theme-emerald-velvet .surah_header_frame text,
+[data-theme="emerald-velvet"] .surah_header_text,
+[data-theme="emerald-velvet"] .surah_header_frame text {
+  fill: #000000 !important;
+  color: #000000 !important;
 }
 
+/* Night Mode text colors suited for each theme */
 .dark .surah_header_text,
-.dark .surah_header_frame text {
-  fill: #a7f3d0;
-}
-
-.dark.theme-gold-velvet .surah_header_text,
-.dark.theme-gold-velvet .surah_header_frame text,
-.dark[data-theme="gold-velvet"] .surah_header_text,
-.dark[data-theme="gold-velvet"] .surah_header_frame text {
-  fill: #fef08a;
+.dark .surah_header_frame text,
+.dark.theme-emerald-velvet .surah_header_text,
+.dark.theme-emerald-velvet .surah_header_frame text,
+.dark[data-theme="emerald-velvet"] .surah_header_text,
+.dark[data-theme="emerald-velvet"] .surah_header_frame text {
+  fill: #a7f3d0 !important;
+  color: #a7f3d0 !important;
 }
 
 .dark.theme-navy-velvet .surah_header_text,
 .dark.theme-navy-velvet .surah_header_frame text,
 .dark[data-theme="navy-velvet"] .surah_header_text,
 .dark[data-theme="navy-velvet"] .surah_header_frame text {
-  fill: #bfdbfe;
+  fill: #93c5fd !important;
+  color: #93c5fd !important;
+}
+
+.dark.theme-gold-velvet .surah_header_text,
+.dark.theme-gold-velvet .surah_header_frame text,
+.dark[data-theme="gold-velvet"] .surah_header_text,
+.dark[data-theme="gold-velvet"] .surah_header_frame text {
+  fill: #fde68a !important;
+  color: #fde68a !important;
 }
 
 /* Global Safe Area & Dynamic Viewport Height Normalization */

@@ -4,9 +4,9 @@
  * for instant offline loading and seamless background pre-caching.
  */
 
-const DB_NAME = "quran_mushaf_db_v12";
+const DB_NAME = "quran_mushaf_db_v14";
 const STORE_NAME = "pages_svg";
-const DB_VERSION = 12;
+const DB_VERSION = 14;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -64,7 +64,14 @@ export async function getCachedPageSvg(pageNum: number, provider: string = "qura
           const tx = db.transaction(STORE_NAME, "readonly");
           const store = tx.objectStore(STORE_NAME);
           const req = store.get(key);
-          req.onsuccess = () => resolve((req.result as string) || null);
+          req.onsuccess = () => {
+            const val = (req.result as string) || null;
+            if (val && (val.includes("files.quran.app") || val.includes("<image href="))) {
+              resolve(null);
+            } else {
+              resolve(val);
+            }
+          };
           req.onerror = () => resolve(null);
         } catch (txErr) {
           dbPromise = null;

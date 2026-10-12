@@ -1281,10 +1281,8 @@ const AyahWithTafsirCard = ({
   // Clean verse text if Bismillah is pre-anchored
   let displayedText = ayah.text;
   if (surahNumber !== 1 && ayah.numberInSurah === 1) {
-    const bismillahTemplate = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
-    if (displayedText.startsWith(bismillahTemplate)) {
-      displayedText = displayedText.replace(bismillahTemplate, "").trim();
-    }
+    const bismillahRegex = /^(?:بِسْمِ\s*[\u0671\u0627]للَّ?هِ\s*[\u0671\u0627]لرَّحْمَ[ـٰ\u0670]?نِ\s*[\u0671\u0627]لرَّحِيمِ|بِسْمِ\s*[\u0671\u0627]للهِ\s*[\u0671\u0627]لرحمن\s*[\u0671\u0627]لرحيم|بِسْمِ\s*اللهِ\s*الرَّحْمٰنِ\s*الرَّحِيمِ|بسم\s*الله\s*الرحمن\s*الرحيم)[\s\r\n]*/u;
+    displayedText = displayedText.replace(bismillahRegex, "").trim();
   }
 
   // Theme-specific font color & card styles
@@ -2251,6 +2249,7 @@ export default function ReadingScreen({
   onOpenShareAyah,
 }: ReadingScreenProps) {
   const effectivePageMode = settings.pageMode || "continuous";
+  const isQcf4 = settings.pageMode === "qcf4" || settings.mushafProvider === "qcf4" || settings.quranFont === "qcf4";
   const currentSurahMeta = surahsList.find((s) => s.number === surahNumber);
   const tafsirDragControls = useDragControls();
   const reciterDragControls = useDragControls();
@@ -3338,10 +3337,8 @@ export default function ReadingScreen({
     const { ayah, surahName, surahNumber: sNum } = floatingAyahMenu;
     let cleanText = ayah.text || "";
     if (sNum !== 1 && ayah.numberInSurah === 1) {
-      const bismillahTemplate = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
-      if (cleanText.startsWith(bismillahTemplate)) {
-        cleanText = cleanText.replace(bismillahTemplate, "").trim();
-      }
+      const bismillahRegex = /^(?:بِسْمِ\s*[\u0671\u0627]للَّ?هِ\s*[\u0671\u0627]لرَّحْمَ[ـٰ\u0670]?نِ\s*[\u0671\u0627]لرَّحِيمِ|بِسْمِ\s*[\u0671\u0627]للهِ\s*[\u0671\u0627]لرحمن\s*[\u0671\u0627]لرحيم|بِسْمِ\s*اللهِ\s*الرَّحْمٰنِ\s*الرَّحِيمِ|بسم\s*الله\s*الرحمن\s*الرحيم)[\s\r\n]*/u;
+      cleanText = cleanText.replace(bismillahRegex, "").trim();
     }
     const fullText = `﴿ ${cleanText} ﴾ [سورة ${surahName} : ${ayah.numberInSurah}]`;
 
@@ -4288,6 +4285,11 @@ export default function ReadingScreen({
       return;
     }
     const target = e.target as SVGElement;
+    const surahHeaderTarget = (target as any)?.closest?.(".surah_header_frame, [id*='surah_header'], [class*='surah_header'], [id*='mushaf_surah']");
+    if (surahHeaderTarget) {
+      handleOpenIndexDrawer("surahs");
+      return;
+    }
     const targetAyahObj = extractAyahFromSvgTarget(target);
     if (targetAyahObj) {
       handleAyahClick(targetAyahObj, e);
@@ -8995,7 +8997,11 @@ export default function ReadingScreen({
                           visibility: hidden !important;
                         }
 
-                        #mushaf-svg-wrapper:not(.mushaf-opening-page) svg, .mushaf-page-list-item:not(.mushaf-opening-page) svg {
+                        svg.mushaf_page_svg,
+                        #mushaf-svg-wrapper:not(.mushaf-opening-page) svg.mushaf_page_svg,
+                        .mushaf-page-list-item:not(.mushaf-opening-page) svg.mushaf_page_svg,
+                        #mushaf-svg-wrapper:not(.mushaf-opening-page) #mushaf-svg-inner-container svg:not(.mushaf_injected_surah_frame):not(.surah_header_frame_svg),
+                        .mushaf-page-list-item:not(.mushaf-opening-page) .mushaf-page-list-inner svg:not(.mushaf_injected_surah_frame):not(.surah_header_frame_svg) {
                           width: 100% !important;
                           height: 100% !important;
                           overflow: visible !important;
@@ -9010,28 +9016,28 @@ export default function ReadingScreen({
                           position: relative !important;
                         }
 
-                        #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
-                        .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
+                        #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg):not(.mushaf_injected_surah_frame),
+                        .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg):not(.mushaf_injected_surah_frame) {
                           width: 100% !important;
                           height: 100% !important;
                           overflow: visible !important;
                           object-fit: contain !important;
                           user-select: none;
-                          margin-top: -34% !important;
-                          margin-bottom: -12% !important;
-                          transform: translateY(calc(-2% - 84px)) !important;
+                          margin-top: -28% !important;
+                          margin-bottom: -10% !important;
+                          transform: translateY(calc(-2% - 62px)) !important;
                           transition: transform 0.3s ease, margin-top 0.3s ease !important;
                           filter: ${isDark && theme !== "navy-velvet" && theme !== "gold-velvet" && theme !== "emerald-velvet" ? "invert(0.93) hue-rotate(180deg) brightness(1.2) contrast(1.05)" : "none"} !important;
                         }
 
                         @media (min-width: 640px) {
-                          #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
-                          .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
-                            transform: translateY(calc(-2% - 104px)) !important;
+                          #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg):not(.mushaf_injected_surah_frame),
+                          .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg):not(.mushaf_injected_surah_frame) {
+                            transform: translateY(calc(-2% - 78px)) !important;
                           }
                         }
 
-                        .surah_header_frame {
+                        div.surah_header_frame {
                           display: block !important;
                           visibility: visible !important;
                           opacity: 1 !important;
@@ -9040,7 +9046,18 @@ export default function ReadingScreen({
                           z-index: 25 !important;
                         }
 
-                        .surah_header_frame_svg {
+                        .mushaf_injected_surah_frame,
+                        .mushaf_injected_surah_frame_group,
+                        .mushaf_injected_surah_frame_vectors,
+                        .mushaf_injected_surah_frame_title {
+                          display: inline !important;
+                          visibility: visible !important;
+                          opacity: 1 !important;
+                          overflow: hidden !important;
+                        }
+
+                        div > .surah_header_frame_svg,
+                        :not(svg) > .surah_header_frame_svg {
                           width: 100% !important;
                           height: auto !important;
                           margin-top: 0px !important;
@@ -9050,6 +9067,15 @@ export default function ReadingScreen({
                           visibility: visible !important;
                           opacity: 1 !important;
                           overflow: visible !important;
+                        }
+
+                        #mushaf-svg-wrapper svg.mushaf_injected_surah_frame,
+                        .mushaf-page-list-item svg.mushaf_injected_surah_frame,
+                        svg.mushaf_injected_surah_frame {
+                          cursor: pointer !important;
+                          pointer-events: auto !important;
+                          visibility: visible !important;
+                          opacity: 1 !important;
                         }
 
                         /* Ensure Surah header frame vector paths are clearly styled and visible in foreground */
@@ -9098,48 +9124,64 @@ export default function ReadingScreen({
                           opacity: 1 !important;
                           overflow: visible !important;
                           color: ${
-                            theme === "navy-velvet"
-                              ? (isDark ? "#60a5fa" : "#1b3168")
-                              : theme === "gold-velvet"
-                                ? (isDark ? "#fcd34d" : "#967228")
-                                : theme === "emerald-velvet"
-                                  ? (isDark ? "#34d399" : "#044f31")
-                                  : isDark
-                                    ? "#34d399"
-                                    : "#044f31"
+                            isDark
+                              ? "#FFFFFF"
+                              : "#000000"
                           } !important;
+                          --surah-frame-bg: ${
+                            isDark
+                              ? theme === "navy-velvet"
+                                ? "#060c18"
+                                : theme === "gold-velvet"
+                                  ? "#141210"
+                                  : "#011c14"
+                              : theme === "navy-velvet"
+                                ? "#FAFCFF"
+                                : theme === "gold-velvet"
+                                  ? "#FFFEFA"
+                                  : "#FAFDFB"
+                          };
+                          --surah-text-color: ${
+                            isDark
+                              ? "#FFFFFF"
+                              : "#000000"
+                          };
                           --surah-frame-stroke: ${
-                            theme === "navy-velvet"
-                              ? (isDark ? "#60a5fa" : "#1b3168")
-                              : theme === "gold-velvet"
-                                ? (isDark ? "#fcd34d" : "#967228")
-                                : theme === "emerald-velvet"
-                                  ? (isDark ? "#34d399" : "#044f31")
-                                  : isDark
-                                    ? "#34d399"
-                                    : "#044f31"
+                            isDark
+                              ? theme === "navy-velvet"
+                                ? "#60a5fa"
+                                : theme === "gold-velvet"
+                                  ? "#fcd34d"
+                                  : "#34d399"
+                              : theme === "navy-velvet"
+                                ? "#2563eb"
+                                : theme === "gold-velvet"
+                                  ? "#c5a85c"
+                                  : "#059669"
                           };
                           --surah-inner-stroke: ${
-                            theme === "navy-velvet"
-                              ? (isDark ? "#60a5fa" : "#1b3168")
-                              : theme === "gold-velvet"
-                                ? (isDark ? "#fcd34d" : "#967228")
-                                : theme === "emerald-velvet"
-                                  ? (isDark ? "#34d399" : "#044f31")
-                                  : isDark
-                                    ? "#34d399"
-                                    : "#044f31"
+                            isDark
+                              ? theme === "navy-velvet"
+                                ? "#60a5fa"
+                                : theme === "gold-velvet"
+                                  ? "#fcd34d"
+                                  : "#34d399"
+                              : theme === "navy-velvet"
+                                ? "#2563eb"
+                                : theme === "gold-velvet"
+                                  ? "#c5a85c"
+                                  : "#059669"
                           };
                           --surah-inner-fill: ${
                             theme === "navy-velvet"
-                              ? (isDark ? "rgba(96, 165, 250, 0.1)" : "rgba(27, 49, 104, 0.05)")
+                              ? (isDark ? "rgba(96, 165, 250, 0.1)" : "rgba(37, 99, 235, 0.05)")
                               : theme === "gold-velvet"
-                                ? (isDark ? "rgba(252, 211, 77, 0.1)" : "rgba(150, 114, 40, 0.05)")
+                                ? (isDark ? "rgba(252, 211, 77, 0.1)" : "rgba(197, 168, 92, 0.05)")
                                 : theme === "emerald-velvet"
-                                  ? (isDark ? "rgba(52, 211, 153, 0.1)" : "rgba(4, 79, 49, 0.05)")
+                                  ? (isDark ? "rgba(52, 211, 153, 0.1)" : "rgba(5, 150, 105, 0.05)")
                                   : isDark
                                     ? "rgba(52, 211, 153, 0.1)"
-                                    : "rgba(4, 79, 49, 0.04)"
+                                    : "rgba(5, 150, 105, 0.04)"
                           };
                           --surah-accent-solid: ${
                             theme === "navy-velvet"
@@ -9211,91 +9253,164 @@ export default function ReadingScreen({
 
                         .surah_header_frame .surah_frame_outer_border,
                         #mushaf-svg-wrapper svg .surah_header_frame .surah_frame_outer_border,
-                        .mushaf-page-list-item svg .surah_header_frame .surah_frame_outer_border {
+                        .mushaf-page-list-item svg .surah_header_frame .surah_frame_outer_border,
+                        #mushaf-svg-wrapper svg [id*="path3763"],
+                        #mushaf-svg-wrapper svg [id*="path4079"],
+                        .mushaf-page-list-item svg [id*="path3763"],
+                        .mushaf-page-list-item svg [id*="path4079"],
+                        .surah_header_frame [id*="path3763"],
+                        .surah_header_frame [id*="path4079"],
+                        #mushaf-svg-wrapper svg .surah_frame_outer_border,
+                        .mushaf-page-list-item svg .surah_frame_outer_border {
                           fill: none !important;
-                          stroke: currentColor !important;
+                          fill-opacity: 0 !important;
+                          stroke: ${
+                            isDark
+                              ? theme === "navy-velvet"
+                                ? "#60a5fa"
+                                : theme === "gold-velvet"
+                                  ? "#fcd34d"
+                                  : "#34d399"
+                              : theme === "navy-velvet"
+                                ? "#2563eb"
+                                : theme === "gold-velvet"
+                                  ? "#c5a85c"
+                                  : "#059669"
+                          } !important;
+                          stroke-width: 1.5px !important;
+                          stroke-opacity: 1 !important;
+                          stroke-linecap: round !important;
+                          stroke-linejoin: round !important;
                         }
 
                         .surah_header_frame .surah_frame_cartouche_bg,
                         #mushaf-svg-wrapper svg .surah_header_frame .surah_frame_cartouche_bg,
-                        .mushaf-page-list-item svg .surah_header_frame .surah_frame_cartouche_bg {
-                          fill: none !important;
+                        .mushaf-page-list-item svg .surah_header_frame .surah_frame_cartouche_bg,
+                        #mushaf-svg-wrapper svg [class*="cartouche"],
+                        #mushaf-svg-wrapper svg [id*="cartouche"],
+                        .mushaf-page-list-item svg [class*="cartouche"],
+                        .mushaf-page-list-item svg [id*="cartouche"],
+                        #mushaf-svg-wrapper svg [id*="path4395"],
+                        .mushaf-page-list-item svg [id*="path4395"],
+                        .surah_header_frame [id*="path4395"] {
+                          fill: ${
+                            isDark
+                              ? theme === "navy-velvet"
+                                ? "#060c18"
+                                : theme === "gold-velvet"
+                                  ? "#141210"
+                                  : "#011c14"
+                              : theme === "navy-velvet"
+                                ? "#FAFCFF"
+                                : theme === "gold-velvet"
+                                  ? "#FFFEFA"
+                                  : "#FAFDFB"
+                          } !important;
+                          fill-opacity: 1 !important;
                           stroke: none !important;
                         }
 
-                        .surah_header_frame .surah_frame_inner_contour,
+                        .surah_frame_inner_contour,
                         #mushaf-svg-wrapper svg .surah_header_frame .surah_frame_inner_contour,
                         .mushaf-page-list-item svg .surah_header_frame .surah_frame_inner_contour {
-                          fill: var(--surah-inner-fill, rgba(0,0,0,0.04)) !important;
-                          stroke: currentColor !important;
+                          fill: none !important;
+                          fill-opacity: 0 !important;
+                          stroke: ${
+                            isDark
+                              ? theme === "navy-velvet"
+                                ? "#60a5fa"
+                                : theme === "gold-velvet"
+                                  ? "#fcd34d"
+                                  : "#34d399"
+                              : theme === "navy-velvet"
+                                ? "#2563eb"
+                                : theme === "gold-velvet"
+                                  ? "#c5a85c"
+                                  : "#059669"
+                          } !important;
                         }
 
-                        /* Prevent Surah header background/border paths from turning into solid black blocks */
-                        #mushaf-svg-wrapper svg [id*="surah"] path[class*="bg"],
-                        #mushaf-svg-wrapper svg [id*="surah"] path[id*="bg"],
-                        #mushaf-svg-wrapper svg [id*="frame"] path[class*="bg"],
-                        #mushaf-svg-wrapper svg [id*="frame"] path[id*="bg"],
-                        #mushaf-svg-wrapper svg [class*="frame"] path[class*="bg"],
-                        .mushaf-page-list-item svg [id*="surah"] path[class*="bg"],
-                        .mushaf-page-list-item svg [id*="surah"] path[id*="bg"],
-                        .mushaf-page-list-item svg [id*="frame"] path[class*="bg"],
-                        .mushaf-page-list-item svg [id*="frame"] path[id*="bg"] {
+                        /* Prevent generic SVG background/border paths from turning into solid black blocks while preserving authentic surah header cartouche */
+                        #mushaf-svg-wrapper svg [id*="surah"]:not(.surah_header_frame) path[class*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border),
+                        #mushaf-svg-wrapper svg [id*="surah"]:not(.surah_header_frame) path[id*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border),
+                        #mushaf-svg-wrapper svg [id*="frame"]:not(.surah_header_frame) path[class*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border),
+                        #mushaf-svg-wrapper svg [id*="frame"]:not(.surah_header_frame) path[id*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="surah"]:not(.surah_header_frame) path[class*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="surah"]:not(.surah_header_frame) path[id*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="frame"]:not(.surah_header_frame) path[class*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="frame"]:not(.surah_header_frame) path[id*="bg"]:not(.surah_frame_cartouche_bg):not(.surah_frame_outer_border) {
                           fill: none !important;
                         }
 
-                        #mushaf-svg-wrapper svg [id*="surah"] path[class*="border"],
-                        #mushaf-svg-wrapper svg [id*="surah"] path[id*="border"],
-                        #mushaf-svg-wrapper svg [id*="frame"] path[class*="border"],
-                        #mushaf-svg-wrapper svg [id*="frame"] path[id*="border"],
-                        .mushaf-page-list-item svg [id*="surah"] path[class*="border"],
-                        .mushaf-page-list-item svg [id*="surah"] path[id*="border"],
-                        .mushaf-page-list-item svg [id*="frame"] path[class*="border"],
-                        .mushaf-page-list-item svg [id*="frame"] path[id*="border"] {
+                        #mushaf-svg-wrapper svg [id*="surah"]:not(.surah_header_frame) path[class*="border"]:not(.surah_frame_outer_border),
+                        #mushaf-svg-wrapper svg [id*="surah"]:not(.surah_header_frame) path[id*="border"]:not(.surah_frame_outer_border),
+                        #mushaf-svg-wrapper svg [id*="frame"]:not(.surah_header_frame) path[class*="border"]:not(.surah_frame_outer_border),
+                        #mushaf-svg-wrapper svg [id*="frame"]:not(.surah_header_frame) path[id*="border"]:not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="surah"]:not(.surah_header_frame) path[class*="border"]:not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="surah"]:not(.surah_header_frame) path[id*="border"]:not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="frame"]:not(.surah_header_frame) path[class*="border"]:not(.surah_frame_outer_border),
+                        .mushaf-page-list-item svg [id*="frame"]:not(.surah_header_frame) path[id*="border"]:not(.surah_frame_outer_border) {
                           stroke: ${
-                            theme === "navy-velvet"
-                              ? (isDark ? "#60a5fa" : "#2563eb")
-                              : theme === "gold-velvet"
-                                ? (isDark ? "#fcd34d" : "#967228")
-                                : theme === "emerald-velvet"
-                                  ? (isDark ? "#34d399" : "#044f31")
-                                  : isDark
-                                    ? "#34d399"
-                                    : "#044f31"
+                            isDark
+                              ? theme === "navy-velvet"
+                                ? "#60a5fa"
+                                : theme === "gold-velvet"
+                                  ? "#fcd34d"
+                                  : "#34d399"
+                              : theme === "navy-velvet"
+                                ? "#2563eb"
+                                : theme === "gold-velvet"
+                                  ? "#c5a85c"
+                                  : "#059669"
                           } !important;
                           stroke-width: 1.5px !important;
                         }
 
                         #mushaf-svg-wrapper svg text:not(.ayahPolygon):not(.surah_header_frame text):not([class*="surah_title"]):not([id*="surah_title"]):not([class*="surah_header"]):not([id*="surah_header"]),
                         .mushaf-page-list-item svg text:not(.ayahPolygon):not(.surah_header_frame text):not([class*="surah_title"]):not([id*="surah_title"]):not([class*="surah_header"]):not([id*="surah_header"]) {
-                          fill: #000000 !important;
+                          fill: ${isDark ? "#FAF8F5" : "#000000"} !important;
                         }
 
-                        #mushaf-svg-wrapper svg:not(.surah_header_frame_svg) .surah_header_frame text,
-                        #mushaf-svg-wrapper svg:not(.surah_header_frame_svg) .surah_header_text,
+                        /* Ensure Surah title and header text inside the SVG are styled according to the active theme */
                         #mushaf-svg-wrapper svg [id*="surah_title"],
                         #mushaf-svg-wrapper svg [class*="surah_title"],
                         #mushaf-svg-wrapper svg [id*="surah_header"] text,
                         #mushaf-svg-wrapper svg [class*="surah_header"] text,
-                        .mushaf-page-list-item svg:not(.surah_header_frame_svg) .surah_header_frame text,
-                        .mushaf-page-list-item svg:not(.surah_header_frame_svg) .surah_header_text,
+                        #mushaf-svg-wrapper svg .surah_header_text,
                         .mushaf-page-list-item svg [id*="surah_title"],
                         .mushaf-page-list-item svg [class*="surah_title"],
                         .mushaf-page-list-item svg [id*="surah_header"] text,
-                        .mushaf-page-list-item svg [class*="surah_header"] text {
-                          display: none !important;
-                          visibility: hidden !important;
-                          opacity: 0 !important;
-                        }
-
+                        .mushaf-page-list-item svg [class*="surah_header"] text,
+                        .mushaf-page-list-item svg .surah_header_text,
                         .surah_header_frame_svg text,
                         .surah_header_frame_svg .surah_header_text {
                           display: inline !important;
                           visibility: visible !important;
                           opacity: 1 !important;
+                          font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
+                          font-size: 15.5px !important;
+                          font-weight: normal !important;
+                          text-anchor: middle !important;
+                          dominant-baseline: central !important;
+                          stroke: none !important;
+                          stroke-width: 0 !important;
+                          filter: none !important;
+                          -webkit-filter: none !important;
+                          text-shadow: none !important;
+                          fill: ${
+                            isDark
+                              ? "#FFFFFF"
+                              : "#000000"
+                          } !important;
+                          color: ${
+                            isDark
+                              ? "#FFFFFF"
+                              : "#000000"
+                          } !important;
                         }
 
-                        #mushaf-svg-wrapper[data-fullscreen="true"] .surah_header_frame .surah_header_text,
-                        .mushaf-page-list-item[data-fullscreen="true"] .surah_header_frame .surah_header_text {
+                        #mushaf-svg-wrapper[data-fullscreen="true"] .surah_header_frame span.surah_header_text,
+                        .mushaf-page-list-item[data-fullscreen="true"] .surah_header_frame span.surah_header_text {
                           font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
                         }
 
@@ -9319,6 +9434,13 @@ export default function ReadingScreen({
                         .mushaf-page-list-item svg text, .mushaf-page-list-item svg path:not(.ayahPolygon) {
                           pointer-events: none !important;
                         }
+                        #mushaf-svg-wrapper svg .surah_header_frame,
+                        #mushaf-svg-wrapper svg .surah_header_frame *,
+                        .mushaf-page-list-item svg .surah_header_frame,
+                        .mushaf-page-list-item svg .surah_header_frame * {
+                          pointer-events: auto !important;
+                          cursor: pointer !important;
+                        }
                         ${activeSelector}
 
                         ${floatingAyahMenu ? `
@@ -9336,7 +9458,7 @@ export default function ReadingScreen({
                         ` : ''}
 
                         @media (orientation: landscape) {
-                          .surah_header_frame .surah_header_text {
+                          .surah_header_frame span.surah_header_text {
                             font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
                           }
                           #reading-screen-root {
@@ -9424,25 +9546,37 @@ export default function ReadingScreen({
                             justify-content: center !important;
                             align-items: center !important;
                           }
-                          #mushaf-svg-wrapper:not(.mushaf-opening-page) svg, .mushaf-page-list-item:not(.mushaf-opening-page) svg,
-                          #mushaf-svg-inner-container:not(.mushaf-opening-page) svg, .mushaf-page-list-inner:not(.mushaf-opening-page) svg {
+                          svg.mushaf_page_svg,
+                          #mushaf-svg-wrapper:not(.mushaf-opening-page) svg.mushaf_page_svg,
+                          .mushaf-page-list-item:not(.mushaf-opening-page) svg.mushaf_page_svg,
+                          #mushaf-svg-wrapper:not(.mushaf-opening-page) #mushaf-svg-inner-container svg:not(.mushaf_injected_surah_frame):not(.surah_header_frame_svg),
+                          .mushaf-page-list-item:not(.mushaf-opening-page) .mushaf-page-list-inner svg:not(.mushaf_injected_surah_frame):not(.surah_header_frame_svg) {
                             width: 100% !important;
                             height: 100% !important;
                             object-fit: fill !important;
+                          }
+                          #mushaf-svg-wrapper svg.surah_header_frame_svg,
+                          .mushaf-page-list-item svg.surah_header_frame_svg {
+                            width: revert !important;
+                            height: revert !important;
+                            max-width: none !important;
+                            max-height: none !important;
+                            object-fit: unset !important;
+                            overflow: visible !important;
                           }
                           #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
                           .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
                             width: 100% !important;
                             height: 100% !important;
                             object-fit: contain !important;
-                            margin-top: -34% !important;
-                            margin-bottom: -12% !important;
-                            transform: translateY(calc(-2% - 84px)) !important;
+                            margin-top: -28% !important;
+                            margin-bottom: -10% !important;
+                            transform: translateY(calc(-2% - 62px)) !important;
                           }
                           @media (min-width: 640px) {
                             #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
                             .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
-                              transform: translateY(calc(-2% - 104px)) !important;
+                              transform: translateY(calc(-2% - 78px)) !important;
                             }
                           }
                           #mushaf-svg-footer-frame {
@@ -9593,10 +9727,10 @@ export default function ReadingScreen({
                                   الصفحة {toArabicNumerals(pageNum)}
                                 </div>
 
-                                  {/* Surah Header Frame for Opening Pages (Surah Al-Fatihah & Surah Al-Baqarah) */}
-                                {(pageNum === 1 || pageNum === 2) && (
+                                {/* Surah Header Frame for Opening Pages (Surah Al-Fatihah & Surah Al-Baqarah) */}
+                                {!isQcf4 && (pageNum === 1 || pageNum === 2) && (
                                   <div 
-                                    className="w-full px-1.5 sm:px-2 pt-1 pb-0.5 shrink-0 relative z-20 transition-all duration-300"
+                                    className={`w-full px-1.5 sm:px-2 pt-1 ${pageNum === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20 transition-all duration-300`}
                                   >
                                     <SurahHeaderFrame
                                       surahNumber={pageNum === 1 ? 1 : 2}
@@ -9621,19 +9755,65 @@ export default function ReadingScreen({
                                   onMouseMove={handleSvgMouseMove}
                                   data-fullscreen={isFullScreenOrLandscape ? "true" : "false"}
                                   className={`mushaf-page-list-item relative w-full ${
-                                    pageNum === 1 || pageNum === 2
+                                    !isQcf4 && (pageNum === 1 || pageNum === 2)
                                       ? "mushaf-opening-page"
                                       : ""
                                   } ${settings.stretchMushaf || settings.autoScrollActive ? "aspect-[1/1.82]" : "aspect-[1/1.70]"} ${settings.autoScrollActive ? "rounded-none" : "rounded-2xl sm:rounded-3xl"} overflow-hidden flex items-center justify-center cursor-pointer select-none bg-transparent border-none shadow-none`}
                                 >
-                                  {content ? (
+                                  {isQcf4 ? (
+                                    <div className="mushaf-page-list-inner w-full h-full p-0 sm:p-0.5 flex items-center justify-center">
+                                      <Qcf4PageRenderer
+                                        pageNumber={pageNum}
+                                        activeAyahKey={
+                                          selectedAyah 
+                                            ? `${(selectedAyah as any).surah?.number || surahNumber}:${selectedAyah.numberInSurah}` 
+                                            : (playingIndex !== null && ayahs[playingIndex] ? `${(ayahs[playingIndex] as any).surah?.number || surahNumber}:${ayahs[playingIndex].numberInSurah}` : undefined)
+                                        }
+                                        onAyahClick={(aObj) => {
+                                          const matchingAyah = (pageAyahs.length > 0 ? pageAyahs : ayahs).find(
+                                            a => (a.surah?.number || surahNumber) === aObj.surah && a.numberInSurah === aObj.ayah
+                                          ) || ayahs.find(a => a.numberInSurah === aObj.ayah);
+                                          if (matchingAyah) {
+                                            if (matchingAyah.surah?.number && matchingAyah.surah.number !== surahNumber && onChangeSurah) {
+                                              onChangeSurah(matchingAyah.surah.number, matchingAyah.numberInSurah, pageNum);
+                                            }
+                                            handleAyahClick(matchingAyah);
+                                          } else {
+                                            if (onToggleBars) {
+                                              onToggleBars();
+                                            } else if (onShowBarsChange) {
+                                              onShowBarsChange(true);
+                                            }
+                                          }
+                                        }}
+                                        onAyahDoubleClick={(aObj) => {
+                                          const matchingAyah = (pageAyahs.length > 0 ? pageAyahs : ayahs).find(
+                                            a => (a.surah?.number || surahNumber) === aObj.surah && a.numberInSurah === aObj.ayah
+                                          ) || ayahs.find(a => a.numberInSurah === aObj.ayah);
+                                          if (matchingAyah) {
+                                            if (matchingAyah.surah?.number && matchingAyah.surah.number !== surahNumber && onChangeSurah) {
+                                              onChangeSurah(matchingAyah.surah.number, matchingAyah.numberInSurah, pageNum);
+                                            }
+                                            handleAyahDoubleClick(matchingAyah);
+                                          }
+                                        }}
+                                        isDark={isDark}
+                                        theme={theme}
+                                        hideFrame={true}
+                                      />
+                                    </div>
+                                  ) : content ? (
                                     <div 
                                       className="mushaf-page-list-inner w-full h-full p-0 sm:p-0.5 flex items-center justify-center"
                                       dangerouslySetInnerHTML={{ 
-                                        __html: (pageNum !== 1 && pageNum !== 2) 
-                                          ? content.replace(/<svg\s([^>]*)>/i, (match, p1) => p1.includes('preserveAspectRatio') ? `<svg ${p1.replace(/preserveAspectRatio="[^"]*"/i, 'preserveAspectRatio="none"')}>` : `<svg ${p1} preserveAspectRatio="none">`) 
-                                          : content 
-                                      }} 
+                                        __html: content 
+                                          ? content.replace(/<svg\s([^>]*)>/i, (match, p1) => 
+                                              p1.includes('preserveAspectRatio') 
+                                                ? `<svg ${p1.replace(/preserveAspectRatio="[^"]*"/i, (pageNum === 1 || pageNum === 2) ? 'preserveAspectRatio="xMidYMid meet"' : 'preserveAspectRatio="none"')}>` 
+                                                : `<svg ${p1} preserveAspectRatio="${(pageNum === 1 || pageNum === 2) ? 'xMidYMid meet' : 'none'}">`
+                                            ) 
+                                          : "" 
+                                        }} 
                                     />
                                   ) : (
                                     <div className="text-center py-24 space-y-3 w-full">
@@ -9677,15 +9857,15 @@ export default function ReadingScreen({
                             touchAction: "none"
                           }}
                           className={`relative w-full flex flex-col items-center ${
-                            currentPage === 1 || currentPage === 2
+                            !isQcf4 && (currentPage === 1 || currentPage === 2)
                               ? "mushaf-opening-page justify-start"
                               : "justify-center"
                           } ${settings.stretchMushaf || settings.autoScrollActive ? "aspect-[1/1.82]" : "aspect-[1/1.70]"} ${settings.autoScrollActive ? "rounded-none" : "rounded-2xl sm:rounded-3xl"} overflow-hidden cursor-grab active:cursor-grabbing select-none bg-transparent border-none shadow-none`}
                         >
                           {/* Surah Header Frame for Opening Pages (Surah Al-Fatihah & Surah Al-Baqarah) */}
-                          {(currentPage === 1 || currentPage === 2) && (
+                          {!isQcf4 && (currentPage === 1 || currentPage === 2) && (
                             <div 
-                              className="w-full px-1.5 sm:px-2 pt-1 pb-0.5 shrink-0 relative z-20 transition-all duration-300"
+                              className={`w-full px-1.5 sm:px-2 pt-1 ${currentPage === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20 transition-all duration-300`}
                             >
                               <SurahHeaderFrame
                                 surahNumber={currentPage === 1 ? 1 : 2}
@@ -9698,11 +9878,12 @@ export default function ReadingScreen({
                               />
                             </div>
                           )}
+
                           <div 
                             id="mushaf-svg-inner-container"
-                            className={`w-full ${currentPage === 1 || currentPage === 2 ? "flex-1 min-h-0" : "h-full"} p-0 flex items-center justify-center overflow-hidden relative`}
+                            className={`w-full ${!isQcf4 && (currentPage === 1 || currentPage === 2) ? "flex-1 min-h-0" : "h-full"} p-0 flex items-center justify-center overflow-hidden relative`}
                           >
-                              {settings.pageMode === "qcf4" || settings.mushafProvider === "qcf4" || settings.quranFont === "qcf4" ? (
+                              {isQcf4 ? (
                                 <Qcf4PageRenderer
                                   pageNumber={currentPage}
                                   activeAyahKey={
@@ -9766,9 +9947,13 @@ export default function ReadingScreen({
                                   dangerouslySetInnerHTML={{ 
                                     __html: (() => {
                                       const pageSvg = pagesSvg[currentPage] || svgContent;
-                                      return (currentPage !== 1 && currentPage !== 2 && pageSvg) 
-                                        ? pageSvg.replace(/<svg\s([^>]*)>/i, (match, p1) => p1.includes('preserveAspectRatio') ? `<svg ${p1.replace(/preserveAspectRatio="[^"]*"/i, 'preserveAspectRatio="none"')}>` : `<svg ${p1} preserveAspectRatio="none">`) 
-                                        : (pageSvg || "");
+                                      return pageSvg 
+                                        ? pageSvg.replace(/<svg\s([^>]*)>/i, (match, p1) => 
+                                            p1.includes('preserveAspectRatio') 
+                                              ? `<svg ${p1.replace(/preserveAspectRatio="[^"]*"/i, (currentPage === 1 || currentPage === 2) ? 'preserveAspectRatio="xMidYMid meet"' : 'preserveAspectRatio="none"')}>` 
+                                              : `<svg ${p1} preserveAspectRatio="${(currentPage === 1 || currentPage === 2) ? 'xMidYMid meet' : 'none'}">`
+                                          ) 
+                                        : "";
                                     })()
                                   }} 
                                 />
@@ -10042,10 +10227,8 @@ export default function ReadingScreen({
                           lastSurahNumber = sNum;
 
                           if (sNum !== 1 && shouldRenderHeader) {
-                            const bismillahTemplate = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
-                            if (displayedText.startsWith(bismillahTemplate)) {
-                              displayedText = displayedText.replace(bismillahTemplate, "").trim();
-                            }
+                            const bismillahRegex = /^(?:بِسْمِ\s*[\u0671\u0627]للَّ?هِ\s*[\u0671\u0627]لرَّحْمَ[ـٰ\u0670]?نِ\s*[\u0671\u0627]لرَّحِيمِ|بِسْمِ\s*[\u0671\u0627]للهِ\s*[\u0671\u0627]لرحمن\s*[\u0671\u0627]لرحيم|بِسْمِ\s*اللهِ\s*الرَّحْمٰنِ\s*الرَّحِيمِ|بسم\s*الله\s*الرحمن\s*الرحيم)[\s\r\n]*/u;
+                            displayedText = displayedText.replace(bismillahRegex, "").trim();
                           }
 
                           if (shouldRenderHeader) {
@@ -10213,9 +10396,9 @@ export default function ReadingScreen({
                 }}
                 dir="rtl"
               >
-                {/* Dynamic spacer ensuring floating-surah-ayah-picker never overlaps library-services-horizontal-bar */}
+                {/* Dynamic spacer ensuring floating bars never overlap the verses */}
                 <div className={`w-full transition-all duration-300 pointer-events-none select-none ${
-                  showBars ? "h-14 sm:h-16 mb-2" : "h-10 sm:h-11 mb-3"
+                  showBars ? "h-28 sm:h-32 mb-4" : "h-24 sm:h-28 mb-3"
                 }`} />
 
                 {/* Top Floating Box with Surah & Ayah Selectors (عائم وظاهر في وضع القراءة فقط، ومخفي في صفحة علاماتي والفهرس والأدراج) */}
@@ -10319,21 +10502,22 @@ export default function ReadingScreen({
                 </div>
                 )}
 
-                {/* شريط الأيقونات الموحد المباشر (بدون تفريعات): المختصر في التفسير ، السعدي ، ترجمة ، غريب الآية ، إعراب ، صرف ، بلاغة ، أسباب النزول ، تدبر ، التقييدات */}
+                {/* شريط الأيقونات الموحد المباشر (بدون تفريعات): عائم وظاهر دائماً أسفل شريط اسم السورة والآية */}
+                {activeTab === "home" && !isIndexOpen && serviceDrawerTab === null && (
                 <div 
                   id="library-services-horizontal-bar"
                   dir="rtl"
                   style={{ direction: "rtl" }}
-                  className={`w-full mx-auto mb-6 flex items-center justify-start gap-1 sm:gap-1.5 p-1.5 rounded-2xl border shadow-2xs overflow-x-auto scrollbar-none flex-nowrap whitespace-nowrap select-none ${
+                  className={`fixed ${showBars ? "top-[6.75rem] sm:top-[7.25rem]" : "top-14 sm:top-16"} left-2 right-2 sm:left-4 sm:right-4 max-w-4xl md:mx-auto z-[355] flex items-center justify-start gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-2xl border shadow-xl backdrop-blur-md overflow-x-auto scrollbar-none flex-nowrap whitespace-nowrap select-none transition-all duration-300 ${
                     theme === "navy-velvet"
-                      ? "bg-[#F0F5FE] border-[#3F63C6]/25 text-slate-900"
+                      ? "bg-white/95 border-[#3F63C6]/30 shadow-[#3F63C6]/15 text-slate-900"
                       : theme === "gold-velvet"
-                        ? "bg-[#FBF8EF] border-[#c5a85c]/30 text-[#011c14]"
+                        ? "bg-[#FFFDF5]/95 border-[#c5a85c]/40 shadow-[#c5a85c]/20 text-[#011c14]"
                         : theme === "emerald-velvet"
-                          ? "bg-[#EBF7F0] border-emerald-300/40 text-[#011c14]"
+                          ? "bg-[#012519]/95 border-[#34d399]/40 shadow-black/50 text-[#FAF8F5]"
                           : isDark
-                            ? "bg-slate-900/90 border-slate-800 text-slate-100"
-                            : "bg-slate-100/90 border-slate-200 text-slate-900"
+                            ? "bg-slate-900/95 border-slate-700 shadow-black/60 text-slate-100"
+                            : "bg-white/95 border-emerald-300 shadow-emerald-950/15 text-slate-900"
                   }`}
                 >
                   {CONTINUOUS_SERVICES_LIST.map((service) => {
@@ -10371,6 +10555,7 @@ export default function ReadingScreen({
                     );
                   })}
                 </div>
+                )}
 
                 {surahNumber !== 9 && surahNumber !== 1 && (
                   <BismillahBanner theme={theme} surahNumber={surahNumber} isDark={isDark} />
@@ -10447,27 +10632,6 @@ export default function ReadingScreen({
 
       {/* Centered Floating Panels for AI Tafsir */}
       {/* Floating Bubble Toolbar removed per user request */}
-
-      {/* Floating Scroll-to-Top Button - خاص بصفحة المكتبة فقط ومخفي في الفهرس وصفحات المصحف وعلاماتي والأدراج */}
-      {effectivePageMode === "continuous" && !isIndexOpen && serviceDrawerTab === null && activeTab === "home" && (
-        <motion.button
-          id="library-scroll-to-top-button"
-          type="button"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.92 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleLibraryScrollToTop();
-          }}
-          title="الرجوع لأعلى الصفحة"
-          aria-label="الرجوع لأعلى الصفحة"
-          className={`fixed left-4 sm:left-6 ${
-            showBars ? "bottom-36 sm:bottom-40" : "bottom-24 sm:bottom-28"
-          } z-[350] p-3 sm:p-3.5 rounded-full shadow-2xl border cursor-pointer flex items-center justify-center transition-all duration-200 select-none group bg-red-600 text-white border-red-400 hover:bg-red-700 active:bg-red-800 shadow-red-900/40 hover:shadow-red-900/60`}
-        >
-          <ArrowUp size={22} className="stroke-[2.5px] text-white group-hover:-translate-y-1 transition-transform duration-200" />
-        </motion.button>
-      )}
 
       {/* Floating Bottom Console Recitation Player / Auto-Scroll Bar */}
       {true && (
@@ -11746,17 +11910,18 @@ export default function ReadingScreen({
                   position: "fixed",
                   left: `${Math.max(10, Math.min(floatingAyahMenu.x - 185, window.innerWidth - 395))}px`,
                   top: `${floatingAyahMenu.y > 170 ? Math.max(16, floatingAyahMenu.y - 110) : Math.min(window.innerHeight - 170, floatingAyahMenu.y + 25)}px`,
+                  boxShadow: "none",
                 }}
-                className={`rounded-3xl p-2.5 sm:p-3.5 shadow-2xl border backdrop-blur-xl flex flex-col gap-2.5 sm:gap-3 z-[460] select-none ${
+                className={`rounded-3xl p-2.5 sm:p-3.5 shadow-none border backdrop-blur-xl flex flex-col gap-2.5 sm:gap-3 z-[460] select-none ${
                   theme === "emerald-velvet"
-                    ? "bg-[#012519]/95 border-[#c5a85c]/45 text-[#FAF8F5] shadow-black/70"
+                    ? "bg-[#012519]/95 border-[#c5a85c]/45 text-[#FAF8F5]"
                     : theme === "gold-velvet"
-                      ? "bg-[#FFFDF5]/95 border-[#c5a85c]/50 text-[#011c14] shadow-amber-950/25"
+                      ? "bg-[#FFFDF5]/95 border-[#c5a85c]/50 text-[#011c14]"
                       : theme === "navy-velvet"
-                        ? "bg-white/95 border-[#3F63C6]/35 text-slate-900 shadow-[#3F63C6]/25"
+                        ? "bg-white/95 border-[#3F63C6]/35 text-slate-900"
                         : isDark
-                          ? "bg-slate-900/95 border-slate-700 text-slate-100 shadow-black/70"
-                          : "bg-white/95 border-emerald-200 shadow-emerald-950/20 text-slate-900"
+                          ? "bg-slate-900/95 border-slate-700 text-slate-100"
+                          : "bg-white/95 border-emerald-200 text-slate-900"
                 }`}
               >
                 {/* Main Action Icons Row: التفسير ، النسخ ، المشاركة ، العلامات ، الملاحظات */}
@@ -12045,10 +12210,8 @@ export default function ReadingScreen({
                   {(() => {
                     let cleanNoteAyahText = ayahNoteModal.ayah.text || "";
                     if (ayahNoteModal.surahNumber !== 1 && ayahNoteModal.ayah.numberInSurah === 1) {
-                      const bismillahTemplate = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
-                      if (cleanNoteAyahText.startsWith(bismillahTemplate)) {
-                        cleanNoteAyahText = cleanNoteAyahText.replace(bismillahTemplate, "").trim();
-                      }
+                      const bismillahRegex = /^(?:بِسْمِ\s*[\u0671\u0627]للَّ?هِ\s*[\u0671\u0627]لرَّحْمَ[ـٰ\u0670]?نِ\s*[\u0671\u0627]لرَّحِيمِ|بِسْمِ\s*[\u0671\u0627]للهِ\s*[\u0671\u0627]لرحمن\s*[\u0671\u0627]لرحيم|بِسْمِ\s*اللهِ\s*الرَّحْمٰنِ\s*الرَّحِيمِ|بسم\s*الله\s*الرحمن\s*الرحيم)[\s\r\n]*/u;
+                      cleanNoteAyahText = cleanNoteAyahText.replace(bismillahRegex, "").trim();
                     }
 
                     return (

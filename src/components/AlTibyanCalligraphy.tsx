@@ -46,27 +46,33 @@ export const AlTibyanCalligraphy: React.FC<AlTibyanCalligraphyProps> = ({
   color = "#D4AF37",
   className = "",
   style = {},
-  height = 18,
+  height = 20,
 }) => {
-  const numericHeight = typeof height === "number" ? height : 18;
+  const numericHeight = typeof height === "number" ? height : 20;
 
   return (
     <div
       dir="rtl"
-      className={`inline-flex items-center justify-center select-none pointer-events-none ${className}`}
+      className={`inline-flex items-center justify-center gap-2 select-none pointer-events-none ${className}`}
       style={{
-        height: typeof height === "number" ? `${height}px` : height,
         color,
         ...style,
       }}
     >
-      {/* "مصحف التبيان" typography in Cairo font without icon */}
+      {/* App Logo Emblem on the right (in RTL) using approved icon */}
+      <img
+        src="/IMG_1767.png"
+        alt="شعار مصحف التبيان"
+        style={{ width: `${numericHeight}px`, height: `${numericHeight}px` }}
+        className="object-contain shrink-0 select-none pointer-events-none drop-shadow-sm"
+      />
+      {/* App Name "مصحف التبيان" in Cairo font on the left of the emblem */}
       <span
         className="font-bold tracking-wide select-none leading-none whitespace-nowrap"
         style={{
           color,
           fontFamily: "'Cairo', sans-serif",
-          fontSize: `${Math.max(10, Math.round(numericHeight * 0.58))}px`,
+          fontSize: `${Math.max(12, Math.round(numericHeight * 0.72))}px`,
         }}
       >
         مصحف التبيان

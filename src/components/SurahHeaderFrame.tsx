@@ -97,145 +97,88 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
     formattedTitle = resolvedSurahNumber ? `سُورَةُ ${resolvedSurahNumber}` : "";
   }
 
-  // Theme-specific color parameters for day and night modes
+  // Theme-specific color parameters harmonized with Blue, Green, Gold, and Night Mode
   const getThemePalette = () => {
+    const themeBg = isDark
+      ? theme === "navy-velvet"
+        ? "#060c18"
+        : theme === "gold-velvet"
+          ? "#141210"
+          : "#011c14"
+      : theme === "navy-velvet"
+        ? "#FAFCFF"
+        : theme === "gold-velvet"
+          ? "#FFFEFA"
+          : "#FAFDFB";
+
+    const defaultTextColor = isDark
+      ? "#FFFFFF"
+      : "#000000";
+
     if (customFrameColor) {
       return {
         frameStroke: customFrameColor,
         innerStroke: customFrameColor,
-        innerFill: "rgba(0, 0, 0, 0.04)",
+        innerFill: "transparent",
+        frameBg: themeBg,
         accentSolid: customFrameColor,
         accentDeep: customFrameColor,
-        highlight: "#ffffff",
-        gradHigh: "#ffffff",
+        highlight: isDark ? "#ffffff" : "#ffffff",
+        gradHigh: isDark ? "#e2e8f0" : "#ffffff",
         gradMid: customFrameColor,
         gradDeep: customFrameColor,
-        textColor: customTextColor || customFrameColor,
+        textColor: customTextColor || defaultTextColor,
         glowFilter: "none",
       };
     }
 
     switch (theme) {
-      case "emerald-velvet":
-        if (isDark) {
-          return {
-            frameStroke: "#34d399",
-            innerStroke: "#34d399",
-            innerFill: "rgba(52, 211, 153, 0.1)",
-            accentSolid: "#34d399",
-            accentDeep: "#059669",
-            highlight: "#a7f3d0",
-            gradHigh: "#a7f3d0",
-            gradMid: "#34d399",
-            gradDeep: "#064e3b",
-            textColor: customTextColor || "#a7f3d0",
-            glowFilter: "none",
-          };
-        } else {
-          return {
-            frameStroke: "#044f31",
-            innerStroke: "#044f31",
-            innerFill: "rgba(4, 79, 49, 0.05)",
-            accentSolid: "#10b981",
-            accentDeep: "#044f31",
-            highlight: "#ffffff",
-            gradHigh: "#d1fae5",
-            gradMid: "#10b981",
-            gradDeep: "#044f31",
-            textColor: customTextColor || "#000000",
-            glowFilter: "none",
-          };
-        }
-      case "gold-velvet":
-        if (isDark) {
-          return {
-            frameStroke: "#fcd34d",
-            innerStroke: "#fcd34d",
-            innerFill: "rgba(252, 211, 77, 0.1)",
-            accentSolid: "#fcd34d",
-            accentDeep: "#f59e0b",
-            highlight: "#fef08a",
-            gradHigh: "#fef08a",
-            gradMid: "#fcd34d",
-            gradDeep: "#92400e",
-            textColor: customTextColor || "#fef08a",
-            glowFilter: "none",
-          };
-        } else {
-          return {
-            frameStroke: "#967228",
-            innerStroke: "#967228",
-            innerFill: "rgba(150, 114, 40, 0.05)",
-            accentSolid: "#c5a85c",
-            accentDeep: "#715112",
-            highlight: "#ffffff",
-            gradHigh: "#fef9c3",
-            gradMid: "#c5a85c",
-            gradDeep: "#715112",
-            textColor: customTextColor || "#000000",
-            glowFilter: "none",
-          };
-        }
       case "navy-velvet":
-        if (isDark) {
-          return {
-            frameStroke: "#60a5fa",
-            innerStroke: "#60a5fa",
-            innerFill: "rgba(96, 165, 250, 0.1)",
-            accentSolid: "#60a5fa",
-            accentDeep: "#2563eb",
-            highlight: "#bfdbfe",
-            gradHigh: "#bfdbfe",
-            gradMid: "#60a5fa",
-            gradDeep: "#1e3a8a",
-            textColor: customTextColor || "#bfdbfe",
-            glowFilter: "none",
-          };
-        } else {
-          return {
-            frameStroke: "#1b3168",
-            innerStroke: "#1b3168",
-            innerFill: "rgba(27, 49, 104, 0.05)",
-            accentSolid: "#3b82f6",
-            accentDeep: "#1b3168",
-            highlight: "#ffffff",
-            gradHigh: "#dbeafe",
-            gradMid: "#3b82f6",
-            gradDeep: "#1b3168",
-            textColor: customTextColor || "#1b3168",
-            glowFilter: "none",
-          };
-        }
+        return {
+          frameStroke: isDark ? "#60a5fa" : "#2563eb",
+          innerStroke: isDark ? "#60a5fa" : "#2563eb",
+          innerFill: "transparent",
+          frameBg: themeBg,
+          accentSolid: isDark ? "#3b82f6" : "#3b82f6",
+          accentDeep: isDark ? "#1e3a8a" : "#1b3168",
+          highlight: isDark ? "#bfdbfe" : "#ffffff",
+          gradHigh: isDark ? "#bfdbfe" : "#dbeafe",
+          gradMid: isDark ? "#60a5fa" : "#3b82f6",
+          gradDeep: isDark ? "#1e3a8a" : "#1b3168",
+          textColor: customTextColor || defaultTextColor,
+          glowFilter: "none",
+        };
+      case "gold-velvet":
+        return {
+          frameStroke: isDark ? "#fcd34d" : "#c5a85c",
+          innerStroke: isDark ? "#fcd34d" : "#c5a85c",
+          innerFill: "transparent",
+          frameBg: themeBg,
+          accentSolid: isDark ? "#f59e0b" : "#c5a85c",
+          accentDeep: isDark ? "#78350f" : "#715112",
+          highlight: isDark ? "#fef08a" : "#ffffff",
+          gradHigh: isDark ? "#fef08a" : "#fef9c3",
+          gradMid: isDark ? "#fcd34d" : "#c5a85c",
+          gradDeep: isDark ? "#92400e" : "#715112",
+          textColor: customTextColor || defaultTextColor,
+          glowFilter: "none",
+        };
+      case "emerald-velvet":
       default:
-        if (isDark) {
-          return {
-            frameStroke: "#34d399",
-            innerStroke: "#34d399",
-            innerFill: "rgba(52, 211, 153, 0.1)",
-            accentSolid: "#34d399",
-            accentDeep: "#059669",
-            highlight: "#a7f3d0",
-            gradHigh: "#a7f3d0",
-            gradMid: "#34d399",
-            gradDeep: "#064e3b",
-            textColor: customTextColor || "#a7f3d0",
-            glowFilter: "none",
-          };
-        } else {
-          return {
-            frameStroke: "#044f31",
-            innerStroke: "#044f31",
-            innerFill: "rgba(4, 79, 49, 0.04)",
-            accentSolid: "#10b981",
-            accentDeep: "#044f31",
-            highlight: "#ffffff",
-            gradHigh: "#e6f4ea",
-            gradMid: "#10b981",
-            gradDeep: "#044f31",
-            textColor: customTextColor || "#000000",
-            glowFilter: "none",
-          };
-        }
+        return {
+          frameStroke: isDark ? "#34d399" : "#059669",
+          innerStroke: isDark ? "#34d399" : "#059669",
+          innerFill: "transparent",
+          frameBg: themeBg,
+          accentSolid: isDark ? "#10b981" : "#10b981",
+          accentDeep: isDark ? "#064e3b" : "#044f31",
+          highlight: isDark ? "#a7f3d0" : "#ffffff",
+          gradHigh: isDark ? "#a7f3d0" : "#d1fae5",
+          gradMid: isDark ? "#34d399" : "#10b981",
+          gradDeep: isDark ? "#064e3b" : "#044f31",
+          textColor: customTextColor || defaultTextColor,
+          glowFilter: "none",
+        };
     }
   };
 
@@ -255,7 +198,7 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
     ...style,
   } as React.CSSProperties;
 
-  const { scopedDefs, scopedBody } = getAuthenticFrameSvgInner(frameId);
+  const { scopedDefs, scopedBody } = getAuthenticFrameSvgInner(frameId, palette);
 
   return (
     <div
@@ -279,32 +222,42 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
         width="100%"
         height="100%"
         viewBox="0 0 240.20621 30.23196"
+        overflow="visible"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="surah_header_frame_svg transition-all duration-300 block w-full"
+        style={{ overflow: "visible" }}
       >
-        <defs>
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-                .surah_frame_outer_border {
+        <defs
+          dangerouslySetInnerHTML={{
+            __html: `
+              ${scopedDefs}
+              <style>
+                .surah_frame_outer_border, [id*="path3763"], [id*="path4079"] {
                   fill: none !important;
-                  stroke: currentColor !important;
+                  fill-opacity: 0 !important;
+                  stroke: ${palette.frameStroke || "#C5A85C"} !important;
+                  stroke-width: 1.5px !important;
+                  stroke-opacity: 1 !important;
+                  stroke-linecap: round !important;
+                  stroke-linejoin: round !important;
                 }
-                .surah_frame_cartouche_bg {
-                  fill: none !important;
+                .surah_frame_cartouche_bg, [id*="path4395"], [class*="cartouche"], [id*="cartouche"] {
+                  fill: ${palette.frameBg || "#FAFDFB"} !important;
+                  fill-opacity: 1 !important;
                   stroke: none !important;
                 }
                 .surah_frame_inner_contour {
-                  fill: var(--surah-inner-fill, rgba(0,0,0,0.04)) !important;
-                  stroke: currentColor !important;
+                  fill: none !important;
+                  fill-opacity: 0 !important;
+                  stroke: ${palette.frameStroke} !important;
                 }
-              `,
-            }}
-          />
-          <g dangerouslySetInnerHTML={{ __html: scopedDefs }} />
-        </defs>
+              </style>
+            `,
+          }}
+        />
         <g className="surah_header_frame" dangerouslySetInnerHTML={{ __html: scopedBody }} />
+        <rect x="0.8" y="0.8" width="238.6" height="28.63" rx="0.6" fill="none" stroke={palette.frameStroke || "#C5A85C"} strokeWidth="1.5" strokeOpacity="1" opacity="1" className="surah_frame_outer_border" />
       </svg>
 
       {/* Surah Name in Center Window of the Frame - Centered Horizontally & Vertically */}
@@ -316,8 +269,8 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
           <div
             className="flex items-center justify-center text-center select-none"
             style={{
-              width: "50%",
-              height: "78%",
+              width: "56%",
+              height: "85%",
               color: palette.textColor,
             }}
           >
@@ -325,15 +278,23 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
               className="surah_header_text font-normal leading-none text-center select-none inline-flex items-center justify-center"
               style={{
                 fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif",
-                fontSize: "clamp(18px, 5.8cqi, 44px)",
+                fontSize: "clamp(15px, 4.8cqi, 34px)",
                 color: palette.textColor,
-                transform: "translateY(-7%)",
+                transform: "translateY(-16%)",
                 direction: "rtl",
                 textAlign: "center",
                 whiteSpace: "nowrap",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
+                fontWeight: "normal",
+                textShadow: "none",
+                boxShadow: "none",
+                filter: "none",
+                WebkitFilter: "none",
+                WebkitTextStroke: "0px",
+                stroke: "none",
+                strokeWidth: 0,
               }}
             >
               {resolvedSurahNumber

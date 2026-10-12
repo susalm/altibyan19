@@ -450,6 +450,7 @@ export default function App() {
           if (parsed && typeof parsed === "object") {
             if (!parsed.pageMode) parsed.pageMode = "mushaf-svg";
             if (!parsed.mushafProvider) parsed.mushafProvider = "quran-svg";
+            if (!parsed.quranFont) parsed.quranFont = "uthmanic";
             if (!parsed.language) parsed.language = "ar";
             if (parsed.hideMushafFrame === undefined) parsed.hideMushafFrame = true;
             setSettings({ ...defaultSettings, ...parsed });
@@ -1296,6 +1297,20 @@ export default function App() {
             <span>{t.mushaf}</span>
           </button>
 
+          {/* 2. Verse by Verse (Continuous Mushaf / آية آية) مباشرة بعد المصحف */}
+          <button
+            id="nav-tab-tafsir"
+            onClick={handleOpenLibrary}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer ${
+              activeTab === "home" && settings.pageMode === "continuous" && shareAyahData === null
+                ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
+                : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
+            }`}
+          >
+            <Library size={18} className={activeTab === "home" && settings.pageMode === "continuous" && shareAyahData === null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
+            <span>{t.tafsirs}</span>
+          </button>
+
           {/* 3. Recitation Tab */}
           <button
             id="nav-tab-recitation"
@@ -1384,7 +1399,7 @@ export default function App() {
             )}
           </button>
 
-          {/* 5.5. Share Ayah Tab (على يمين أيقونة المكتبة في الواجهة العربية RTL) */}
+          {/* 6. Share Ayah Tab */}
           <button
             id="nav-tab-share-ayah"
             onClick={(e) => {
@@ -1400,20 +1415,6 @@ export default function App() {
           >
             <Share2 size={18} className={shareAyahData !== null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
             <span>{t.shareAyah}</span>
-          </button>
-
-          {/* 6. Verse by Verse (Continuous Mushaf) */}
-          <button
-            id="nav-tab-tafsir"
-            onClick={handleOpenLibrary}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer ${
-              activeTab === "home" && settings.pageMode === "continuous" && shareAyahData === null
-                ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
-                : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
-            }`}
-          >
-            <Library size={18} className={activeTab === "home" && settings.pageMode === "continuous" && shareAyahData === null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
-            <span>{t.tafsirs}</span>
           </button>
         </div>
       </nav>

@@ -10,6 +10,7 @@ import { getOfflineAysarTafsir, getOfflineAysarTafsirFallback } from "./aysarBoo
 import { getOfflineEnglishTranslation } from "./englishTranslation";
 import { SURAH_HEADER_POSITIONS } from "./surahHeaderMap";
 import { getAuthenticFrameSvg } from "./mushafFrameSvgData";
+import { surahsList } from "../data/surahList";
 
 // Helper to check if text is HTML (e.g. SPA index.html fallback on 404)
 function isHtmlResponse(text: string): boolean {
@@ -93,20 +94,12 @@ export async function fetchQuranSvg(
     // Fallback URLs depending on provider
     let urlsToTry: string[] = [];
 
-    if (provider === "quran-tajweed") {
-      urlsToTry = [
-        `https://cdn.jsdelivr.net/gh/ahmedmabdullatif/quran-hafs-svg@main/svg/${pageStr3}.svg`,
-        `https://cdn.jsdelivr.net/gh/susalm/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.0/${pageStr3}.svg`,
-        `https://raw.githubusercontent.com/ahmedmabdullatif/quran-hafs-svg/main/svg/${pageStr3}.svg`,
-      ];
-    } else {
-      // Default quran-svg
-      urlsToTry = [
-        `https://cdn.jsdelivr.net/gh/ahmedmabdullatif/quran-hafs-svg@main/svg/${pageStr3}.svg`,
-        `https://cdn.jsdelivr.net/gh/susalm/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.0/${pageStr3}.svg`,
-        `https://raw.githubusercontent.com/ahmedmabdullatif/quran-hafs-svg/main/svg/${pageStr3}.svg`,
-      ];
-    }
+    urlsToTry = [
+      `https://cdn.jsdelivr.net/gh/ahmedmabdullatif/quran-hafs-svg@main/svg/${pageStr3}.svg`,
+      `https://raw.githubusercontent.com/ahmedmabdullatif/quran-hafs-svg/main/svg/${pageStr3}.svg`,
+      `https://cdn.jsdelivr.net/gh/mushafdatabase/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.01/${pageStr3}.svg`,
+      `https://raw.githubusercontent.com/mushafdatabase/MushafDatabase-Ligature-Based-SVG/main/SVG%20V1.01/${pageStr3}.svg`,
+    ];
 
     if (!finalSvg) {
       for (const url of urlsToTry) {
@@ -127,9 +120,7 @@ export async function fetchQuranSvg(
   }
 
   if (!finalSvg) {
-    // Universal last fallback
-    const imgUrl = `https://files.quran.app/hafs/madani/width_1024/page${pageStr3}.png`;
-    finalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 700" width="100%" height="100%"><image href="${imgUrl}" width="456" height="700" /></svg>`;
+    throw new Error(`تعذر تحميل صفحة المصحف الشريف ${pageNum}`);
   }
 
   // Save to IndexedDB asynchronously
@@ -144,24 +135,26 @@ export async function fetchQuranSvg(
 export function renderUthmanTahaFrame(
   id: string,
   yCenter: number,
-  h: number = 36,
+  h: number = 35,
   isOpeningPage: boolean = false,
   surahNumber?: number,
   surahName?: string
 ): string {
   if (isOpeningPage) {
     // Opening pages (viewBox 0 0 235 235) - Width = 211
-    const yTop = yCenter - h / 2;
+    const yTop = +(yCenter - h / 2).toFixed(1);
     const x0 = 12;
     const w = 211;
     return getAuthenticFrameSvg(id, x0, yTop, w, h, surahNumber, surahName);
   }
 
-  // Standard pages (viewBox 0 0 345 550) - Width = 335 (x: 5..340)
-  const yTop = yCenter - h / 2;
-  const x0 = 5;
-  const w = 335;
-  return getAuthenticFrameSvg(id, x0, yTop, w, h, surahNumber, surahName);
+  // Standard pages (viewBox 0 0 345 550) - Width = 330 (centered: x: 7.5..337.5)
+  // Height = 34 ensures authentic Uthman Taha Medina Mushaf proportions and never covers Bismillah
+  const effectiveH = h || 34;
+  const yTop = +(yCenter - effectiveH / 2).toFixed(1);
+  const x0 = 7.5;
+  const w = 330;
+  return getAuthenticFrameSvg(id, x0, yTop, w, effectiveH, surahNumber, surahName);
 }
 
 /**
@@ -175,13 +168,18 @@ export function processSvgAdjustments(text: string, pageNum: number): string {
   if (!text || !text.includes("<svg")) return text;
   let result = text;
 
-  // 1. Ensure root <svg> element has overflow="visible"
+  // 1. Ensure root <svg> element has overflow="visible" and class="mushaf_page_svg"
   result = result.replace(/<svg\b([^>]*)>/i, (match, attrs) => {
     let newAttrs = attrs;
     if (/\boverflow=["'][^"']*["']/i.test(newAttrs)) {
       newAttrs = newAttrs.replace(/\boverflow=["'][^"']*["']/i, 'overflow="visible"');
     } else {
       newAttrs = ` overflow="visible"${newAttrs}`;
+    }
+    if (!/\bclass=["']/i.test(newAttrs)) {
+      newAttrs = ` class="mushaf_page_svg"${newAttrs}`;
+    } else if (!newAttrs.includes("mushaf_page_svg")) {
+      newAttrs = newAttrs.replace(/\bclass=["']([^"']*)["']/i, 'class="$1 mushaf_page_svg"');
     }
     return `<svg${newAttrs}>`;
   });
@@ -224,47 +222,37 @@ export function processSvgAdjustments(text: string, pageNum: number): string {
     }
   });
 
-  // 4. Strip any existing/prior surah header frames or frame layers so frames are never duplicated
-  const layerIdx = result.indexOf('<g id="surah-header-frame-layer"');
-  if (layerIdx !== -1) {
-    const endSvgIdx = result.lastIndexOf('</svg>');
-    if (endSvgIdx > layerIdx) {
-      result = result.slice(0, layerIdx) + result.slice(endSvgIdx);
-    }
-  }
-  result = result.replace(/<g\b[^>]*(?:id=["'](?:surah_header_frame|surah-frame|page_surah_frame)[^"']*["']|class=["'][^"']*(?:surah_header_frame|surah-frame)[^"']*["'])[^>]*>[\s\S]*?<\/g>/gi, "");
-  // Also strip any misplaced or redundant surah name text elements
-  result = result.replace(/<text\b[^>]*class=["'][^"']*surah_header_text[^"']*["'][^>]*>[\s\S]*?<\/text>/gi, "");
-  result = result.replace(/<text\b[^>]*style=["'][^"']*QCF4_QBSML[^"']*["'][^>]*>[\s\S]*?<\/text>/gi, "");
+  // 4. Clean up any previously injected frame layers so cached SVGs remain pristine
+  result = result.replace(/<g[^>]*id="surah-header-frame-layer"[\s\S]*?<\/g>\s*<\/svg>/gi, "</svg>");
+  result = result.replace(/<(?:g|svg)[^>]*class="[^"]*mushaf_injected_surah_frame[^"]*"[\s\S]*?<\/(?:g|svg)>/gi, "");
 
-  // 5. Build authentic Mushaf Surah Header Frames (Uthman Taha design) for all Surahs starting on this page
-  let generatedFrames = "";
-  const surahsOnPage = SURAH_HEADER_POSITIONS[pageNum] || [];
-
-  if (pageNum !== 1 && pageNum !== 2 && surahsOnPage.length > 0) {
-    // Standard pages (viewBox 0 0 345 550) - Generate authentic Uthman Taha frame for EVERY Surah on this page
-    surahsOnPage.forEach((sInfo) => {
-      const h = sInfo.height || 36;
-      generatedFrames += renderUthmanTahaFrame(
-        `surah_header_frame_${sInfo.surah}`,
-        sInfo.yCenter,
-        h,
+  // 5. Inject authentic surah header frames for all surahs starting on this page (pages 3..604)
+  const pageHeaders = (SURAH_HEADER_POSITIONS as any)[pageNum] || (SURAH_HEADER_POSITIONS as any)[String(pageNum)];
+  if (pageNum >= 3 && pageHeaders && pageHeaders.length > 0) {
+    const framesMarkup = pageHeaders.map((header: any, idx: number) => {
+      const surahInfo = surahsList.find((s) => s.number === header.surah);
+      const surahName = surahInfo ? surahInfo.name : "";
+      return renderUthmanTahaFrame(
+        `mushaf_surah_${pageNum}_${header.surah}_${idx}`,
+        header.yCenter,
+        header.height || 34,
         false,
-        sInfo.surah
+        header.surah,
+        surahName
       );
-    });
+    }).join("\n");
+
+    const lastSvgClose = result.lastIndexOf('</svg>');
+    if (lastSvgClose !== -1) {
+      result = `${result.slice(0, lastSvgClose)}<g id="surah-header-frame-layer" class="surah-header-frame-layer">${framesMarkup}</g></svg>`;
+    }
   }
 
-  // 6. Append the single frame layer directly before </svg> to guarantee top/foreground layer
-  const framesToAppend = generatedFrames.trim();
-  if (framesToAppend) {
-    const frameLayer = `\n<g id="surah-header-frame-layer" class="surah_header_frame_layer" overflow="visible" pointer-events="none">\n${framesToAppend}\n</g>\n`;
-    const lastCloseSvg = result.lastIndexOf("</svg>");
-    if (lastCloseSvg !== -1) {
-      result = result.slice(0, lastCloseSvg) + frameLayer + result.slice(lastCloseSvg);
-    } else {
-      result = `${result}${frameLayer}</svg>`;
-    }
+  // 6. Calibrate opening pages (1 and 2) to eliminate empty margins and maximize text readability and font size
+  if (pageNum === 1) {
+    result = result.replace(/viewBox=["']0\s+0\s+235\s+235["']/i, 'viewBox="10 18 215 190"');
+  } else if (pageNum === 2) {
+    result = result.replace(/viewBox=["']0\s+0\s+235\s+235["']/i, 'viewBox="10 40 215 172"');
   }
 
   return result;

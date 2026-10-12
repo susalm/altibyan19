@@ -1255,14 +1255,15 @@ app.get("/api/quran-svg/:page", async (req: express.Request, res: express.Respon
     if (provider === "quran-tajweed") {
       urlsToTry = [
         `https://cdn.jsdelivr.net/gh/ahmedmabdullatif/quran-hafs-svg@main/svg/${pageStr3}.svg`,
-        `https://cdn.jsdelivr.net/gh/susalm/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.0/${pageStr3}.svg`,
+        `https://cdn.jsdelivr.net/gh/mushafdatabase/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.01/${pageStr3}.svg`,
         `https://raw.githubusercontent.com/ahmedmabdullatif/quran-hafs-svg/main/svg/${pageStr3}.svg`,
       ];
     } else {
       urlsToTry = [
         `https://cdn.jsdelivr.net/gh/ahmedmabdullatif/quran-hafs-svg@main/svg/${pageStr3}.svg`,
-        `https://cdn.jsdelivr.net/gh/susalm/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.0/${pageStr3}.svg`,
         `https://raw.githubusercontent.com/ahmedmabdullatif/quran-hafs-svg/main/svg/${pageStr3}.svg`,
+        `https://cdn.jsdelivr.net/gh/mushafdatabase/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.01/${pageStr3}.svg`,
+        `https://raw.githubusercontent.com/mushafdatabase/MushafDatabase-Ligature-Based-SVG/main/SVG%20V1.01/${pageStr3}.svg`,
       ];
     }
 
@@ -1286,11 +1287,7 @@ app.get("/api/quran-svg/:page", async (req: express.Request, res: express.Respon
 
     if (!response || !response.ok) {
       console.error(`Failed to fetch SVG page ${pageNum}. Last error: ${lastErrorMsg}`);
-      const imgUrl = `https://files.quran.app/hafs/madani/width_1024/page${pageStr3}.png`;
-      const fallbackSvgText = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 700" width="100%" height="100%"><image href="${imgUrl}" width="456" height="700" /></svg>`;
-      res.setHeader("Content-Type", "image/svg+xml");
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      return res.send(fallbackSvgText);
+      return res.status(502).json({ error: "Failed to fetch modern SVG Quran page" });
     }
 
     // Wrap in SVG if image
@@ -1314,20 +1311,14 @@ app.get("/api/quran-svg/:page", async (req: express.Request, res: express.Respon
     res.send(finalSvgText);
   } catch (error: any) {
     console.error("Error proxying SVG page:", error);
-    const pageNum = req.params.page;
-    const pageStr3 = String(pageNum).padStart(3, '0');
-    const imgUrl = `https://files.quran.app/hafs/madani/width_1024/page${pageStr3}.png`;
-    const fallbackSvgText = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 700" width="100%" height="100%"><image href="${imgUrl}" width="456" height="700" /></svg>`;
-    res.setHeader("Content-Type", "image/svg+xml");
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    return res.send(fallbackSvgText);
+    return res.status(500).json({ error: "Internal error proxying SVG Quran page" });
   }
 });
 
 // QCF4 Endpoints (MohamadHajjRabee/quran-qcf4)
 app.get("/api/qcf4/page/:pageNum", async (req: express.Request, res: express.Response) => {
   try {
-    const pageNum = parseInt(req.params.pageNum, 10);
+    const pageNum = parseInt(String(req.params.pageNum || ""), 10);
     if (isNaN(pageNum) || pageNum < 1 || pageNum > 604) {
       return res.status(400).json({ error: "Invalid page number" });
     }
@@ -1364,7 +1355,7 @@ app.get("/api/qcf4/page/:pageNum", async (req: express.Request, res: express.Res
 
 app.get("/api/qcf4/font/:fontName", async (req: express.Request, res: express.Response) => {
   try {
-    const fontName = req.params.fontName.replace(/[^a-zA-Z0-9_]/g, "");
+    const fontName = String(req.params.fontName || "").replace(/[^a-zA-Z0-9_]/g, "");
     const fileName = fontName === "QCF4_QBSML" || fontName.endsWith("_W") ? `${fontName}.woff2` : `${fontName}_W.woff2`;
 
     if (serverQcf4FontCache.has(fileName)) {
@@ -1497,8 +1488,8 @@ const MAX_AUDIO_CACHE_ENTRIES = 300;
 // Endpoint: Proxy EveryAyah audio files to avoid CORS and browser/iframe sandboxing issues for all reciters
 app.get(["/api/everyayah/:reciterId/:filename", "/api/everyayah/*"], async (req: express.Request, res: express.Response) => {
   try {
-    let reciterId = req.params.reciterId;
-    let filename = req.params.filename;
+    let reciterId = Array.isArray(req.params.reciterId) ? req.params.reciterId[0] : (req.params.reciterId || "");
+    let filename = Array.isArray(req.params.filename) ? req.params.filename[0] : (req.params.filename || "");
 
     if (!filename || !reciterId) {
       const pathAfter = req.path.replace(/^\/api\/everyayah\/?/, "");
@@ -1796,29 +1787,42 @@ app.get("/api/v1/projects", (req: express.Request, res: express.Response) => {
   });
 });
 
+// Global process error handlers to prevent dev server from dying unexpectedly
+process.on("uncaughtException", (err) => {
+  console.error("[Server Uncaught Exception]:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[Server Unhandled Rejection]:", reason);
+});
+
 async function startServer() {
-  const isProd = process.env.NODE_ENV === "production" || fs.existsSync(path.join(process.cwd(), "dist", "index.html"));
+  try {
+    const isProd = process.env.NODE_ENV === "production" && fs.existsSync(path.join(process.cwd(), "dist", "index.html"));
 
-  if (!isProd) {
-    // Vite Dev Mode setup
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+    if (!isProd) {
+      // Vite Dev Mode setup
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      // Production Mode serving compiled SPA
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req: express.Request, res: express.Response) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    const listenPort = Number(PORT) || 3000;
+    app.listen(listenPort, "0.0.0.0", () => {
+      console.log(`[Quran Companion Server] Running on http://0.0.0.0:${listenPort} (mode: ${isProd ? "production" : "development"})`);
     });
-    app.use(vite.middlewares);
-  } else {
-    // Production Mode serving compiled SPA
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req: express.Request, res: express.Response) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+  } catch (err) {
+    console.error("[Server Boot Error]:", err);
   }
-
-  const listenPort = Number(PORT) || 3000;
-  app.listen(listenPort, "0.0.0.0", () => {
-    console.log(`[Quran Companion Server] Running on http://0.0.0.0:${listenPort} (mode: ${isProd ? "production" : "development"})`);
-  });
 }
 
 startServer();
