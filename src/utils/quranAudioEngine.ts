@@ -252,9 +252,9 @@ class QuranAudioEngine {
                 if (buf && buf.byteLength > 1000) {
                   arrayBuf = buf;
                   // Persist to offline cache for subsequent offline sessions
-                  const parsed = parseAudioUrlKey(url) || parseAudioUrlKey(candidate);
-                  if (parsed) {
-                    saveAudioToOfflineCache(parsed.reciterId, parsed.surah, parsed.ayah, buf).catch(() => {});
+                  const cacheKey = parseAudioUrlKey(url) || parseAudioUrlKey(candidate);
+                  if (cacheKey && buf) {
+                    saveAudioToOfflineCache(cacheKey, buf).catch(() => {});
                   }
                   break;
                 }

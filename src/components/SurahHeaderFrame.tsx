@@ -225,7 +225,7 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
         overflow="visible"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="surah_header_frame_svg transition-all duration-300 block w-full"
+        className="surah_header_frame_svg block w-full"
         style={{ overflow: "visible" }}
       >
         <defs
@@ -252,60 +252,60 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
                   fill-opacity: 0 !important;
                   stroke: ${palette.frameStroke} !important;
                 }
+                .surah_header_text {
+                  font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
+                  font-size: 13.8px !important;
+                  font-weight: normal !important;
+                  text-anchor: middle !important;
+                  dominant-baseline: central !important;
+                  fill: ${palette.textColor} !important;
+                  stroke: none !important;
+                  stroke-width: 0 !important;
+                  filter: none !important;
+                  -webkit-filter: none !important;
+                  text-shadow: none !important;
+                }
               </style>
             `,
           }}
         />
         <g className="surah_header_frame" dangerouslySetInnerHTML={{ __html: scopedBody }} />
         <rect x="0.8" y="0.8" width="238.6" height="28.63" rx="0.6" fill="none" stroke={palette.frameStroke || "#C5A85C"} strokeWidth="1.5" strokeOpacity="1" opacity="1" className="surah_frame_outer_border" />
-      </svg>
 
-      {/* Surah Name in Center Window of the Frame - Centered Horizontally & Vertically */}
-      {!hideName && (
-        <div
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
-          style={{ width: "100%", height: "100%" }}
-        >
-          <div
-            className="flex items-center justify-center text-center select-none"
-            style={{
-              width: "56%",
-              height: "85%",
-              color: palette.textColor,
-            }}
-          >
-            <span
-              className="surah_header_text font-normal leading-none text-center select-none inline-flex items-center justify-center"
+        {/* Surah Name in Center Window of the Frame - SVG Text perfectly aligned and fixed across all states */}
+        {!hideName && (
+          <g className="surah_header_title_group" pointerEvents="none">
+            <text
+              x="120.103"
+              y="11.8"
+              textAnchor="middle"
+              dominantBaseline="central"
+              className="surah_header_text"
+              fontFamily="'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif"
+              fontSize="13.8"
+              fontWeight="normal"
+              fill={palette.textColor}
+              stroke="none"
+              strokeWidth="0"
+              filter="none"
               style={{
-                fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif",
-                fontSize: "clamp(15px, 4.8cqi, 34px)",
-                color: palette.textColor,
-                transform: "translateY(-16%)",
-                direction: "rtl",
-                textAlign: "center",
-                whiteSpace: "nowrap",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
+                fontFamily: "'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif",
+                fontSize: "13.8px",
                 fontWeight: "normal",
-                textShadow: "none",
-                boxShadow: "none",
-                filter: "none",
-                WebkitFilter: "none",
-                WebkitTextStroke: "0px",
+                textAnchor: "middle",
+                dominantBaseline: "central",
+                fill: palette.textColor,
                 stroke: "none",
                 strokeWidth: 0,
               }}
             >
-              {resolvedSurahNumber
-                ? (fontLoaded || isQbsmlLoaded()
-                    ? String.fromCharCode(0xF100 + (resolvedSurahNumber - 1))
-                    : getSurahHeaderGlyph(resolvedSurahNumber, formattedTitle) || formattedTitle)
-                : formattedTitle}
-            </span>
-          </div>
-        </div>
-      )}
+              {resolvedSurahNumber && resolvedSurahNumber >= 1 && resolvedSurahNumber <= 114
+                ? String.fromCharCode(0xF100 + (resolvedSurahNumber - 1))
+                : (getSurahHeaderGlyph(resolvedSurahNumber || 1, formattedTitle) || formattedTitle)}
+            </text>
+          </g>
+        )}
+      </svg>
     </div>
   );
 };

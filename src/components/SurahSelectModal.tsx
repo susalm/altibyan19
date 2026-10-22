@@ -32,7 +32,7 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
   onSelectSurah,
   isDark,
   theme,
-  align = "left",
+  align = "right",
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -82,7 +82,7 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -6, scale: 0.97 }}
         transition={{ duration: 0.15, ease: "easeOut" }}
-        className={`absolute top-full ${align === "right" ? "right-0" : "left-0"} mt-1.5 z-[9999] rounded-2xl border shadow-2xl flex flex-col overflow-hidden ${
+        className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} mt-1.5 z-[9999] rounded-2xl border shadow-2xl flex flex-col overflow-hidden ${
           theme === "emerald-velvet"
             ? "bg-[#011e15] border-[#c5a85c]/40 text-[#FAF8F5]"
             : theme === "navy-velvet"
@@ -94,12 +94,12 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
                   : "bg-white border-emerald-200 text-slate-900"
         }`}
         style={{
-          width: "40%",
+          width: "280px",
           minWidth: "240px",
-          maxWidth: "95vw",
-          height: "35vh",
-          minHeight: "220px",
-          maxHeight: "35vh"
+          maxWidth: "calc(100vw - 32px)",
+          height: "45vh",
+          minHeight: "260px",
+          maxHeight: "420px"
         }}
         dir="rtl"
         onClick={(e) => e.stopPropagation()}

@@ -19,7 +19,7 @@ import { ShareAyahModal, ShareAyahData } from "./ShareAyahModal";
 import { SurahHeaderFrame } from "./SurahHeaderFrame";
 import { AppLogo } from "./AppLogo";
 import { DEFAULT_BOOKS, MainCategory, LibraryBookItem } from "../data/booksData";
-import { ensureQbsmlLoaded, getSurahHeaderGlyph, getJuzHeaderGlyph, getBismillahGlyph } from "../utils/qcf4Utils";
+import { ensureQbsmlLoaded, loadQcf4Font, getSurahHeaderGlyph, getJuzHeaderGlyph, getBismillahGlyph } from "../utils/qcf4Utils";
 import { fetchAlquranCloud, fetchQuranSvg, fetchTafsirData } from "../utils/quranApi";
 import { getOfflineMutashabihat } from "../utils/mutashabihatBook";
 import { getOfflineTdabr, parseTadabburSections } from "../utils/tdabrBook";
@@ -259,6 +259,7 @@ const SurahHeaderBanner = ({
 const BismillahBanner = ({ theme, surahNumber, isDark }: { theme: string; surahNumber?: number; isDark?: boolean }) => {
   useEffect(() => {
     ensureQbsmlLoaded();
+    loadQcf4Font("QCF4_Hafs_01");
   }, []);
 
   return (
@@ -276,6 +277,7 @@ const BismillahBanner = ({ theme, surahNumber, isDark }: { theme: string; surahN
                   : "via-emerald-700/30 to-emerald-700/75"
         }`}></div>
         <span 
+          id="mushaf-bismillah-text"
           className={`text-2xl sm:text-3xl md:text-4xl font-normal text-center leading-relaxed select-none px-2 ${
             isDark
               ? "text-slate-100"
@@ -286,11 +288,11 @@ const BismillahBanner = ({ theme, surahNumber, isDark }: { theme: string; surahN
                   : "text-slate-950"
           }`}
           style={{ 
-            fontFamily: "'QCF4_QBSML', 'Amiri', serif",
+            fontFamily: "'QCF4_QBSML', 'QCF4_Hafs_01', 'UthmanTaha', 'UthmanicHafs', 'Amiri', serif",
             color: isDark ? "#f1f5f9" : undefined
           }}
         >
-          {getBismillahGlyph()}
+          بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
         </span>
         <div className={`h-[1px] flex-1 bg-gradient-to-r from-transparent ${
           isDark
@@ -560,6 +562,7 @@ const isGharibCardMode = isLinguisticsOrIrabMode;
 const isTadabburMode = (mode: string): boolean => {
   if (
     mode === "book_tadabbur" ||
+    mode.startsWith("book_tadabbur_") ||
     mode === "tadabbur" ||
     mode === "hidaya" ||
     mode === "book_fawaid_tadabbur" ||
@@ -1006,6 +1009,7 @@ const AyahWithTafsirCard = ({
   onOpenBookmarkMenu,
   onOpenNote,
   hasNote,
+  onSelectMode,
 }: {
   ayah: Ayah;
   surahNumber: number;
@@ -1039,6 +1043,7 @@ const AyahWithTafsirCard = ({
   onOpenBookmarkMenu?: (e: React.MouseEvent, ayah: Ayah) => void;
   onOpenNote?: (ayah: Ayah) => void;
   hasNote?: boolean;
+  onSelectMode?: (newMode: string) => void;
 }) => {
   const currentAyahFontSize = globalAyahFontSize !== undefined && globalAyahFontSize >= 14 ? globalAyahFontSize : 14;
   const currentTafsirFontSize = globalTafsirFontSize !== undefined ? globalTafsirFontSize : 10;
@@ -1136,6 +1141,7 @@ const AyahWithTafsirCard = ({
           directOfflineResult = getOfflineAsbab(surahNumber, ayah.numberInSurah, surahName, ayah.text);
         } else if (
           activeMode === "book_tadabbur" ||
+          activeMode.startsWith("book_tadabbur_") ||
           activeMode === "tadabbur"
         ) {
           directOfflineResult = getOfflineTdabr(surahNumber, ayah.numberInSurah, surahName, ayah.text, activeMode, true);
@@ -1172,20 +1178,23 @@ const AyahWithTafsirCard = ({
           activeMode.startsWith("russian_") ||
           activeMode.startsWith("translation_")
         ) {
-          try {
-            const transResult = await getAyahTranslationText(surahNumber, ayah.numberInSurah, activeMode);
-            if (transResult && transResult.text) {
-              let formatted = transResult.text;
-              if (transResult.footnotes && transResult.footnotes.trim()) {
-                formatted += `\n\n📌 **Footnotes / الحواشي:**\n${transResult.footnotes.trim()}`;
-              }
-              directOfflineResult = formatted;
-            }
-          } catch (e) {
-            console.warn("Translation API error in card:", e);
+          const offlineEn = getOfflineEnglishTranslation(surahNumber, ayah.numberInSurah);
+          if (offlineEn) {
+            directOfflineResult = offlineEn;
           }
-          if (!directOfflineResult) {
-            directOfflineResult = getOfflineEnglishTranslation(surahNumber, ayah.numberInSurah);
+          if (typeof navigator !== "undefined" && navigator.onLine) {
+            try {
+              const transResult = await getAyahTranslationText(surahNumber, ayah.numberInSurah, activeMode);
+              if (transResult && transResult.text) {
+                let formatted = transResult.text;
+                if (transResult.footnotes && transResult.footnotes.trim()) {
+                  formatted += `\n\n📌 **Footnotes / الحواشي:**\n${transResult.footnotes.trim()}`;
+                }
+                directOfflineResult = formatted;
+              }
+            } catch (e) {
+              console.warn("Translation API error in card:", e);
+            }
           }
         } else {
           directOfflineResult = await getOfflineLibraryContent(surahNumber, ayah.numberInSurah, activeMode, surahName, ayah.text);
@@ -1231,7 +1240,17 @@ const AyahWithTafsirCard = ({
           deleteFromLibraryCache(cacheKey).catch(() => {});
         }
 
-        // 2. Fallback to API
+        // 2. If completely offline, use authentic offline library content immediately without waiting
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          const fallbackText = await getOfflineLibraryContent(surahNumber, ayah.numberInSurah, activeMode, surahName, ayah.text);
+          if (fallbackText && isMounted) {
+            setDataCache(prev => ({ ...prev, [activeMode]: fallbackText }));
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 3. Fallback to API if online
         const currentBook = DEFAULT_BOOKS.find(b => b.id === activeMode || b.apiType === activeMode);
         const response = await fetch("/api/tafsir", {
           method: "POST",
@@ -2062,7 +2081,8 @@ const AyahWithTafsirCard = ({
                 const sections = parseTadabburSections(cleanTafsirCardText(rawText, activeMode));
 
                 return (
-                  <div className="flex flex-col gap-4 py-1 font-amiri font-amiri-naskh" dir="rtl" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
+                  <div className="flex flex-col gap-3 py-1 font-amiri font-amiri-naskh" dir="rtl" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
+
                     {sections.map((sec, sIdx) => {
                       return (
                         <div 
@@ -2078,13 +2098,18 @@ const AyahWithTafsirCard = ({
                                   : "bg-slate-50/90 border-slate-200 text-slate-800"
                           }`}
                         >
-                          {/* Card Number if multiple reflections */}
-                          {sections.length > 1 && (
-                            <div className="flex items-center gap-1.5 pb-2 mb-2 border-b border-current/10 text-xs font-bold opacity-75">
-                              <BookOpen size={12} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                              <span>وقفة تدبرية #{sIdx + 1}</span>
+                          {/* Card Header: Book Name & Reflection index */}
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-current/10 text-xs font-bold opacity-85">
+                            <div className="flex items-center gap-1.5">
+                              <BookOpen size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                              <span className="font-bold">{sec.bookName || "كتاب ليدبروا آياته"}</span>
                             </div>
-                          )}
+                            {sections.length > 1 && (
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-current/10 font-bold">
+                                وقفة #{sIdx + 1}
+                              </span>
+                            )}
+                          </div>
 
                       {/* Formatted Table: العنوان -> التدبر -> القائل -> المصدر */}
                       <div className="overflow-hidden rounded-lg border border-current/15 bg-transparent">
@@ -2142,7 +2167,7 @@ const AyahWithTafsirCard = ({
                                   fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
                                 }}
                               >
-                                {sec.author}
+                                {sec.author || "مركز تدبر للدراسات القرآنية"}
                               </td>
                             </tr>
 
@@ -2158,7 +2183,7 @@ const AyahWithTafsirCard = ({
                                   fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif"
                                 }}
                               >
-                                {sec.bookName}
+                                {sec.source || sec.bookName || "كتاب ليدبروا آياته"}
                               </td>
                             </tr>
                           </tbody>
@@ -2721,6 +2746,7 @@ export default function ReadingScreen({
 
   const isMouseDownRef = useRef<boolean>(false);
   const lastDragYRef = useRef<number | null>(null);
+  const navigateAyahStepRef = useRef<(direction: "up" | "down") => void>(() => {});
 
   const handleDragStart = (clientX: number, clientY: number, isMouse = false) => {
     swipeStartXRef.current = clientX;
@@ -2791,44 +2817,35 @@ export default function ReadingScreen({
       ? !!settings.autoScrollActive
       : !!(settings.autoScrollActive || !isPortrait);
 
-    // When Continuous mode is active (in horizontal/landscape mode or auto-scroll):
-    // Allow smooth, fluid swiping across consecutive pages without discrete page barriers
-    if (isContinuousMode) {
+    // في نمط القراءة المستمرة نترك التمرير الرأسي سلساً وطبيعياً تماماً دون أي اعتراض
+    if (isContinuousMode || effectivePageMode === "continuous") {
       return;
     }
 
-    // Page navigation gesture follows settings.scrollDirection (horizontal vs vertical)
-    const isVertical = settings.scrollDirection === "vertical";
-
-    if (isVertical) {
-      // Vertical swipe navigation ONLY (لأعلى وأسفل فقط - يمنع التقليب يميناً ويساراً)
-      if (Math.abs(diffY) >= 14 && Math.abs(diffY) > Math.abs(diffX)) {
-        if (diffY < 0) {
-          // Swipe UP (finger moves up) -> NEXT page (الصفحة التالية)
-          const nextPage = Math.min(604, currentPage + 1);
-          setCurrentPage(nextPage);
-          window.scrollTo({ top: 0, behavior: "instant" });
-        } else {
-          // Swipe DOWN (finger moves down) -> PREVIOUS page (الصفحة السابقة)
-          const prevPage = Math.max(1, currentPage - 1);
-          setCurrentPage(prevPage);
-          window.scrollTo({ top: 0, behavior: "instant" });
-        }
+    // 1. في نمط صفحة المصحف المفردة: تمرير آية آية بالسحب الرأسي الواضح
+    if (Math.abs(diffY) >= 36 && Math.abs(diffY) > Math.abs(diffX) * 1.5) {
+      if (diffY < 0) {
+        // السحب لأعلى -> الآية التالية (لأسفل)
+        navigateAyahStepRef.current("down");
+      } else {
+        // السحب لأسفل -> الآية السابقة (لأعلى)
+        navigateAyahStepRef.current("up");
       }
-    } else {
-      // Horizontal swipe navigation ONLY (على اليمين واليسار فقط - يمنع التقليب لأعلى وأسفل)
-      if (Math.abs(diffX) >= 14 && Math.abs(diffX) > Math.abs(diffY)) {
-        if (diffX > 0) {
-          // Swiping right (finger moves right: diffX > 0) -> NEXT page (التالي)
-          const nextPage = Math.min(604, currentPage + 1);
-          setCurrentPage(nextPage);
-          window.scrollTo({ top: 0, behavior: "instant" });
-        } else {
-          // Swiping left (finger moves left: diffX < 0) -> PREVIOUS page (السابق)
-          const prevPage = Math.max(1, currentPage - 1);
-          setCurrentPage(prevPage);
-          window.scrollTo({ top: 0, behavior: "instant" });
-        }
+      return;
+    }
+
+    // 2. تقليب صفحات المصحف بالسحب الأفقي يميناً ويساراً
+    if (Math.abs(diffX) >= 28 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX > 0) {
+        // Swiping right (finger moves right: diffX > 0) -> NEXT page (التالي)
+        const nextPage = Math.min(604, currentPage + 1);
+        setCurrentPage(nextPage);
+        window.scrollTo({ top: 0, behavior: "instant" });
+      } else {
+        // Swiping left (finger moves left: diffX < 0) -> PREVIOUS page (السابق)
+        const prevPage = Math.max(1, currentPage - 1);
+        setCurrentPage(prevPage);
+        window.scrollTo({ top: 0, behavior: "instant" });
       }
     }
   };
@@ -3287,7 +3304,20 @@ export default function ReadingScreen({
       return;
     }
 
-    setTafsirModalText(getOfflineEnglishTranslation(sNum, aNum) || getOfflineGharib(sNum, aNum, sName, realAyahText) || "");
+    if (targetBook === "tafsir_muyassar") {
+      setTafsirModalText(
+        getOfflineMuyassarTafsir(sNum, aNum) ||
+        getOfflineMukhtasarTafsir(sNum, aNum) ||
+        getOfflineSaadiTafsir(sNum, aNum) ||
+        "التفسير الميسر غير متوفر لهذه الآية حالياً"
+      );
+    } else if (targetBook === "translation_hilali_khan") {
+      setTafsirModalText(getOfflineEnglishTranslation(sNum, aNum) || "Translation currently unavailable");
+    } else if (targetBook === "suraj_garib_quran") {
+      setTafsirModalText(getOfflineGharib(sNum, aNum, sName, realAyahText) || "لا توجد كلمات غريبة مشروحة في هذه الآية الكريمة");
+    } else {
+      setTafsirModalText("");
+    }
     setTafsirModalLoading(false);
   };
 
@@ -3641,6 +3671,143 @@ export default function ReadingScreen({
     }
   }, [currentPage]);
 
+  const [pageAyahs, setPageAyahs] = useState<any[]>([]);
+  const [pageLoading, setPageLoading] = useState<boolean>(false);
+
+  // تمكين تحريك صفحة المصحف آية آية لأعلى وأسفل بسلاسة تامة دون قفزات أو ارتداد
+  const navigateAyahStep = useCallback((direction: "up" | "down") => {
+    // 1. نمط صفحة المصحف الكاملة (Page mode / QCF4 / SVG)
+    if (effectivePageMode !== "continuous" && pageAyahs.length > 0) {
+      const activeSurah = selectedAyah ? ((selectedAyah as any).surah?.number || surahNumber) : surahNumber;
+      const activeAyahNum = selectedAyah ? selectedAyah.numberInSurah : null;
+
+      const currentIndexInPage = activeAyahNum !== null
+        ? pageAyahs.findIndex(a => ((a.surah?.number || surahNumber) === activeSurah) && a.numberInSurah === activeAyahNum)
+        : -1;
+
+      if (direction === "down") {
+        if (currentIndexInPage === -1) {
+          const firstAyah = pageAyahs[0];
+          setSelectedAyah(firstAyah);
+        } else if (currentIndexInPage < pageAyahs.length - 1) {
+          const nextAyah = pageAyahs[currentIndexInPage + 1];
+          setSelectedAyah(nextAyah);
+          requestAnimationFrame(() => {
+            const elem = document.getElementById(`ayah-word-span-${nextAyah.number}`) ||
+                         document.querySelector(`[data-ayah-number="${nextAyah.numberInSurah}"]`);
+            if (elem) {
+              const rect = elem.getBoundingClientRect();
+              if (rect.top < 90 || rect.bottom > window.innerHeight - 80) {
+                elem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }
+            }
+          });
+        } else {
+          // نهاية الصفحة الحالية -> الانتقال للصفحة التالية
+          if (currentPage < 604) {
+            const nextPage = currentPage + 1;
+            setCurrentPage(nextPage);
+            window.scrollTo({ top: 0, behavior: "instant" });
+          }
+        }
+      } else {
+        // الاتجاه لأعلى
+        if (currentIndexInPage === -1) {
+          const lastAyah = pageAyahs[pageAyahs.length - 1];
+          setSelectedAyah(lastAyah);
+        } else if (currentIndexInPage > 0) {
+          const prevAyah = pageAyahs[currentIndexInPage - 1];
+          setSelectedAyah(prevAyah);
+          requestAnimationFrame(() => {
+            const elem = document.getElementById(`ayah-word-span-${prevAyah.number}`) ||
+                         document.querySelector(`[data-ayah-number="${prevAyah.numberInSurah}"]`);
+            if (elem) {
+              const rect = elem.getBoundingClientRect();
+              if (rect.top < 90 || rect.bottom > window.innerHeight - 80) {
+                elem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }
+            }
+          });
+        } else {
+          // بداية الصفحة الحالية -> الانتقال للصفحة السابقة
+          if (currentPage > 1) {
+            const prevPage = currentPage - 1;
+            setCurrentPage(prevPage);
+            window.scrollTo({ top: 0, behavior: "instant" });
+          }
+        }
+      }
+      return;
+    }
+
+    // 2. نمط القراءة المستمرة وتمرير الآيات (Continuous Ayah Canvas)
+    const currentAyahNum = selectedAyah?.numberInSurah || initialAyahNumber || 1;
+    const totalAyahs = currentSurahMeta?.numberOfAyahs || 286;
+
+    if (direction === "down") {
+      // الآية التالية (لأسفل)
+      if (currentAyahNum < totalAyahs) {
+        const nextNum = currentAyahNum + 1;
+        const target = ayahs.find(a => a.numberInSurah === nextNum);
+        if (target) {
+          setSelectedAyah(target);
+          if (target.page && target.page !== currentPage) {
+            setCurrentPage(target.page);
+          }
+        }
+        requestAnimationFrame(() => {
+          const elem = document.getElementById(`ayah-block-${nextNum}`) || 
+                       document.getElementById(`ayah-word-span-${nextNum}`) ||
+                       document.querySelector(`[data-ayah-number="${nextNum}"]`);
+          if (elem) {
+            const topBar = document.getElementById("library-services-horizontal-bar");
+            const barHeight = topBar ? topBar.offsetHeight + 14 : 140;
+            const targetY = window.scrollY + elem.getBoundingClientRect().top - barHeight;
+            window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+          }
+        });
+      } else if (surahNumber < 114) {
+        // الانتقال إلى أول آية في السورة التالية
+        const nextSurah = surahNumber + 1;
+        if (onChangeSurah) {
+          onChangeSurah(nextSurah, 1);
+        }
+      }
+    } else {
+      // الآية السابقة (لأعلى)
+      if (currentAyahNum > 1) {
+        const prevNum = currentAyahNum - 1;
+        const target = ayahs.find(a => a.numberInSurah === prevNum);
+        if (target) {
+          setSelectedAyah(target);
+          if (target.page && target.page !== currentPage) {
+            setCurrentPage(target.page);
+          }
+        }
+        requestAnimationFrame(() => {
+          const elem = document.getElementById(`ayah-block-${prevNum}`) || 
+                       document.getElementById(`ayah-word-span-${prevNum}`) ||
+                       document.querySelector(`[data-ayah-number="${prevNum}"]`);
+          if (elem) {
+            const topBar = document.getElementById("library-services-horizontal-bar");
+            const barHeight = topBar ? topBar.offsetHeight + 14 : 140;
+            const targetY = window.scrollY + elem.getBoundingClientRect().top - barHeight;
+            window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+          }
+        });
+      } else if (surahNumber > 1) {
+        // الانتقال إلى آخر آية في السورة السابقة
+        const prevSurah = surahNumber - 1;
+        const prevMeta = surahsList.find(s => s.number === prevSurah);
+        const lastAyahOfPrev = prevMeta?.numberOfAyahs || 1;
+        if (onChangeSurah) {
+          onChangeSurah(prevSurah, lastAyahOfPrev);
+        }
+      }
+    }
+  }, [effectivePageMode, pageAyahs, selectedAyah, initialAyahNumber, currentSurahMeta, surahNumber, ayahs, currentPage, onChangeSurah]);
+  navigateAyahStepRef.current = navigateAyahStep;
+
   // Sync selected ayah changes with parent and localStorage
   useEffect(() => {
     if (selectedAyah) {
@@ -3707,7 +3874,7 @@ export default function ReadingScreen({
     prevPropPageRef.current = initialPageNumber;
     prevPropAyahRef.current = initialAyahNumber;
 
-    if (surahChanged || pageChanged || ayahChanged || !hasAppliedInitialPageRef.current) {
+    if (surahChanged || (pageChanged && initialPageNumber !== currentPage) || !hasAppliedInitialPageRef.current) {
       let targetPage = initialPageNumber;
       if (!targetPage && surahNumber) {
         if (initialAyahNumber) {
@@ -3722,11 +3889,9 @@ export default function ReadingScreen({
         }
       }
 
-      if (targetPage) {
-        if (targetPage !== currentPage) {
-          setCurrentPage(targetPage);
-          setPageAyahs([]);
-        }
+      if (targetPage && targetPage !== currentPage) {
+        setCurrentPage(targetPage);
+        setPageAyahs([]);
         if (settings.autoScrollActive) {
           setAutoScrollStartPage(targetPage);
           try {
@@ -3742,6 +3907,8 @@ export default function ReadingScreen({
         } else {
           window.scrollTo({ top: 0, behavior: "instant" });
         }
+      } else if (surahChanged) {
+        window.scrollTo({ top: 0, behavior: "instant" });
       }
       hasAppliedInitialPageRef.current = true;
     }
@@ -3817,39 +3984,37 @@ export default function ReadingScreen({
 
   const lastWheelTimeRef = useRef<number>(0);
   const handleWheelNavigation = useCallback((e: React.WheelEvent) => {
-    if (isContinuousMode) return;
-    const isVertical = settings.scrollDirection === "vertical";
+    if (isContinuousMode || effectivePageMode === "continuous") return;
     const now = Date.now();
-    if (now - lastWheelTimeRef.current < 280) return;
+    if (now - lastWheelTimeRef.current < 200) return;
 
-    if (isVertical) {
-      if (Math.abs(e.deltaY) >= 18 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        lastWheelTimeRef.current = now;
-        if (e.deltaY > 0) {
-          // Wheel down -> Next page
-          setCurrentPage(prev => Math.min(604, prev + 1));
-          window.scrollTo({ top: 0, behavior: "instant" });
-        } else {
-          // Wheel up -> Previous page
-          setCurrentPage(prev => Math.max(1, prev - 1));
-          window.scrollTo({ top: 0, behavior: "instant" });
-        }
+    // تمرير صفحة المصحف آية آية لأعلى ولأسفل بعجلة الماوس في نمط الصفحة المفردة
+    if (Math.abs(e.deltaY) >= 12 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      lastWheelTimeRef.current = now;
+      if (e.deltaY > 0) {
+        // Wheel down -> الآية التالية (لأسفل)
+        navigateAyahStep("down");
+      } else {
+        // Wheel up -> الآية السابقة (لأعلى)
+        navigateAyahStep("up");
       }
-    } else {
-      if (Math.abs(e.deltaX) >= 18 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        lastWheelTimeRef.current = now;
-        if (e.deltaX > 0) {
-          // Wheel right in RTL -> Next page
-          setCurrentPage(prev => Math.min(604, prev + 1));
-          window.scrollTo({ top: 0, behavior: "instant" });
-        } else {
-          // Wheel left in RTL -> Previous page
-          setCurrentPage(prev => Math.max(1, prev - 1));
-          window.scrollTo({ top: 0, behavior: "instant" });
-        }
+      return;
+    }
+
+    // تقليب الصفحات يميناً ويساراً
+    if (Math.abs(e.deltaX) >= 12 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      lastWheelTimeRef.current = now;
+      if (e.deltaX > 0) {
+        // Wheel right in RTL -> Next page
+        setCurrentPage(prev => Math.min(604, prev + 1));
+        window.scrollTo({ top: 0, behavior: "instant" });
+      } else {
+        // Wheel left in RTL -> Previous page
+        setCurrentPage(prev => Math.max(1, prev - 1));
+        window.scrollTo({ top: 0, behavior: "instant" });
       }
     }
-  }, [isContinuousMode, settings.scrollDirection]);
+  }, [isContinuousMode, effectivePageMode, navigateAyahStep]);
 
   // Global window wheel navigation listener across the reader
   useEffect(() => {
@@ -3858,37 +4023,31 @@ export default function ReadingScreen({
         "#service-drawer-container, #ayah-bottom-sheet, .share-modal-container, [role='dialog'], #settings-screen-root, #index-drawer"
       );
       if (hasActiveModal || isIndexOpen || serviceDrawerTab !== null) return;
-      if (isContinuousMode) return;
+      if (isContinuousMode || effectivePageMode === "continuous") return;
 
-      const isVertical = settings.scrollDirection === "vertical";
       const now = Date.now();
-      if (now - lastWheelTimeRef.current < 280) return;
+      if (now - lastWheelTimeRef.current < 200) return;
 
-      if (isVertical) {
-        // Vertical mode: up & down ONLY
-        if (Math.abs(e.deltaY) >= 18 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-          lastWheelTimeRef.current = now;
-          if (e.deltaY > 0) {
-            // Wheel down -> Next page
-            setCurrentPage(prev => Math.min(604, prev + 1));
-            window.scrollTo({ top: 0, behavior: "instant" });
-          } else {
-            // Wheel up -> Previous page
-            setCurrentPage(prev => Math.max(1, prev - 1));
-            window.scrollTo({ top: 0, behavior: "instant" });
-          }
+      // تمرير صفحة المصحف آية آية لأعلى ولأسفل في نمط الصفحة المفردة
+      if (Math.abs(e.deltaY) >= 12 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        lastWheelTimeRef.current = now;
+        if (e.deltaY > 0) {
+          navigateAyahStep("down");
+        } else {
+          navigateAyahStep("up");
         }
-      } else {
-        // Horizontal mode: right & left ONLY
-        if (Math.abs(e.deltaX) >= 18 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-          lastWheelTimeRef.current = now;
-          if (e.deltaX > 0) {
-            setCurrentPage(prev => Math.min(604, prev + 1));
-            window.scrollTo({ top: 0, behavior: "instant" });
-          } else {
-            setCurrentPage(prev => Math.max(1, prev - 1));
-            window.scrollTo({ top: 0, behavior: "instant" });
-          }
+        return;
+      }
+
+      // تقليب الصفحات أفقياً
+      if (Math.abs(e.deltaX) >= 12 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        lastWheelTimeRef.current = now;
+        if (e.deltaX > 0) {
+          setCurrentPage(prev => Math.min(604, prev + 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
+        } else {
+          setCurrentPage(prev => Math.max(1, prev - 1));
+          window.scrollTo({ top: 0, behavior: "instant" });
         }
       }
     };
@@ -3897,7 +4056,7 @@ export default function ReadingScreen({
     return () => {
       window.removeEventListener("wheel", handleGlobalWheel);
     };
-  }, [isContinuousMode, settings.scrollDirection, isIndexOpen, serviceDrawerTab]);
+  }, [isContinuousMode, effectivePageMode, isIndexOpen, serviceDrawerTab, navigateAyahStep]);
 
   // Global keyboard navigation listener
   useEffect(() => {
@@ -3910,29 +4069,31 @@ export default function ReadingScreen({
       if (hasActiveModal || isIndexOpen || serviceDrawerTab !== null) return;
       if (isContinuousMode) return;
 
-      const isVertical = settings.scrollDirection === "vertical";
-      if (isVertical) {
-        // Vertical ONLY: ArrowDown / ArrowUp / PageDown / PageUp
-        if (e.key === "ArrowDown" || e.key === "PageDown") {
-          e.preventDefault();
+      // الأسهم لأعلى ولأسفل: تمرير المصحف آية آية
+      if (e.key === "ArrowDown" || e.key === "PageDown") {
+        e.preventDefault();
+        if (e.shiftKey) {
           setCurrentPage(prev => Math.min(604, prev + 1));
           window.scrollTo({ top: 0, behavior: "instant" });
-        } else if (e.key === "ArrowUp" || e.key === "PageUp") {
-          e.preventDefault();
+        } else {
+          navigateAyahStep("down");
+        }
+      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+        e.preventDefault();
+        if (e.shiftKey) {
           setCurrentPage(prev => Math.max(1, prev - 1));
           window.scrollTo({ top: 0, behavior: "instant" });
+        } else {
+          navigateAyahStep("up");
         }
-      } else {
-        // Horizontal ONLY: ArrowLeft / ArrowRight
-        if (e.key === "ArrowLeft") {
-          e.preventDefault();
-          setCurrentPage(prev => Math.min(604, prev + 1));
-          window.scrollTo({ top: 0, behavior: "instant" });
-        } else if (e.key === "ArrowRight") {
-          e.preventDefault();
-          setCurrentPage(prev => Math.max(1, prev - 1));
-          window.scrollTo({ top: 0, behavior: "instant" });
-        }
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setCurrentPage(prev => Math.min(604, prev + 1));
+        window.scrollTo({ top: 0, behavior: "instant" });
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setCurrentPage(prev => Math.max(1, prev - 1));
+        window.scrollTo({ top: 0, behavior: "instant" });
       }
     };
 
@@ -3940,7 +4101,7 @@ export default function ReadingScreen({
     return () => {
       window.removeEventListener("keydown", handleGlobalKeyDown);
     };
-  }, [isContinuousMode, settings.scrollDirection, isIndexOpen, serviceDrawerTab]);
+  }, [isContinuousMode, isIndexOpen, serviceDrawerTab, navigateAyahStep]);
 
   useEffect(() => {
     if ((settings.pageMode === "mushaf-svg" || !settings.pageMode) && isContinuousMode) {
@@ -4311,8 +4472,6 @@ export default function ReadingScreen({
     }
   };
 
-  const [pageAyahs, setPageAyahs] = useState<any[]>([]);
-  const [pageLoading, setPageLoading] = useState<boolean>(false);
   
   // Audio capsule auto-hide state and effects
   const [audioCapsuleVisible, setAudioCapsuleVisible] = useState<boolean>(true);
@@ -4893,6 +5052,8 @@ export default function ReadingScreen({
     };
   }, [surahNumber]);
 
+  const lastInitialAyahKeyRef = useRef<string | null>(null);
+
   // Scroll to starting ayah if provided, especially when opening continuous (Library) mode
   useEffect(() => {
     if (loading || ayahs.length === 0) return;
@@ -4911,6 +5072,15 @@ export default function ReadingScreen({
       }
     }
 
+    const scrollKey = `${surahNumber}:${targetAyahNum}:${effectivePageMode}`;
+    if (lastInitialAyahKeyRef.current === scrollKey) return;
+    lastInitialAyahKeyRef.current = scrollKey;
+
+    // If starting at verse 1 and page is already at top, no need to force scroll
+    if (targetAyahNum === 1 && window.scrollY < 80) {
+      return;
+    }
+
     let isCancelled = false;
 
     const performScroll = () => {
@@ -4919,7 +5089,10 @@ export default function ReadingScreen({
                  document.getElementById(`ayah-block-${targetAyahNum}`) ||
                  document.getElementById(`ayah-word-span-${targetAyahNum}`);
       if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const topBar = document.getElementById("library-services-horizontal-bar");
+        const barHeight = topBar ? topBar.offsetHeight + 14 : 140;
+        const targetY = window.scrollY + el.getBoundingClientRect().top - barHeight;
+        window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
         const parentAyah = ayahs.find(a => a.numberInSurah === targetAyahNum);
         if (parentAyah) {
           setSelectedAyah(prev => (prev && prev.numberInSurah === parentAyah.numberInSurah ? prev : parentAyah));
@@ -4929,19 +5102,13 @@ export default function ReadingScreen({
       return false;
     };
 
-    // Immediate attempt + progressive retries as continuous DOM cards mount
     if (!performScroll()) {
       const t1 = setTimeout(() => {
         if (!performScroll()) {
-          const t2 = setTimeout(() => {
-            if (!performScroll()) {
-              const t3 = setTimeout(performScroll, 500);
-              return () => clearTimeout(t3);
-            }
-          }, 200);
+          const t2 = setTimeout(performScroll, 200);
           return () => clearTimeout(t2);
         }
-      }, 60);
+      }, 80);
       return () => {
         isCancelled = true;
         clearTimeout(t1);
@@ -4951,7 +5118,7 @@ export default function ReadingScreen({
     return () => {
       isCancelled = true;
     };
-  }, [loading, initialAyahNumber, effectivePageMode, surahNumber, mushafClickTrigger, ayahs]);
+  }, [loading, initialAyahNumber, effectivePageMode, surahNumber, ayahs]);
 
   // Play pending ayah once surah is loaded
   useEffect(() => {
@@ -6784,7 +6951,7 @@ export default function ReadingScreen({
                 )}
 
                 {serviceDrawerTab === "settings" && (
-                  <div className="p-4 sm:p-6 space-y-4">
+                  <div className="w-full h-full">
                     <SettingsScreen
                       settings={settings}
                       onChangeSettings={onChangeSettings}
@@ -6793,23 +6960,8 @@ export default function ReadingScreen({
                       theme={theme}
                       onChangeTheme={onChangeTheme}
                       inDrawer={true}
+                      onClose={() => setServiceDrawerTab(null)}
                     />
-                    <div className="pt-4 border-t border-slate-200/50 dark:border-slate-800">
-                      <button
-                        onClick={() => setServiceDrawerTab(null)}
-                        className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md text-center text-white ${
-                          theme === "navy-velvet"
-                            ? "bg-[#3F63C6] hover:bg-[#3F63C6]/90"
-                            : theme === "gold-velvet" || theme === "emerald-velvet"
-                              ? "bg-[#c5a85c] text-[#011c14] hover:bg-[#c5a85c]/95"
-                              : isDark
-                                ? "bg-emerald-600 hover:bg-emerald-500"
-                                : "bg-emerald-800 hover:bg-emerald-900"
-                        }`}
-                      >
-                        حفظ وتطبيق الخيارات
-                      </button>
-                    </div>
                   </div>
                 )}
 
@@ -9388,7 +9540,7 @@ export default function ReadingScreen({
                           visibility: visible !important;
                           opacity: 1 !important;
                           font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
-                          font-size: 15.5px !important;
+                          font-size: 13.8px !important;
                           font-weight: normal !important;
                           text-anchor: middle !important;
                           dominant-baseline: central !important;
@@ -9407,11 +9559,6 @@ export default function ReadingScreen({
                               ? "#FFFFFF"
                               : "#000000"
                           } !important;
-                        }
-
-                        #mushaf-svg-wrapper[data-fullscreen="true"] .surah_header_frame span.surah_header_text,
-                        .mushaf-page-list-item[data-fullscreen="true"] .surah_header_frame span.surah_header_text {
-                          font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
                         }
 
                         #mushaf-svg-wrapper .ayahPolygon, .mushaf-page-list-item .ayahPolygon {
@@ -9458,9 +9605,6 @@ export default function ReadingScreen({
                         ` : ''}
 
                         @media (orientation: landscape) {
-                          .surah_header_frame span.surah_header_text {
-                            font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
-                          }
                           #reading-screen-root {
                             padding-top: ${showBars ? "56px" : "4px"} !important;
                             padding-bottom: ${showBars ? (isPlayerActive ? "120px" : "64px") : (isPlayerActive ? "64px" : "40px")} !important;
@@ -9730,7 +9874,7 @@ export default function ReadingScreen({
                                 {/* Surah Header Frame for Opening Pages (Surah Al-Fatihah & Surah Al-Baqarah) */}
                                 {!isQcf4 && (pageNum === 1 || pageNum === 2) && (
                                   <div 
-                                    className={`w-full px-1.5 sm:px-2 pt-1 ${pageNum === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20 transition-all duration-300`}
+                                    className={`w-full px-1.5 sm:px-2 pt-1 ${pageNum === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20`}
                                   >
                                     <SurahHeaderFrame
                                       surahNumber={pageNum === 1 ? 1 : 2}
@@ -9865,7 +10009,7 @@ export default function ReadingScreen({
                           {/* Surah Header Frame for Opening Pages (Surah Al-Fatihah & Surah Al-Baqarah) */}
                           {!isQcf4 && (currentPage === 1 || currentPage === 2) && (
                             <div 
-                              className={`w-full px-1.5 sm:px-2 pt-1 ${currentPage === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20 transition-all duration-300`}
+                              className={`w-full px-1.5 sm:px-2 pt-1 ${currentPage === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20`}
                             >
                               <SurahHeaderFrame
                                 surahNumber={currentPage === 1 ? 1 : 2}
@@ -10371,10 +10515,11 @@ export default function ReadingScreen({
               /* Continuous Ayah-by-Ayah with Tafsir View layout */
               <div
                 id="mushaf-continuous-canvas"
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchCancel}
-                onTouchMove={handleSvgTouchMove}
+                style={{
+                  backgroundColor: isDark ? "#020617" : "#ffffff",
+                  borderColor: isDark ? undefined : theme === "gold-velvet" ? "#c5a85c40" : theme === "emerald-velvet" ? "#c5a85c30" : undefined,
+                  touchAction: "pan-y"
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleBarsUnified(undefined, e);
@@ -10390,125 +10535,24 @@ export default function ReadingScreen({
                     ? "bg-white border-[#c5a85c]/30 text-[#011a12] shadow-none"
                     : "bg-white border-slate-200/80 shadow-[0_4px_30px_rgba(15,76,58,0.04)] text-slate-900"
                 }`}
-                style={{
-                  backgroundColor: isDark ? "#020617" : "#ffffff",
-                  borderColor: isDark ? undefined : theme === "gold-velvet" ? "#c5a85c40" : theme === "emerald-velvet" ? "#c5a85c30" : undefined
-                }}
                 dir="rtl"
               >
-                {/* Dynamic spacer ensuring floating bars never overlap the verses */}
-                <div className={`w-full transition-all duration-300 pointer-events-none select-none ${
-                  showBars ? "h-28 sm:h-32 mb-4" : "h-24 sm:h-28 mb-3"
-                }`} />
+                {/* Dynamic spacer ensuring floating bar never overlaps the verses */}
+                <div className="w-full h-28 sm:h-32 mb-3 pointer-events-none select-none" />
 
-                {/* Top Floating Box with Surah & Ayah Selectors (عائم وظاهر في وضع القراءة فقط، ومخفي في صفحة علاماتي والفهرس والأدراج) */}
-                {activeTab === "home" && !isIndexOpen && serviceDrawerTab === null && (
-                <div 
-                  id="floating-surah-ayah-picker"
-                  onClick={(e) => e.stopPropagation()}
-                  className={`fixed ${showBars ? "top-16 sm:top-[4.25rem]" : "top-3 sm:top-4"} left-3 sm:left-6 z-[360] inline-flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md shadow-xl border transition-all duration-300 select-none ${
-                    theme === "navy-velvet"
-                      ? "bg-white/95 border-[#3F63C6]/35 shadow-[#3F63C6]/20 text-slate-900"
-                      : theme === "gold-velvet"
-                        ? "bg-[#FFFDF5]/95 border-[#c5a85c]/50 shadow-[#c5a85c]/25 text-[#011c14]"
-                        : theme === "emerald-velvet"
-                          ? "bg-[#012519]/95 border-[#34d399]/50 shadow-black/50 text-[#FAF8F5]"
-                          : isDark
-                            ? "bg-slate-900/95 border-slate-700 shadow-black/60 text-slate-100"
-                            : "bg-white/95 border-emerald-300 shadow-emerald-950/15 text-slate-900"
-                  }`}
-                  style={{ direction: "rtl" }}
-                >
-                  {/* Element 1: Surah Dropdown / Modal Trigger */}
-                  <div className="flex items-center shrink-0">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsContinuousSurahModalOpen(!isContinuousSurahModalOpen);
-                      }}
-                      className={`cursor-pointer px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border transition-all duration-200 outline-none shadow-2xs flex items-center gap-1.5 ${
-                        theme === "navy-velvet"
-                          ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
-                          : theme === "gold-velvet"
-                            ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
-                            : theme === "emerald-velvet"
-                              ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
-                              : isDark
-                                ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
-                                : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-                      }`}
-                      title="اختر السورة"
-                    >
-                      <span className="text-lg sm:text-2xl font-normal leading-none select-none" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
-                        {getSurahHeaderGlyph(surahNumber, surahsList.find(s => s.number === surahNumber)?.name) || surahsList.find(s => s.number === surahNumber)?.name}
-                      </span>
-                      <ChevronDown size={14} className="opacity-70" />
-                    </button>
-
-                    <SurahSelectModal
-                      isOpen={isContinuousSurahModalOpen}
-                      onClose={() => setIsContinuousSurahModalOpen(false)}
-                      selectedSurahNumber={surahNumber}
-                      onSelectSurah={(sNum) => {
-                        if (onChangeSurah) {
-                          onChangeSurah(sNum, 1);
-                        }
-                      }}
-                      isDark={isDark}
-                      theme={theme || "light"}
-                    />
-                  </div>
-
-                  {/* Element 2: Ayah Dropdown */}
-                  <div className="relative flex items-center shrink-0">
-                    <select
-                      value={selectedAyah?.numberInSurah || initialAyahNumber || 1}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        const aNum = parseInt(e.target.value, 10);
-                        if (onChangeSurah) {
-                          onChangeSurah(surahNumber, aNum);
-                        }
-                        setTimeout(() => {
-                          const elem = document.getElementById(`ayah-block-${aNum}`) || document.getElementById(`ayah-word-span-${aNum}`);
-                          if (elem) {
-                            elem.scrollIntoView({ behavior: "smooth", block: "center" });
-                          }
-                        }, 150);
-                      }}
-                      className={`appearance-none cursor-pointer pl-6 pr-2.5 sm:pl-7 sm:pr-3 py-1 sm:py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 outline-none shadow-2xs ${
-                        theme === "navy-velvet"
-                          ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
-                          : theme === "gold-velvet"
-                            ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
-                            : theme === "emerald-velvet"
-                              ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
-                              : isDark
-                                ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
-                                : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
-                      }`}
-                      title="اختر الآية"
-                    >
-                      {Array.from({ length: currentSurahMeta?.numberOfAyahs || 286 }).map((_, i) => (
-                        <option key={i + 1} value={i + 1} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-slate-100">
-                          آية {toArabicNumerals(i + 1)}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute left-2 sm:left-2.5 pointer-events-none opacity-60" />
-                  </div>
-                </div>
-                )}
-
-                {/* شريط الأيقونات الموحد المباشر (بدون تفريعات): عائم وظاهر دائماً أسفل شريط اسم السورة والآية */}
+                {/* الشريط الموحد: يجمع اختيار السورة والآية في السطر العلوي فوق سطر التفاسير */}
                 {activeTab === "home" && !isIndexOpen && serviceDrawerTab === null && (
                 <div 
                   id="library-services-horizontal-bar"
                   dir="rtl"
-                  style={{ direction: "rtl" }}
-                  className={`fixed ${showBars ? "top-[6.75rem] sm:top-[7.25rem]" : "top-14 sm:top-16"} left-2 right-2 sm:left-4 sm:right-4 max-w-4xl md:mx-auto z-[355] flex items-center justify-start gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-2xl border shadow-xl backdrop-blur-md overflow-x-auto scrollbar-none flex-nowrap whitespace-nowrap select-none transition-all duration-300 ${
+                  style={{ 
+                    direction: "rtl", 
+                    touchAction: "pan-x", 
+                    overscrollBehavior: "none",
+                    userSelect: "none",
+                    top: "0px"
+                  }}
+                  className={`fixed top-0 left-0 right-0 sm:left-2 sm:right-2 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[calc(100%-2rem)] max-w-4xl z-[360] flex flex-col gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-b-2xl border-b border-x border-t-0 shadow-xl backdrop-blur-md select-none pointer-events-auto ${
                     theme === "navy-velvet"
                       ? "bg-white/95 border-[#3F63C6]/30 shadow-[#3F63C6]/15 text-slate-900"
                       : theme === "gold-velvet"
@@ -10520,46 +10564,267 @@ export default function ReadingScreen({
                             : "bg-white/95 border-emerald-300 shadow-emerald-950/15 text-slate-900"
                   }`}
                 >
-                  {CONTINUOUS_SERVICES_LIST.map((service) => {
-                    const isActive = continuousActiveMode === service.id;
-                    const ServiceIcon = service.icon;
-                    return (
-                      <button
-                        key={service.id}
-                        id={`service-tab-${service.id}`}
-                        type="button"
-                        onClick={() => {
-                          setContinuousActiveMode(service.id);
-                          setContinuousActiveService(service.mainCategory);
-                        }}
-                        title={service.desc}
-                        className={`flex-1 min-w-max py-2 px-3 sm:px-3.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 select-none ${
-                          isActive
-                            ? theme === "navy-velvet"
-                              ? "bg-[#3F63C6] text-white shadow-xs scale-[1.01]"
+                  {/* السطر العلوي: منتقي السورة والآية (فوق سطر التفاسير مباشرة) */}
+                  <div 
+                    id="floating-surah-ayah-picker"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full flex items-center justify-between gap-2 px-1"
+                  >
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                      {/* Element 1: Surah Dropdown / Modal Trigger */}
+                      <div className="relative flex items-center shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsContinuousSurahModalOpen(!isContinuousSurahModalOpen);
+                          }}
+                          className={`cursor-pointer px-3 sm:px-3.5 h-9 sm:h-10 rounded-xl border transition-all duration-200 outline-none shadow-2xs flex items-center justify-center gap-1.5 shrink-0 ${
+                            theme === "navy-velvet"
+                              ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
                               : theme === "gold-velvet"
-                                ? "bg-[#c5a85c] text-[#011c14] shadow-xs scale-[1.01]"
+                                ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
                                 : theme === "emerald-velvet"
-                                  ? "bg-[#34d399] text-[#011a12] shadow-xs scale-[1.01]"
+                                  ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
                                   : isDark
-                                    ? "bg-emerald-500 text-slate-950 shadow-xs scale-[1.01]"
-                                    : "bg-emerald-600 text-white shadow-xs scale-[1.01]"
-                            : isDark
-                              ? "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
-                              : "text-slate-600 hover:text-slate-900 hover:bg-black/5"
-                        }`}
-                      >
-                        <ServiceIcon size={16} className="shrink-0" />
-                        <span className="truncate">{service.label}</span>
-                      </button>
-                    );
-                  })}
+                                    ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
+                                    : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
+                          }`}
+                          title="اختر السورة"
+                        >
+                          <span className="text-base sm:text-xl font-normal leading-none select-none" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
+                            {getSurahHeaderGlyph(surahNumber, surahsList.find(s => s.number === surahNumber)?.name) || surahsList.find(s => s.number === surahNumber)?.name}
+                          </span>
+                          <ChevronDown size={14} className="opacity-70" />
+                        </button>
+
+                        <SurahSelectModal
+                          isOpen={isContinuousSurahModalOpen}
+                          onClose={() => setIsContinuousSurahModalOpen(false)}
+                          selectedSurahNumber={surahNumber}
+                          onSelectSurah={(sNum) => {
+                            if (onChangeSurah) {
+                              onChangeSurah(sNum, 1);
+                            }
+                          }}
+                          isDark={isDark}
+                          theme={theme || "light"}
+                          align="right"
+                        />
+                      </div>
+
+                      {/* Element 2: Ayah Dropdown */}
+                      <div className="relative flex items-center shrink-0">
+                        <select
+                          value={selectedAyah?.numberInSurah || initialAyahNumber || 1}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const aNum = parseInt(e.target.value, 10);
+                            if (onChangeSurah) {
+                              onChangeSurah(surahNumber, aNum);
+                            }
+                            setTimeout(() => {
+                              const elem = document.getElementById(`ayah-block-${aNum}`) || document.getElementById(`ayah-word-span-${aNum}`);
+                              if (elem) {
+                                elem.scrollIntoView({ behavior: "smooth", block: "center" });
+                              }
+                            }, 150);
+                          }}
+                          className={`appearance-none cursor-pointer pl-6 pr-2.5 sm:pl-7 sm:pr-3 h-9 sm:h-10 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 outline-none shadow-2xs flex items-center ${
+                            theme === "navy-velvet"
+                              ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
+                              : theme === "gold-velvet"
+                                ? "bg-white text-[#8c6d1f] border-[#c5a85c]/40 hover:bg-amber-50"
+                                : theme === "emerald-velvet"
+                                  ? "bg-[#012519] text-[#34d399] border-[#34d399]/40 hover:bg-[#013524]"
+                                  : isDark
+                                    ? "bg-slate-800 text-emerald-300 border-slate-700 hover:bg-slate-750"
+                                    : "bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-50"
+                          }`}
+                          title="اختر الآية"
+                        >
+                          {Array.from({ length: currentSurahMeta?.numberOfAyahs || 286 }).map((_, i) => (
+                            <option key={i + 1} value={i + 1} className="text-slate-900 bg-white dark:bg-slate-900 dark:text-slate-100">
+                              آية {toArabicNumerals(i + 1)}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute left-2 sm:left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                      </div>
+
+                      {/* Element 2b: أزرار تحريك صفحة المصحف آية آية لأعلى وأسفل */}
+                      <div className="flex items-center gap-0.5 bg-black/5 dark:bg-white/10 rounded-xl p-0.5 border border-black/5 dark:border-white/10 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateAyahStep("up");
+                          }}
+                          className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-90 flex items-center justify-center ${
+                            isDark
+                              ? "hover:bg-slate-700 text-emerald-400"
+                              : theme === "gold-velvet"
+                                ? "hover:bg-amber-100/60 text-[#8c6d1f]"
+                                : theme === "navy-velvet"
+                                  ? "hover:bg-[#3F63C6]/15 text-[#3F63C6]"
+                                  : "hover:bg-emerald-100/70 text-emerald-800"
+                          }`}
+                          title="الآية السابقة (تحريك لأعلى)"
+                        >
+                          <ChevronUp size={16} className="stroke-[2.5]" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateAyahStep("down");
+                          }}
+                          className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-90 flex items-center justify-center ${
+                            isDark
+                              ? "hover:bg-slate-700 text-emerald-400"
+                              : theme === "gold-velvet"
+                                ? "hover:bg-amber-100/60 text-[#8c6d1f]"
+                                : theme === "navy-velvet"
+                                  ? "hover:bg-[#3F63C6]/15 text-[#3F63C6]"
+                                  : "hover:bg-emerald-100/70 text-emerald-800"
+                          }`}
+                          title="الآية التالية (تحريك لأسفل)"
+                        >
+                          <ChevronDown size={16} className="stroke-[2.5]" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* معلومات السورة / الآيات والصفحة على اليسار */}
+                    <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold opacity-80 shrink-0 px-1">
+                      <span className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/10">{toArabicNumerals(currentSurahMeta?.numberOfAyahs || 0)} آية</span>
+                      {currentPage && (
+                        <>
+                          <span className="opacity-40">•</span>
+                          <span className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/10">صفحة {toArabicNumerals(currentPage)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* فاصل أفقي ناعم */}
+                  <div className="w-full h-[1px] bg-current opacity-10 my-0.5" />
+
+                  {/* السطر السفلي: سطر التفاسير وخدمات التدبر (div:nth-of-type(3)) */}
+                  <div 
+                    id="library-services-tab-strip"
+                    className="w-full flex items-center gap-1 sm:gap-1.5 overflow-x-auto overflow-y-hidden scrollbar-none flex-nowrap whitespace-nowrap min-w-0 touch-pan-x overscroll-contain select-none"
+                    style={{ 
+                      touchAction: "pan-x", 
+                      overscrollBehaviorX: "contain", 
+                      overscrollBehaviorY: "none",
+                      overflowY: "hidden",
+                      userSelect: "none",
+                      WebkitOverflowScrolling: "touch"
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchMove={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onWheel={(e) => {
+                      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                        e.currentTarget.scrollLeft += e.deltaY;
+                        e.preventDefault();
+                      }
+                    }}
+                  >
+                    {CONTINUOUS_SERVICES_LIST.map((service) => {
+                      const isActive = continuousActiveMode === service.id || (service.id === "book_tadabbur" && continuousActiveMode.startsWith("book_tadabbur"));
+                      const ServiceIcon = service.icon;
+                      return (
+                        <button
+                          key={service.id}
+                          id={`service-tab-${service.id}`}
+                          type="button"
+                          onClick={() => {
+                            setContinuousActiveMode(service.id);
+                            setContinuousActiveService(service.mainCategory);
+                          }}
+                          title={service.desc}
+                          className={`py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 select-none ${
+                            isActive
+                              ? theme === "navy-velvet"
+                                ? "bg-[#3F63C6] text-white shadow-xs scale-[1.01]"
+                                : theme === "gold-velvet"
+                                  ? "bg-[#c5a85c] text-[#011c14] shadow-xs scale-[1.01]"
+                                  : theme === "emerald-velvet"
+                                    ? "bg-[#34d399] text-[#011a12] shadow-xs scale-[1.01]"
+                                    : isDark
+                                      ? "bg-emerald-500 text-slate-950 shadow-xs scale-[1.01]"
+                                      : "bg-emerald-600 text-white shadow-xs scale-[1.01]"
+                              : isDark
+                                ? "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
+                                : "text-slate-600 hover:text-slate-900 hover:bg-black/5"
+                          }`}
+                        >
+                          <ServiceIcon size={15} className="shrink-0" />
+                          <span className="truncate">{service.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
                 </div>
                 )}
 
-                {surahNumber !== 9 && surahNumber !== 1 && (
+                {surahNumber === 9 ? (
+                  <div className="w-full flex items-center justify-center my-5 select-none animate-fade-in">
+                    <div className="flex items-center gap-4 w-full max-w-xl md:max-w-2xl lg:max-w-3xl">
+                      <div className={`h-[1px] flex-1 bg-gradient-to-l from-transparent ${
+                        isDark
+                          ? "via-slate-600 to-slate-400"
+                          : theme === "gold-velvet"
+                            ? "via-[#c5a85c]/40 to-[#c5a85c]/85"
+                            : theme === "emerald-velvet"
+                              ? "via-[#34d399]/40 to-[#34d399]/85"
+                              : theme === "navy-velvet"
+                                ? "via-[#1b3168]/40 to-[#1b3168]/85"
+                                : "via-emerald-700/30 to-emerald-700/75"
+                      }`}></div>
+                      <span 
+                        className={`text-xl sm:text-2xl md:text-3xl font-normal text-center leading-relaxed select-none px-2 ${
+                          isDark
+                            ? "text-slate-100"
+                            : theme === "emerald-velvet"
+                              ? "text-[#FAF8F5]"
+                              : theme === "gold-velvet"
+                                ? "text-amber-950"
+                                : "text-slate-950"
+                        }`}
+                        style={{ 
+                          fontFamily: "'UthmanTaha', 'UthmanicHafs', 'QCF4_QBSML', 'Amiri', serif",
+                          color: isDark ? "#f1f5f9" : undefined
+                        }}
+                      >
+                        أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ
+                      </span>
+                      <div className={`h-[1px] flex-1 bg-gradient-to-r from-transparent ${
+                        isDark
+                          ? "via-slate-600 to-slate-400"
+                          : theme === "gold-velvet"
+                            ? "via-[#c5a85c]/40 to-[#c5a85c]/85"
+                            : theme === "emerald-velvet"
+                              ? "via-[#34d399]/40 to-[#34d399]/85"
+                              : theme === "navy-velvet"
+                                ? "via-[#1b3168]/40 to-[#1b3168]/85"
+                                : "via-emerald-700/30 to-emerald-700/75"
+                      }`}></div>
+                    </div>
+                  </div>
+                ) : surahNumber !== 1 ? (
                   <BismillahBanner theme={theme} surahNumber={surahNumber} isDark={isDark} />
-                )}
+                ) : null}
 
                 <div className="flex flex-col gap-6 w-full mt-6 select-none">
                   {ayahs.map((ayah, idx) => {
@@ -10602,6 +10867,7 @@ export default function ReadingScreen({
                         onOpenShare={handleOpenShareAyah}
                         onOpenBookmarkMenu={handleOpenAyahBookmarkMenu}
                         onOpenNote={handleOpenAyahNoteModal}
+                        onSelectMode={setContinuousActiveMode}
                       />
                     );
                   })}
@@ -11937,6 +12203,7 @@ export default function ReadingScreen({
                           name: floatingAyahMenu.surahName,
                         },
                       };
+                      setTafsirModalBook("tafsir_muyassar");
                       setTafsirModalAyah(ayahWithSurah as Ayah);
                       setFloatingAyahMenu(null);
                     }}

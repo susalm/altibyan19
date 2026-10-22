@@ -530,10 +530,60 @@ const initialCatalog: StorageItem[] = [
     id: "book_tadabbur",
     category: "tadabbur",
     categoryAr: "كتب التدبر والفوائد",
-    title: "كتاب ليدبروا آياته",
-    subtext: "المركز المباشر والفوائد التدبرية الميسرة",
-    authorOrSource: "مركز تدبر للدراسات القرآنية",
+    title: "ليدبروا آياته (المجموعات ١ - ٥ كاملة)",
+    subtext: "الموسوعة الكاملة لكتاب ليدبروا آياته",
+    authorOrSource: "مركز تدبر للدراسات والبحوث القرآنية",
     sizeMB: 14.2,
+    isDownloaded: true
+  },
+  {
+    id: "book_tadabbur_1",
+    category: "tadabbur",
+    categoryAr: "كتب التدبر والفوائد",
+    title: "ليدبروا آياته - المجموعة الأولى",
+    subtext: "حصاد عام من التدبر، وقفات ولطائف موثقة",
+    authorOrSource: "مركز تدبر للدراسات والبحوث القرآنية",
+    sizeMB: 3.2,
+    isDownloaded: true
+  },
+  {
+    id: "book_tadabbur_2",
+    category: "tadabbur",
+    categoryAr: "كتب التدبر والفوائد",
+    title: "ليدبروا آياته - المجموعة الثانية",
+    subtext: "وقفات تدبرية وهدايات إيمانية مستنبطة",
+    authorOrSource: "مركز تدبر للدراسات والبحوث القرآنية",
+    sizeMB: 3.4,
+    isDownloaded: true
+  },
+  {
+    id: "book_tadabbur_3",
+    category: "tadabbur",
+    categoryAr: "كتب التدبر والفوائد",
+    title: "ليدبروا آياته - المجموعة الثالثة",
+    subtext: "إضاءات وفوائد قرآنية ولطائف بيانية",
+    authorOrSource: "مركز تدبر للدراسات والبحوث القرآنية",
+    sizeMB: 2.8,
+    isDownloaded: true
+  },
+  {
+    id: "book_tadabbur_4",
+    category: "tadabbur",
+    categoryAr: "كتب التدبر والفوائد",
+    title: "ليدبروا آياته - المجموعة الرابعة",
+    subtext: "ومضات وتأملات في مقاصد الآيات",
+    authorOrSource: "مركز تدبر للدراسات والبحوث القرآنية",
+    sizeMB: 2.4,
+    isDownloaded: true
+  },
+  {
+    id: "book_tadabbur_5",
+    category: "tadabbur",
+    categoryAr: "كتب التدبر والفوائد",
+    title: "ليدبروا آياته - المجموعة الخامسة",
+    subtext: "هدايات تدبرية ولطائف سلوكية وأثر القرآن",
+    authorOrSource: "مركز تدبر للدراسات والبحوث القرآنية",
+    sizeMB: 2.4,
     isDownloaded: true
   },
 
@@ -608,7 +658,7 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
 
   // Read actual cached pages count from IndexedDB
   useEffect(() => {
-    getCachedPagesCount("quran-svg").then((count) => {
+    getCachedPagesCount().then((count) => {
       setMushafPageCount(count);
     });
   }, []);

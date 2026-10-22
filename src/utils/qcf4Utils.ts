@@ -182,14 +182,9 @@ export function isQbsmlLoaded(): boolean {
 }
 
 /**
- * Returns the character glyph for Bismillah in QCF4_QBSML font (\uFAD0\uFAD1\uFAD2\uFAD3),
- * or falls back to standard Amiri Arabic text if font is not loaded.
+ * Returns the authentic Medina Mushaf text for Bismillah in Uthmanic script.
  */
-export function getBismillahGlyph(fallbackText = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"): string {
-  if (isQbsmlLoaded()) {
-    // In LTR PUA rendering, ordering \uFAD3 \uFAD2 \uFAD1 \uFAD0 places \uFAD0 (Bismi) on the right and \uFAD3 (Ar-Rahim) on the left
-    return "\uFAD3 \uFAD2 \uFAD1 \uFAD0";
-  }
+export function getBismillahGlyph(fallbackText = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"): string {
   return fallbackText;
 }
 

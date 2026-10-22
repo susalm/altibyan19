@@ -45,6 +45,11 @@ export const CORE_LIBRARY_BOOK_IDS = [
 
   // 5. كتب التدبر والهدايات واللطائف
   "book_tadabbur",
+  "book_tadabbur_1",
+  "book_tadabbur_2",
+  "book_tadabbur_3",
+  "book_tadabbur_4",
+  "book_tadabbur_5",
 
   // 6. كتب المتشابهات اللفظية والضبط بالتقعيد
   "book_mutashabihat_saghir",
@@ -180,7 +185,7 @@ export function startAppBackgroundDownloads(
   const timer = setTimeout(async () => {
     try {
       const TOTAL_PAGES = 604;
-      const currentPages = await getCachedPagesCount("quran-svg");
+      const currentPages = await getCachedPagesCount();
       
       // If Quran pages are ALREADY fully downloaded from a prior session, start Tafsir books immediately!
       if (currentPages >= TOTAL_PAGES) {

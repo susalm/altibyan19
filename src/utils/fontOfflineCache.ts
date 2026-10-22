@@ -73,6 +73,7 @@ const CORE_FONTS: FontConfig[] = [
   { family: "UthmanTahaNaskh", url: "/fonts/uthman-tn1-ver10.woff2", weight: "400" },
   { family: "UthmanTahaNaskh", url: "/fonts/uthman-tn1-b-ver10.woff2", weight: "700" },
   { family: "QCF4_QBSML", url: "/fonts/QCF4_QBSML.woff2" },
+  { family: "QCF4_Hafs_01", url: "/fonts/QCF4_Hafs_01_W.woff2" },
   { family: "Amiri", url: "/fonts/amiri-regular.woff2", weight: "400" },
   { family: "Amiri", url: "/fonts/amiri-bold.woff2", weight: "700" },
   { family: "Cairo", url: "/fonts/cairo-arabic.woff2" },

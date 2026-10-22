@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import istiadhaImg from "../assets/images/istiadha_calligraphy_1787675484366.jpg";
 
 interface IstiadhahCalligraphyProps {
   color?: string;
@@ -11,18 +10,20 @@ interface IstiadhahCalligraphyProps {
 let cachedAlphaCanvas: HTMLCanvasElement | null = null;
 let baseImagePromise: Promise<HTMLCanvasElement> | null = null;
 
+/**
+ * Creates or retrieves a cached high-resolution alpha canvas containing
+ * the classical Arabic calligraphy for "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ" (الاستعاذة).
+ * Alpha is 255 on glyphs, 0 on background.
+ */
 export function getBaseAlphaCanvas(): Promise<HTMLCanvasElement> {
   if (cachedAlphaCanvas) return Promise.resolve(cachedAlphaCanvas);
   if (baseImagePromise) return baseImagePromise;
 
   baseImagePromise = new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = istiadhaImg;
-    const process = () => {
+    try {
+      const w = 1200;
+      const h = 260;
       const canvas = document.createElement("canvas");
-      const w = img.naturalWidth || 1000;
-      const h = img.naturalHeight || 300;
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
@@ -31,76 +32,65 @@ export function getBaseAlphaCanvas(): Promise<HTMLCanvasElement> {
         return;
       }
 
-      ctx.drawImage(img, 0, 0, w, h);
+      // Check document fonts readiness
+      const text = "أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // Authentic Medina Uthman Taha (QCF) script font
+      ctx.font = "bold 88px 'UthmanTaha', 'UthmanicHafs', 'QCF4_QBSML', 'Amiri', serif";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillText(text, w / 2, h / 2 + 10);
+
       const imgData = ctx.getImageData(0, 0, w, h);
       const data = imgData.data;
 
-      let minX = w, minY = h, maxX = 0, maxY = 0;
-      let hasVisiblePixels = false;
+      let minX = w,
+        minY = h,
+        maxX = 0,
+        maxY = 0;
+      let hasVisible = false;
 
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           const idx = (y * w + x) * 4;
-          const r = data[idx];
-          const g = data[idx + 1];
-          const b = data[idx + 2];
-          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-          let alpha = 255 - lum;
-          if (lum > 230) {
-            alpha = 0;
-          } else if (lum < 40) {
-            alpha = 255;
-          } else {
-            alpha = Math.round(((230 - lum) / 190) * 255);
-          }
-
-          data[idx + 3] = Math.max(0, Math.min(255, alpha));
-          data[idx] = 255;
-          data[idx + 1] = 255;
-          data[idx + 2] = 255;
-
-          if (alpha > 18) {
+          const a = data[idx + 3];
+          if (a > 15) {
+            hasVisible = true;
             if (x < minX) minX = x;
             if (x > maxX) maxX = x;
             if (y < minY) minY = y;
             if (y > maxY) maxY = y;
-            hasVisiblePixels = true;
           }
         }
       }
 
-      ctx.putImageData(imgData, 0, 0);
-
-      // Auto-crop to exact calligraphy bounds for pixel-perfect scale and centering
-      if (hasVisiblePixels && maxX > minX && maxY > minY) {
-        const padding = 4;
+      if (hasVisible && maxX > minX && maxY > minY) {
+        const padding = 12;
         const cropX = Math.max(0, minX - padding);
         const cropY = Math.max(0, minY - padding);
         const cropW = Math.min(w - cropX, maxX - minX + 1 + padding * 2);
         const cropH = Math.min(h - cropY, maxY - minY + 1 + padding * 2);
 
-        const croppedCanvas = document.createElement("canvas");
-        croppedCanvas.width = cropW;
-        croppedCanvas.height = cropH;
-        const cropCtx = croppedCanvas.getContext("2d");
-        if (cropCtx) {
-          cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-          cachedAlphaCanvas = croppedCanvas;
-          resolve(croppedCanvas);
+        const cropped = document.createElement("canvas");
+        cropped.width = cropW;
+        cropped.height = cropH;
+        const cCtx = cropped.getContext("2d");
+        if (cCtx) {
+          cCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          cachedAlphaCanvas = cropped;
+          resolve(cropped);
           return;
         }
       }
 
       cachedAlphaCanvas = canvas;
       resolve(canvas);
-    };
-
-    if (img.complete && img.naturalWidth > 0) {
-      process();
-    } else {
-      img.onload = process;
-      img.onerror = () => resolve(document.createElement("canvas"));
+    } catch {
+      const fallback = document.createElement("canvas");
+      fallback.width = 600;
+      fallback.height = 120;
+      resolve(fallback);
     }
   });
 
@@ -161,12 +151,14 @@ export const IstiadhahCalligraphy: React.FC<IstiadhahCalligraphyProps> = ({
         />
       ) : (
         <span
-          className="font-bold text-xs sm:text-sm select-none"
-          style={{ color, fontFamily: "'Amiri', 'Cairo', serif" }}
+          className="font-bold text-xs sm:text-sm select-none tracking-wide"
+          style={{ color, fontFamily: "'UthmanTaha', 'UthmanicHafs', 'QCF4_QBSML', 'Amiri', serif" }}
         >
-          أعوذ بالله من الشيطان الرجيم
+          أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ
         </span>
       )}
     </div>
   );
 };
+
+export default IstiadhahCalligraphy;

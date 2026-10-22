@@ -66,7 +66,7 @@ export async function fetchQuranSvg(
   signal?: AbortSignal
 ): Promise<string> {
   // Check local offline database first
-  const localCached = await getCachedPageSvg(pageNum, provider);
+  const localCached = await getCachedPageSvg(pageNum);
   if (localCached) {
     return processSvgAdjustments(localCached, pageNum);
   }
@@ -124,7 +124,7 @@ export async function fetchQuranSvg(
   }
 
   // Save to IndexedDB asynchronously
-  saveCachedPageSvg(pageNum, provider, finalSvg).catch(() => {});
+  saveCachedPageSvg(pageNum, finalSvg).catch(() => {});
 
   return finalSvg;
 }
@@ -250,9 +250,9 @@ export function processSvgAdjustments(text: string, pageNum: number): string {
 
   // 6. Calibrate opening pages (1 and 2) to eliminate empty margins and maximize text readability and font size
   if (pageNum === 1) {
-    result = result.replace(/viewBox=["']0\s+0\s+235\s+235["']/i, 'viewBox="10 18 215 190"');
+    result = result.replace(/viewBox=["'][^"']*["']/i, 'viewBox="10 18 215 190"');
   } else if (pageNum === 2) {
-    result = result.replace(/viewBox=["']0\s+0\s+235\s+235["']/i, 'viewBox="10 40 215 172"');
+    result = result.replace(/viewBox=["'][^"']*["']/i, 'viewBox="8 6 226 208"');
   }
 
   return result;

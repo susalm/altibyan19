@@ -15,6 +15,7 @@ const CORE_STATIC_ASSETS = [
   "/fonts/uthman-taha.woff2",
   "/fonts/uthman-taha.otf",
   "/fonts/QCF4_QBSML.woff2",
+  "/fonts/QCF4_Hafs_01_W.woff2",
   "/fonts/amiri-regular.woff2",
   "/fonts/amiri-bold.woff2",
   "/fonts/cairo-arabic.woff2",

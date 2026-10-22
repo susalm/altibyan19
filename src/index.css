@@ -13,7 +13,8 @@
 
 @font-face {
   font-family: 'UthmanTaha';
-  src: url('/fonts/uthman-tn1-ver10.woff2') format('woff2'),
+  src: url('/fonts/uthman-taha.woff2') format('woff2'),
+       url('/fonts/uthman-tn1-ver10.woff2') format('woff2'),
        url('/fonts/uthman-tn1-ver10.ttf') format('truetype'),
        url('https://cdn.jsdelivr.net/gh/fawazahmed0/quran-api@1/fonts/uthman-tn1-ver10.woff2') format('woff2');
   font-weight: 400;
@@ -54,6 +55,14 @@
   src: url('/fonts/QCF4_QBSML.woff2') format('woff2'),
        url('/api/qcf4/font/QCF4_QBSML') format('woff2'),
        url('https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2/QCF4_QBSML.woff2') format('woff2');
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'QCF4_Hafs_01';
+  src: url('/fonts/QCF4_Hafs_01_W.woff2') format('woff2'),
+       url('/api/qcf4/font/QCF4_Hafs_01') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2/QCF4_Hafs_01_W.woff2') format('woff2');
   font-display: block;
 }
 
@@ -576,7 +585,7 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
   opacity: 1 !important;
 }
 
-/* Opening pages (Al-Fatihah and Al-Baqarah): Raise the SVG page upwards to hide the duplicate surah title and elevate by 2 lines */
+/* Opening pages (Al-Fatihah and Al-Baqarah): Raise the SVG page upwards by 3 lines */
 #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container,
 .mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner {
   overflow: hidden !important;
@@ -589,9 +598,10 @@ div#mushaf-continuous-canvas div[id^="tafsir-card-"] > div:nth-of-type(3) *:not(
 }
 
 #mushaf-svg-wrapper.mushaf-opening-page #mushaf-svg-inner-container svg:not(.surah_header_frame_svg),
-.mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg) {
+.mushaf-page-list-item.mushaf-opening-page .mushaf-page-list-inner svg:not(.surah_header_frame_svg),
+.mushaf-share-svg-page svg {
   margin: 0 auto !important;
-  transform: none !important;
+  transform: translateY(-20%) !important;
   width: 100% !important;
   height: 100% !important;
   max-height: 100% !important;
@@ -646,20 +656,18 @@ svg.mushaf_injected_surah_frame,
   opacity: 1 !important;
 }
 
-.surah_header_frame span.surah_header_text {
-  display: inline-flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-@media (orientation: landscape) {
-  .surah_header_frame span.surah_header_text {
-    font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
-  }
-}
-
-[data-fullscreen="true"] .surah_header_frame span.surah_header_text {
-  font-size: clamp(28px, max(6.8cqi, 4.8vw), 58px) !important;
+.surah_header_frame text.surah_header_text,
+.surah_header_frame_svg text.surah_header_text {
+  font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
+  font-size: 13.8px !important;
+  font-weight: normal !important;
+  text-anchor: middle !important;
+  dominant-baseline: central !important;
+  stroke: none !important;
+  stroke-width: 0 !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  text-shadow: none !important;
 }
 
 .surah_header_text,

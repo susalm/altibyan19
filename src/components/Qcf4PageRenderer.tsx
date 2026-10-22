@@ -206,11 +206,11 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
                         isDark ? "text-emerald-300" : "text-emerald-800"
                       }`}
                       style={{ 
-                        fontFamily: "QCF4_QBSML, 'Amiri', serif", 
+                        fontFamily: "'UthmanicHafs', 'Amiri', serif", 
                         fontSize: isOpeningPage ? "clamp(1.35rem, 5.6cqw, 2.95rem)" : "clamp(1.15rem, 5cqw, 2.6rem)" 
                       }}
                     >
-                      <span>{getBismillahGlyph() || word.char}</span>
+                      <span>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
                     </div>
                   );
                 }

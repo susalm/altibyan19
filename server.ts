@@ -22,7 +22,7 @@ import { getOfflineEnglishTranslation } from "./src/utils/englishTranslation";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 // Health check endpoint for platform monitoring
 app.get("/api/health", (req, res) => {
@@ -1252,10 +1252,18 @@ app.get("/api/quran-svg/:page", async (req: express.Request, res: express.Respon
 
     let urlsToTry: string[] = [];
 
+    const pageNumInt = parseInt(String(pageNum), 10);
     if (provider === "quran-tajweed") {
       urlsToTry = [
         `https://cdn.jsdelivr.net/gh/ahmedmabdullatif/quran-hafs-svg@main/svg/${pageStr3}.svg`,
         `https://cdn.jsdelivr.net/gh/mushafdatabase/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.01/${pageStr3}.svg`,
+        `https://raw.githubusercontent.com/ahmedmabdullatif/quran-hafs-svg/main/svg/${pageStr3}.svg`,
+      ];
+    } else if (pageNumInt === 1 || pageNumInt === 2) {
+      urlsToTry = [
+        `https://cdn.jsdelivr.net/gh/mushafdatabase/MushafDatabase-Ligature-Based-SVG@main/SVG%20V1.01/${pageStr3}.svg`,
+        `https://raw.githubusercontent.com/mushafdatabase/MushafDatabase-Ligature-Based-SVG/main/SVG%20V1.01/${pageStr3}.svg`,
+        `https://cdn.jsdelivr.net/gh/ahmedmabdullatif/quran-hafs-svg@main/svg/${pageStr3}.svg`,
         `https://raw.githubusercontent.com/ahmedmabdullatif/quran-hafs-svg/main/svg/${pageStr3}.svg`,
       ];
     } else {

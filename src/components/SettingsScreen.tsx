@@ -1,1062 +1,695 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState } from "react";
 import { QuranSettings } from "../types";
 import { 
-  Settings, 
-  Volume2, 
-  Languages, 
-  ShieldCheck, 
-  Heart, 
-  Zap, 
-  Play, 
-  Pause, 
-  HelpCircle, 
-  Sliders,
-  Download,
-  Trash2,
-  CheckCircle2,
-  HardDrive,
-  FileText,
-  BookOpen,
-  Library,
-  RefreshCw,
-  FolderHeart,
-  Sun,
-  Moon,
+  Moon, 
+  Sun, 
+  Type, 
+  BookOpen, 
+  Sparkles, 
+  Sliders, 
+  Check, 
   Palette,
-  Sparkles,
-  Check,
-  ArrowLeftRight,
+  Volume2,
+  X,
+  Languages,
   ArrowUpDown,
-  Move,
+  ArrowLeftRight,
   Star,
   Share2,
   MessageSquarePlus,
   Smartphone,
-  Type
+  HeartHandshake,
+  ChevronDown,
+  ChevronUp,
+  BookMarked,
+  Layers,
+  Send,
+  ExternalLink
 } from "lucide-react";
-import { translations } from "../data/translations";
-import { surahsList } from "../data/surahList";
-import { recitersList } from "./RecitationScreen";
-import { CustomDropdown } from "./CustomDropdown";
+import { recitersData } from "../data/recitersData";
 
 interface SettingsScreenProps {
   settings: QuranSettings;
   onChangeSettings: (newSettings: Partial<QuranSettings>) => void;
   isDark: boolean;
-  onToggleDarkMode?: () => void;
-  theme?: "light" | "dark" | "gold-velvet" | "navy-velvet" | "emerald-velvet";
+  onToggleDarkMode: () => void;
+  theme: "light" | "dark" | "gold-velvet" | "navy-velvet" | "emerald-velvet";
   onChangeTheme?: (newTheme: "light" | "dark" | "gold-velvet" | "navy-velvet" | "emerald-velvet") => void;
   inDrawer?: boolean;
+  onClose?: () => void;
 }
 
-const toArabicNumerals = (num: number): string => {
-  return String(num).replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[parseInt(d)]);
-};
-
-const getSpeedDescription = (speed: number, lang: "ar" | "en", t: any) => {
-  if (speed <= 2) return t.speedDescriptionVerySlow;
-  if (speed <= 4) return t.speedDescriptionNormal;
-  if (speed <= 6) return t.speedDescriptionFast;
-  if (speed <= 8) return t.speedDescriptionVeryFast;
-  return t.speedDescriptionUltraFast;
-};
-
-export default function SettingsScreen({ 
-  settings, 
-  onChangeSettings, 
-  isDark, 
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({
+  settings,
+  onChangeSettings,
+  isDark,
   onToggleDarkMode,
-  theme = "light", 
+  theme,
   onChangeTheme,
-  inDrawer = false
-}: SettingsScreenProps) {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(true);
+  inDrawer = false,
+  onClose,
+}) => {
+  const [saveToast, setSaveToast] = useState<boolean>(false);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [modalType, setModalType] = useState<"rate" | "share" | "feedback" | "app_mufarridoon" | "app_fadail" | null>(null);
+  const [ratingScore, setRatingScore] = useState<number>(5);
+  const [feedbackText, setFeedbackText] = useState<string>("");
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  const lang = settings.language || "ar";
-  const t = translations[lang];
-  const isRtl = lang === "ar";
+  // App Language
+  const currentLang = settings.language || "ar";
 
-  // Saved downloaded IDs
-  const [downloadedIds, setDownloadedIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("quran_downloads_tebyan");
-      return saved ? JSON.parse(saved) : []; // No automatic pre-downloads on first launch
-    } catch {
-      return [];
+  // Page Scroll Direction
+  const isVertical = settings.scrollDirection === "vertical";
+
+  // Dynamic Theme Colors calculation matching the screenshot & active theme
+  const getThemeStyles = () => {
+    switch (theme) {
+      case "gold-velvet":
+        return {
+          pageBg: isDark ? "bg-[#17140E] text-[#FBF6E9]" : "bg-[#FBF8F1] text-[#292212]",
+          cardBg: isDark ? "bg-[#231F17]" : "bg-[#FFFFFF]",
+          cardBorder: isDark ? "border-[#4A3F29]" : "border-[#EDE4D0]",
+          divider: isDark ? "bg-[#3D3422]" : "bg-[#F0E8D7]",
+          badgeBg: isDark ? "bg-[#C5A85C]/15" : "bg-[#C5A85C]/10",
+          iconColor: isDark ? "text-[#E6CA7E]" : "text-[#A88836]",
+          activeBtn: isDark 
+            ? "bg-[#38301F] border-[#C5A85C] text-[#FAF5E6] shadow-sm font-bold" 
+            : "bg-[#F7EED8] border-[#C5A85C] text-[#2D230F] shadow-xs font-bold",
+          inactiveBtn: isDark 
+            ? "bg-[#1A1711] border-[#38301F] text-[#9E907B] hover:bg-[#2A241A]" 
+            : "bg-[#FAFAFA] border-[#E8E2D2] text-[#6B7280] hover:bg-[#F5F2EB]",
+          subCardBg: isDark ? "bg-[#1C1812] hover:bg-[#252018]" : "bg-[#FAF7F0] hover:bg-[#F5EFE3]",
+          subCardBorder: isDark ? "border-[#38301F]" : "border-[#E8E1CF]",
+          saveBtn: "bg-[#C5A85C] hover:bg-[#B5984C] text-[#FFFFFF] shadow-[#C5A85C]/25",
+          switchOnBg: "bg-[#C5A85C]",
+          accentDot: "bg-[#C5A85C]",
+        };
+      case "emerald-velvet":
+        return {
+          pageBg: isDark ? "bg-[#01160E] text-[#FAF8F5]" : "bg-[#F1F8F4] text-[#0A261C]",
+          cardBg: isDark ? "bg-[#012519]" : "bg-[#FFFFFF]",
+          cardBorder: isDark ? "border-[#064E3B]" : "border-[#CFE5DA]",
+          divider: isDark ? "bg-[#064E3B]/60" : "bg-[#E0EFE8]",
+          badgeBg: isDark ? "bg-[#10B981]/20" : "bg-[#10B981]/10",
+          iconColor: isDark ? "text-[#34D399]" : "text-[#059669]",
+          activeBtn: isDark 
+            ? "bg-[#023E2A] border-[#10B981] text-[#FAF8F5] shadow-sm font-bold" 
+            : "bg-[#D6F3E6] border-[#10B981] text-[#012A1C] shadow-xs font-bold",
+          inactiveBtn: isDark 
+            ? "bg-[#011E14] border-[#064E3B] text-[#86A397] hover:bg-[#02281B]" 
+            : "bg-[#FAFAFA] border-[#DCEBE3] text-[#6B7280] hover:bg-[#F0F7F3]",
+          subCardBg: isDark ? "bg-[#011E14] hover:bg-[#02281B]" : "bg-[#F4FAF6] hover:bg-[#EAF5EF]",
+          subCardBorder: isDark ? "border-[#064E3B]/80" : "border-[#CCE4D8]",
+          saveBtn: "bg-[#059669] hover:bg-[#047857] text-[#FFFFFF] shadow-[#059669]/25",
+          switchOnBg: "bg-[#059669]",
+          accentDot: "bg-[#10B981]",
+        };
+      case "navy-velvet":
+        return {
+          pageBg: isDark ? "bg-[#091120] text-[#FAF8F5]" : "bg-[#F2F6FD] text-[#0D1F42]",
+          cardBg: isDark ? "bg-[#0F1B30]" : "bg-[#FFFFFF]",
+          cardBorder: isDark ? "border-[#1D3256]" : "border-[#D3E0FA]",
+          divider: isDark ? "bg-[#1D3256]/60" : "bg-[#E4EDFD]",
+          badgeBg: isDark ? "bg-[#3F63C6]/20" : "bg-[#3F63C6]/10",
+          iconColor: isDark ? "text-[#60A5FA]" : "text-[#2563EB]",
+          activeBtn: isDark 
+            ? "bg-[#172E54] border-[#3F63C6] text-[#FAF8F5] shadow-sm font-bold" 
+            : "bg-[#DFEBFE] border-[#3F63C6] text-[#0E244E] shadow-xs font-bold",
+          inactiveBtn: isDark 
+            ? "bg-[#0C172B] border-[#1D3256] text-[#8A9EB8] hover:bg-[#13223D]" 
+            : "bg-[#FAFAFA] border-[#DCE6FA] text-[#6B7280] hover:bg-[#F2F6FE]",
+          subCardBg: isDark ? "bg-[#0C172B] hover:bg-[#13223D]" : "bg-[#F5F8FE] hover:bg-[#EAF0FD]",
+          subCardBorder: isDark ? "border-[#1D3256]/80" : "border-[#D0DEF8]",
+          saveBtn: "bg-[#3F63C6] hover:bg-[#3152B3] text-[#FFFFFF] shadow-[#3F63C6]/25",
+          switchOnBg: "bg-[#3F63C6]",
+          accentDot: "bg-[#3F63C6]",
+        };
+      default:
+        // Default light / dark
+        return {
+          pageBg: isDark ? "bg-[#0B0F17] text-slate-100" : "bg-[#FAF7F2] text-slate-900",
+          cardBg: isDark ? "bg-[#131B29]" : "bg-[#FFFFFF]",
+          cardBorder: isDark ? "border-slate-800" : "border-slate-200/90",
+          divider: isDark ? "bg-slate-800" : "bg-slate-200/60",
+          badgeBg: isDark ? "bg-emerald-500/15" : "bg-emerald-500/10",
+          iconColor: isDark ? "text-emerald-400" : "text-emerald-700",
+          activeBtn: isDark 
+            ? "bg-slate-800 border-emerald-500 text-white shadow-sm font-bold" 
+            : "bg-emerald-50 border-emerald-600 text-emerald-950 shadow-xs font-bold",
+          inactiveBtn: isDark 
+            ? "bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-850" 
+            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100",
+          subCardBg: isDark ? "bg-slate-900/60 hover:bg-slate-900" : "bg-slate-50 hover:bg-slate-100/70",
+          subCardBorder: isDark ? "border-slate-800" : "border-slate-200",
+          saveBtn: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25",
+          switchOnBg: "bg-emerald-600",
+          accentDot: "bg-emerald-600",
+        };
     }
-  });
-
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
-  const [downloadSpeed, setDownloadSpeed] = useState<Record<string, string>>({});
-  const [activeDownloadCategory, setActiveDownloadCategory] = useState<"mushaf" | "audio" | "tafsir" | "sciences">("mushaf");
-
-  const [deviceDownloadingId, setDeviceDownloadingId] = useState<string | null>(null);
-
-  const [deviceDownloadProgress, setDeviceDownloadProgress] = useState<number>(0);
-  const [deviceDownloadSpeed, setDeviceDownloadSpeed] = useState<string>("2.1 MB/s");
-
-  const [deviceDownloadingSvgId, setDeviceDownloadingSvgId] = useState<string | null>(null);
-  const [deviceDownloadSvgProgress, setDeviceDownloadSvgProgress] = useState<number>(0);
-  const [deviceDownloadSvgSpeed, setDeviceDownloadSvgSpeed] = useState<string>("3.5 MB/s");
-
-  // Custom audio downloader states
-  const [selectedAudioReciter, setSelectedAudioReciter] = useState("Minshawy_Murattal_128kbps");
-  const [audioDownloadType, setAudioDownloadType] = useState<"full" | "surah">("surah");
-  const [selectedDownloadSurahNum, setSelectedDownloadSurahNum] = useState(1);
-  const [isCustomAudioDownloading, setIsCustomAudioDownloading] = useState(false);
-  const [customAudioProgress, setCustomAudioProgress] = useState(0);
-  const [customAudioSpeed, setCustomAudioSpeed] = useState("");
-  const [customAudioStage, setCustomAudioStage] = useState("");
-
-  const reciterOptions = useMemo(() => {
-    return recitersList.map((r) => ({
-      value: r.id,
-      label: isRtl ? r.nameAr : r.nameEn,
-      sublabel: isRtl ? "تلاوة برواية حفص عن عاصم" : "Hafs Recitation",
-      disabled: isCustomAudioDownloading
-    }));
-  }, [isRtl, isCustomAudioDownloading]);
-
-  const surahOptions = useMemo(() => {
-    return surahsList.map((surah) => {
-      const sizeEst = Math.max(0.5, surah.numberOfAyahs * 0.18).toFixed(1);
-      return {
-        value: surah.number,
-        label: `${surah.number}. ${isRtl ? surah.name : surah.englishName}`,
-        sublabel: `${surah.numberOfAyahs} ${isRtl ? "آية" : "ayahs"} ~ ${sizeEst} MB`,
-        disabled: isCustomAudioDownloading
-      };
-    });
-  }, [isRtl, isCustomAudioDownloading]);
-
-  const mushafProviderOptions = useMemo(() => {
-    return [
-      {
-        value: "qcf4",
-        label: isRtl ? "مصحف المدينة النبوية (النسخة الحديثة - الإصدار الرابع 1441هـ)" : "Medina Mushaf (Modern 4th Edition - 1441 AH)",
-        sublabel: isRtl ? "مجمع الملك فهد - النسخة الحديثة عالية الدقة بالخط العثماني والرموز والصفحات الكاملة" : "King Fahd Complex - Authentic modern 4th edition vector layout"
-      },
-      {
-        value: "quran-svg",
-        label: isRtl ? "رواية حفص - مصحف المدينة التفاعلي (رسم عثماني SVG)" : "Hafs Narration - Interactive Medina Mushaf (SVG)",
-        sublabel: downloadedIds.includes("mushaf-core") ? (isRtl ? "محمل أوفلاين" : "Offline Loaded") : (isRtl ? "يتطلب اتصال بالشبكة" : "Requires network connection")
-      }
-    ];
-  }, [isRtl, downloadedIds]);
-
-  const handleStartCustomAudioDownload = () => {
-    if (isCustomAudioDownloading) return;
-    
-    const downloadId = audioDownloadType === "full" 
-      ? `audio-${selectedAudioReciter}-full`
-      : `audio-${selectedAudioReciter}-surah-${selectedDownloadSurahNum}`;
-
-    if (downloadedIds.includes(downloadId)) {
-      alert(isRtl ? "هذه التلاوة محملة بالفعل أوفلاين." : "This recitation is already downloaded offline.");
-      return;
-    }
-
-    setIsCustomAudioDownloading(true);
-    setCustomAudioProgress(1);
-    setCustomAudioStage(isRtl ? "الاتصال بخادم الصوتيات التلاوية..." : "Connecting to audio server...");
-
-    let progress = 0;
-    const stages = audioDownloadType === "full" 
-      ? [
-          isRtl ? "تهيئة السيرفر وفحص المساحة..." : "Initializing server & checking space...",
-          isRtl ? "تجهيز تلاوة السور (1 - 30)..." : "Preparing surah audio (1 - 30)...",
-          isRtl ? "تنزيل تلاوات السور (31 - 75)..." : "Downloading surah audio (31 - 75)...",
-          isRtl ? "استكمال تحميل باقي السور (76 - 114)..." : "Completing download of remaining suras...",
-          isRtl ? "تجميع الملف الصوتي وضغطه بصيغة MP3..." : "Assembling and compressing audio as MP3...",
-          isRtl ? "تثبيت حزمة التلاوة أوفلاين بنجاح!" : "Installing recitation package offline successfully!"
-        ]
-      : [
-          isRtl ? "الاتصال بخادم الصوتيات..." : "Connecting to audio server...",
-          isRtl ? "تجهيز ملف التلاوة للسورة المختارة..." : "Preparing audio for selected Surah...",
-          isRtl ? "جاري تحميل السورة بصوت القارئ..." : "Downloading Surah with reciter voice...",
-          isRtl ? "كتابة بيانات الملف وحفظ التلاوة أوفلاين..." : "Writing file metadata and saving offline..."
-        ];
-
-    const interval = setInterval(() => {
-      progress += Math.floor(Math.random() * 10) + 5;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setDownloadedIds(prev => {
-          if (!prev.includes(downloadId)) {
-            return [...prev, downloadId];
-          }
-          return prev;
-        });
-        setIsCustomAudioDownloading(false);
-      }
-      setCustomAudioProgress(progress);
-      
-      const speed = (Math.random() * 4 + 2).toFixed(1) + " MB/s";
-      setCustomAudioSpeed(speed);
-
-      const stageIdx = Math.min(
-        Math.floor((progress / 100) * stages.length),
-        stages.length - 1
-      );
-      setCustomAudioStage(stages[stageIdx]);
-    }, 250);
   };
 
-  // Save downloads list to localStorage when changed
-  useEffect(() => {
-    try {
-      localStorage.setItem("quran_downloads_tebyan", JSON.stringify(downloadedIds));
-    } catch (e) {
-      console.warn("Failed to save downloads:", e);
-    }
-  }, [downloadedIds]);
+  const styleTokens = getThemeStyles();
 
-  // List of available packages (categorized by pages, recitations, tafsirs, and sciences)
-  const downloadPackages = [
-    { 
-      id: "mushaf-core", 
-      name: "صفحات المصحف الشريف عالية الدقة (صيغة SVG)", 
-      nameEn: "High-Resolution Mushaf Pages (SVG)", 
-      subName: "النسخة الأساسية والتفاعلية عالية الجودة لتصفح المصحف بدون إنترنت", 
-      subNameEn: "Core interactive high-res pages for offline Quran browsing", 
-      type: "mushaf", 
-      sizeMb: 24.5 
-    },
-    { 
-      id: "mushaf-warsh", 
-      name: "صفحات مصحف رواية ورش عن نافع (صيغة SVG)", 
-      nameEn: "Warsh Narration Mushaf Pages (SVG)", 
-      subName: "مصحف ورش بالرسم العثماني المعتمد من مجمع الملك فهد لأهل المغرب وغرب أفريقيا", 
-      subNameEn: "Warsh an Nafi' narration interactive pages in standard Uthmanic script", 
-      type: "mushaf", 
-      sizeMb: 28.4 
-    },
-    { 
-      id: "mushaf-shamerly", 
-      name: "صفحات مصحف الشمرلي للخط المصري القديم", 
-      nameEn: "Classic Al-Shamerly Mushaf Pages (SVG)", 
-      subName: "المصحف المصري القديم بخط الخطاط العريق عثمان طه عالي الدقة تفاعلي بالكامل", 
-      subNameEn: "Highly requested Egyptian legacy handwriting style fully interactive", 
-      type: "mushaf", 
-      sizeMb: 42.0 
-    },
-    { 
-      id: "mushaf-images", 
-      name: "صفحات المصحف الشريف المصورة عالية الدقة (صيغة PNG)", 
-      nameEn: "High-Resolution Mushaf Pages (PNG)", 
-      subName: "النسخة التصويرية الكاملة للمصحف الشريف بدقة متناهية متوافقة مع الأجهزة الضعيفة", 
-      subNameEn: "Full image-based Quran page rendering compatible with low-end devices", 
-      type: "mushaf", 
-      sizeMb: 55.6 
-    },
-    { 
-      id: "mushaf-maknon", 
-      name: "صفحات مصحف مكنون (رواية حفص)", 
-      nameEn: "Maknon Quran Pages (Hafs Narration)", 
-      subName: "مصورات صفحات مصحف حفص عن عاصم عالية الجودة من مستودع مكنون للقرآن الكريم (GitHub)", 
-      subNameEn: "High-quality page renderings for Hafs narration from maknon/Quran repository", 
-      type: "mushaf", 
-      sizeMb: 85.0 
-    },
-    { 
-      id: "tafsir-moyassar", 
-      name: "التفسير الميسر (مرفق مع الآيات)", 
-      nameEn: "Al-Moyassar Tafsir", 
-      subName: "كتاب التفسير الميسر لجميع السور بأسلوب سهل وموجز", 
-      subNameEn: "Easy to read interpretation package for all surahs", 
-      type: "tafsir", 
-      sizeMb: 8.2 
-    },
-    { 
-      id: "tafsir-mukhtasar", 
-      name: "المختصر في تفسير القرآن الكريم", 
-      nameEn: "Al-Mukhtasar Tafsir", 
-      subName: "تفسير مختصر وموثوق لآيات القرآن الكريم صادر عن مركز تفسير (مستودع تبيان Qur-an-Tabyan / tafsir-mcp)", 
-      subNameEn: "Concise and reliable interpretation of the verses in easy language", 
-      type: "tafsir", 
-      sizeMb: 12.4 
-    },
-    { 
-      id: "tafsir-sadi", 
-      name: "تفسير السعدي (تيسير الكريم الرحمن)", 
-      nameEn: "Tafsir Al-Sadi", 
-      subName: "تفسير ميسر واضح ومعتنى فيه ببيان المعاني الإيمانية والأخلاقية بأسلوب لطيف", 
-      subNameEn: "Easy to read classic interpretation with spiritual and moral focus", 
-      type: "tafsir", 
-      sizeMb: 15.6 
-    },
-    { 
-      id: "tafsir-ibnkathir", 
-      name: "تفسير الإمام ابن كثير الكامل", 
-      nameEn: "Tafsir Ibn Kathir (Full)", 
-      subName: "تفسير القرآن العظيم للإمام عماد الدين أبي الفداء إسماعيل بن كثير الدمشقي", 
-      subNameEn: "The comprehensive classic interpretation package", 
-      type: "tafsir", 
-      sizeMb: 35.0 
-    },
-    { 
-      id: "tafsir-tabari", 
-      name: "تفسير الطبري (جامع البيان)", 
-      nameEn: "Tafsir Al-Tabari", 
-      subName: "موسوعة التفسير بالمأثور الكبرى للإمام محمد بن جرير الطبري", 
-      subNameEn: "The grand masterwork of narration-based interpretation", 
-      type: "tafsir", 
-      sizeMb: 52.0 
-    },
-    { 
-      id: "tafsir-qurtubi", 
-      name: "تفسير القرطبي (الجامع لأحكام القرآن)", 
-      nameEn: "Tafsir Al-Qurtubi", 
-      subName: "تفسير فريد بركيزته على الأحكام الفقهية وتفاصيل لغة العرب ونحوها", 
-      subNameEn: "The classic interpretation with a strong focus on legal rulings", 
-      type: "tafsir", 
-      sizeMb: 68.0 
-    },
-    { 
-      id: "tafsir-baghawi", 
-      name: "تفسير البغوي (معالم التنزيل)", 
-      nameEn: "Tafsir Al-Baghawi", 
-      subName: "تفسير معتدل ومتوازن يركز على روايات السلف الصالح والآثار الصحيحة", 
-      subNameEn: "A balanced interpretation focusing on authentic narrations", 
-      type: "tafsir", 
-      sizeMb: 28.5 
-    },
-    { 
-      id: "audio-alafasy-fatihah", 
-      name: "سورة الفاتحة - الشيخ مشاري العفاسي", 
-      nameEn: "Surah Al-Fatihah - Alafasy", 
-      subName: "تلاوة مرتلة برواية حفص عن عاصم للشيخ مشاري راشد العفاسي", 
-      subNameEn: "High-quality recitation for Surah Al-Fatihah", 
-      type: "audio", 
-      sizeMb: 1.2, 
-      surahNumber: 1 
-    },
-    { 
-      id: "audio-alafasy-kahf", 
-      name: "سورة الكهف - الشيخ مشاري العفاسي", 
-      nameEn: "Surah Al-Kahf - Alafasy", 
-      subName: "تلاوة ندية مرتلة لسورة الكهف ليوم الجمعة المبارك", 
-      subNameEn: "Friday recitation for Surah Al-Kahf", 
-      type: "audio", 
-      sizeMb: 18.4, 
-      surahNumber: 18 
-    },
-    { 
-      id: "audio-alafasy-yasin", 
-      name: "سورة يس - الشيخ مشاري العفاسي", 
-      nameEn: "Surah Yasin - Alafasy", 
-      subName: "تلاوة خاشعة مرتلة لسورة يس بصوت الشيخ مشاري العفاسي", 
-      subNameEn: "Contemplative recitation for Surah Yasin", 
-      type: "audio", 
-      sizeMb: 8.7, 
-      surahNumber: 36 
-    },
-    { 
-      id: "audio-alafasy-mulk", 
-      name: "سورة الملك - الشيخ مشاري العفاسي", 
-      nameEn: "Surah Al-Mulk - Alafasy", 
-      subName: "تلاوة مرتلة لسورة الملك المنجية من عذاب القبر قبل النوم", 
-      subNameEn: "Beautiful recitation of Surah Al-Mulk", 
-      type: "audio", 
-      sizeMb: 4.1, 
-      surahNumber: 67 
-    },
-    { 
-      id: "audio-shuraim-baqarah", 
-      name: "سورة البقرة - الشيخ سعود الشريم", 
-      nameEn: "Surah Al-Baqarah - Saud Al-Shuraim", 
-      subName: "تلاوة كاملة لسورة البقرة برواية حفص من رحاب المسجد الحرام", 
-      subNameEn: "Full Surah Al-Baqarah from Masjid Al-Haram", 
-      type: "audio", 
-      sizeMb: 48.0, 
-      surahNumber: 2 
-    },
-    { 
-      id: "audio-husary-full", 
-      name: "المصحف المعلم الكامل - الشيخ محمود خليل الحصري", 
-      nameEn: "Full Teacher Mushaf - Al-Husary", 
-      subName: "أجزاء التلاوة المرتلة والتعليمية الدقيقة لشيخ عموم المقارئ المصرية", 
-      subNameEn: "Precision educational recitation by the master", 
-      type: "audio", 
-      sizeMb: 110.5 
-    },
-    { 
-      id: "sciences-asbab-nuzool", 
-      name: "أسباب نزول الآيات للواحدي والنيسابوري", 
-      nameEn: "Asbab Al-Nuzool (Reasons of Revelation)", 
-      subName: "موسوعة كاملة لمعرفة أسباب نزول آيات الذكر الحكيم وتفاصيل تاريخ النزول أوفلاين", 
-      subNameEn: "Complete offline encyclopedia of reasons behind verse revelations", 
-      type: "sciences", 
-      sizeMb: 14.8 
-    },
-    { 
-      id: "sciences-vocab", 
-      name: "معجم غريب القرآن ومفردات الكلمات اللغوية", 
-      nameEn: "Quranic Vocabulary & Word Meanings", 
-      subName: "معجم دقيق لتفسير المفردات الغامضة والكلمات الغريبة في القرآن الكريم أوفلاين", 
-      subNameEn: "Precision dictionary for uncommon and difficult words in the Holy Quran", 
-      type: "sciences", 
-      sizeMb: 7.2 
-    }
-  ];
-
-  const handleStartDownload = (id: string) => {
-    if (downloadProgress[id] !== undefined || downloadedIds.includes(id)) return;
-
-    setDownloadProgress(prev => ({ ...prev, [id]: 1 }));
-    setDownloadSpeed(prev => ({ ...prev, [id]: "0.5 MB/s" }));
-
-    // Simulate download progress steps
-    const interval = setInterval(() => {
-      setDownloadProgress(prev => {
-        const current = prev[id] || 0;
-        if (current >= 100) {
-          clearInterval(interval);
-          setDownloadedIds(d => [...d, id]);
-          
-          // Clean progress state after completion
-          setTimeout(() => {
-            setDownloadProgress(p => {
-              const updated = { ...p };
-              delete updated[id];
-              return updated;
-            });
-            setDownloadSpeed(s => {
-              const updated = { ...s };
-              delete updated[id];
-              return updated;
-            });
-          }, 500);
-          return { ...prev, [id]: 100 };
-        }
-        
-        // Random incremental step
-        const step = Math.floor(Math.random() * 15) + 8;
-        const next = Math.min(100, current + step);
-        
-        // Random speed updates
-        const speed = (Math.random() * 4 + 1.5).toFixed(1) + " MB/s";
-        setDownloadSpeed(s => ({ ...s, [id]: speed }));
-
-        return { ...prev, [id]: next };
-      });
-    }, 250);
+  // Save Settings Handlers
+  const handleSave = () => {
+    setSaveToast(true);
+    setTimeout(() => {
+      setSaveToast(false);
+      if (onClose) onClose();
+    }, 900);
   };
 
-  const handleDeleteDownload = (id: string) => {
-    // Keep mushaf-core always active to avoid broken app
-    if (id === "mushaf-core") {
-      alert("النسخة الأساسية للمصحف ضرورية لتشغيل التطبيق ولا يمكن حذفها.");
-      return;
-    }
-    setDownloadedIds(prev => prev.filter(item => item !== id));
+  // Feedback Submission
+  const handleSubmitFeedback = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionNotice("شكراً جزيلاً لك! تم استلام مقترحك القيّم وسنعمل على دراسته وتطوير التطبيق به.");
+    setTimeout(() => {
+      setActionNotice(null);
+      setModalType(null);
+      setFeedbackText("");
+    }, 2000);
   };
 
-  const handleDownloadMushafToDevice = (id: string, name: string) => {
-    if (deviceDownloadingId) return;
-
-    // Define PDF mapping based on the package ID
-    const pdfUrls: Record<string, string> = {
-      "mushaf-core": "https://archive.org/download/mushaf-al-madinah-new/mushaf-al-madinah-new.pdf",
+  // Share Application
+  const handleShareApp = async () => {
+    const shareData = {
+      title: "مصحف التبيان الجامع",
+      text: "أنصحكم بتطبيق مصحف التبيان الجامع، قراءة وتفاسير وإعراب وتدبر بدون إنترنت وبأجمل الخطوط والتصاميم.",
+      url: window.location.origin,
     };
-
-    const targetUrl = pdfUrls[id] || pdfUrls["mushaf-core"];
-
-    setDeviceDownloadingId(id);
-    setDeviceDownloadProgress(0);
-    setDeviceDownloadSpeed("2.8 MB/s");
-
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += Math.floor(Math.random() * 12) + 5;
-      if (currentProgress >= 100) {
-        currentProgress = 100;
-        clearInterval(interval);
-        
-        // Trigger actual download of the PDF file on the user's device!
-        const link = document.createElement("a");
-        link.href = targetUrl;
-        link.download = `${id}.pdf`;
-        link.target = "_blank";
-        link.referrerPolicy = "no-referrer";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        setTimeout(() => {
-          setDeviceDownloadingId(null);
-          setDeviceDownloadProgress(0);
-        }, 800);
-      }
-      setDeviceDownloadProgress(currentProgress);
-      setDeviceDownloadSpeed((Math.random() * 3 + 1.8).toFixed(1) + " MB/s");
-    }, 150);
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (_) {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+        setActionNotice("تم نسخ رابط التطبيق ورسالة المشاركة بنجاح!");
+        setTimeout(() => setActionNotice(null), 2500);
+      } catch (_) {}
+    }
   };
 
-  const handleDownloadMushafSvgPages = (id: string) => {
-    if (deviceDownloadingSvgId) return;
+  const fontSizes = [
+    { id: "sm", label: "صغير" },
+    { id: "md", label: "متوسط" },
+    { id: "lg", label: "كبير" },
+    { id: "xl", label: "كبير جداً" },
+    { id: "2xl", label: "ضخم" },
+  ] as const;
 
-    const svgZipUrls: Record<string, string> = {
-      "mushaf-core": "https://github.com/susalm/quran-svg-main/archive/refs/heads/main.zip",
-      "mushaf-tajweed": "https://github.com/susalm/quran-tajweed-svg/archive/refs/heads/main.zip",
-    };
-
-    const targetUrl = svgZipUrls[id] || svgZipUrls["mushaf-core"];
-
-    setDeviceDownloadingSvgId(id);
-    setDeviceDownloadSvgProgress(0);
-    setDeviceDownloadSvgSpeed("3.5 MB/s");
-
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += Math.floor(Math.random() * 10) + 4;
-      if (currentProgress >= 100) {
-        currentProgress = 100;
-        clearInterval(interval);
-        
-        // Trigger actual download of the SVG Zip file on the user's device!
-        const link = document.createElement("a");
-        link.href = targetUrl;
-        link.download = `${id}-svg.zip`;
-        link.target = "_blank";
-        link.referrerPolicy = "no-referrer";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        setTimeout(() => {
-          setDeviceDownloadingSvgId(null);
-          setDeviceDownloadSvgProgress(0);
-        }, 800);
-      }
-      setDeviceDownloadSvgProgress(currentProgress);
-      setDeviceDownloadSvgSpeed((Math.random() * 4 + 2.5).toFixed(1) + " MB/s");
-    }, 150);
-  };
-
-  // Compute stats
-  const totalDownloadedSize = (() => {
-    const staticSize = downloadPackages
-      .filter(p => downloadedIds.includes(p.id))
-      .reduce((sum, p) => sum + p.sizeMb, 0);
-
-    const customSize = downloadedIds
-      .filter(id => id.startsWith("audio-") && !downloadPackages.some(p => p.id === id))
-      .reduce((sum, id) => {
-        const parts = id.split("-");
-        const type = parts[2];
-        if (type === "full") return sum + 480;
-        const surahNum = Number(parts[3]) || 1;
-        const surah = surahsList.find(s => s.number === surahNum);
-        const sizeEst = Math.max(0.5, (surah?.numberOfAyahs || 15) * 0.18);
-        return sum + sizeEst;
-      }, 0);
-
-    return staticSize + customSize;
-  })();
-
-  const availableSpace = Math.max(10, 500 - totalDownloadedSize);
-  const spacePercentage = (totalDownloadedSize / 500) * 100;
-
-  useEffect(() => {
-    let isMounted = true;
-    const defaultProject = [
-      {
-        id: "quran-mushaf",
-        name: "المصحف الإلكتروني",
-        description: "مصحف رقمي تفاعلي بمصادر التفسير والتدبر الأصيلة وتلاوة القرآن الكريم من أمهات الكتب المعتمدة.",
-        version: "1.0.0",
-        features: ["mushaf-svg", "audio-recitation", "tafsir-library", "ai-chat-companion", "khatmah-tracker"]
-      }
-    ];
-
-    const apiUrl = typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null"
-      ? `${window.location.origin}/api/v1/projects`
-      : "/api/v1/projects";
-
-    fetch(apiUrl)
-      .then((res) => res.json())
-      .then((data) => {
-        if (isMounted && data && data.projects) {
-          setProjects(data.projects);
-        } else if (isMounted) {
-          setProjects(defaultProject);
-        }
-        if (isMounted) setLoadingProjects(false);
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setProjects(defaultProject);
-          setLoadingProjects(false);
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-
-
-  const reciters = [
-    { id: "Alafasy_128kbps", nameAr: "القارئ مشاري العفاسي", nameEn: "Mishary Alafasy" },
-    { id: "Ghamadi_64kbps", nameAr: "القارئ سعد الغامدي", nameEn: "Saad Al-Ghamdi" },
-    { id: "Husary_Muallim_128kbps", nameAr: "محمود خليل الحصري (المعلم)", nameEn: "Mahmoud Al-Husary (Teacher)" },
-    { id: "Husary_64kbps", nameAr: "محمود خليل الحصري (مرتل)", nameEn: "Mahmoud Al-Husary" }
-  ];
+  const fontOptions = [
+    { id: "qcf4", label: "مصحف المدينة (QCF4)", desc: "رسم عثماني أصيل فائق الدقة" },
+    { id: "uthmanic", label: "الرسم العثماني (Hafs)", desc: "خط عثماني كلاسيكي" },
+    { id: "amiri", label: "الخط الأميري", desc: "خط نسخي جميل وواضح" },
+    { id: "traditional", label: "النسخ التقليدي", desc: "خط قراءة مريح" },
+  ] as const;
 
   return (
-    <div 
-      dir={isRtl ? "rtl" : "ltr"}
-      className={`w-full ${isRtl ? "text-right" : "text-left"} ${
-        inDrawer ? "p-0 pb-6" : "min-h-screen p-4 sm:p-6 pb-24"
-      } ${
-        theme === "navy-velvet"
-          ? "text-slate-900"
-          : theme === "gold-velvet"
-            ? "text-slate-800"
-            : isDark
-              ? "text-slate-100"
-              : "text-slate-800"
-      } ${
-        theme === "emerald-velvet"
-          ? "bg-[#012519]"
-          : theme === "gold-velvet"
-            ? "bg-[#FAF8F5]"
-            : theme === "navy-velvet"
-              ? "bg-white"
-              : isDark
-                ? "bg-slate-950"
-                : "bg-slate-50"
-      }`}
+    <div
+      dir="rtl"
+      id="settings-screen-root"
+      className={`w-full h-full min-h-screen flex flex-col justify-between select-none transition-colors duration-300 ${styleTokens.pageBg} p-3 sm:p-5 md:p-6 pb-20`}
     >
-      <div id="settings-boxes-wrapper" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="w-full max-w-2xl mx-auto flex flex-col gap-3.5 sm:gap-4 flex-1">
         
-        {/* Language Selector Card */}
-        <div className={`p-5 rounded-3xl space-y-4 border ${
-          theme === "emerald-velvet" ? "bg-[#011a12] border-[#c5a85c]/30 text-[#FAF8F5] shadow-none" :
-          theme === "navy-velvet" ? "bg-white border-slate-200 text-slate-850 shadow-sm" :
-          theme === "gold-velvet" ? "bg-white border-[#c5a85c]/30 text-slate-800 shadow-sm" :
-          isDark ? "bg-slate-900 border-slate-850 shadow-none text-slate-100" : "bg-white border-slate-100 shadow-sm text-slate-800"
-        }`}>
-          <h3 className={`text-xs font-bold flex items-center gap-2.5 border-b pb-2 ${
-            theme === "emerald-velvet" ? "text-[#c5a85c] border-[#c5a85c]/20" :
-            theme === "navy-velvet" ? "text-[#3F63C6] border-slate-200" :
-            theme === "gold-velvet" ? "text-[#011c14] border-[#c5a85c]/20" :
-            isDark ? "text-emerald-400 border-slate-800" : "text-[#065f46] border-slate-50"
-          }`}>
-            <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
-              theme === "emerald-velvet" ? "bg-[#c5a85c]/15 text-[#c5a85c]" :
-              theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6]" :
-              theme === "gold-velvet" ? "bg-[#c5a85c]/20 text-[#011c14]" :
-              isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100/80 text-[#065f46]"
-            }`}>
-              <Languages size={15} />
-            </div>
-            <span>{t.appLanguageTitle}</span>
-          </h3>
-
-          <div className="grid grid-cols-2 gap-2.5 text-center text-[11px] font-bold">
-            <button
-              onClick={() => onChangeSettings({ language: "ar" })}
-              className={`p-3.5 border rounded-2xl flex items-center justify-center transition-all cursor-pointer ${
-                lang === "ar"
-                  ? (theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6] border-[#3F63C6] shadow-inner" : theme === "gold-velvet" ? "bg-[#c5a85c]/25 text-[#011c14] border-[#c5a85c] shadow-inner" : theme === "emerald-velvet" ? "bg-[#c5a85c] text-[#011a12] border-[#c5a85c] shadow-inner font-extrabold" : "bg-emerald-50 text-emerald-950 border-emerald-500 shadow-inner")
-                  : theme === "emerald-velvet"
-                    ? "bg-[#011a12] text-[#FAF8F5]/60 border-[#c5a85c]/30 hover:bg-[#012519] hover:text-[#FAF8F5]"
-                    : isDark 
-                      ? "bg-slate-950/40 text-slate-300 border-slate-850 hover:bg-slate-850" 
-                      : "bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100"
-              }`}
-            >
-              <span>العربية</span>
-            </button>
-
-            <button
-              onClick={() => onChangeSettings({ language: "en" })}
-              className={`p-3.5 border rounded-2xl flex items-center justify-center transition-all cursor-pointer ${
-                lang === "en"
-                  ? (theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6] border-[#3F63C6] shadow-inner" : theme === "gold-velvet" ? "bg-[#c5a85c]/25 text-[#011c14] border-[#c5a85c] shadow-inner" : theme === "emerald-velvet" ? "bg-[#c5a85c] text-[#011a12] border-[#c5a85c] shadow-inner font-extrabold" : "bg-emerald-50 text-emerald-950 border-emerald-500 shadow-inner")
-                  : theme === "emerald-velvet"
-                    ? "bg-[#011a12] text-[#FAF8F5]/60 border-[#c5a85c]/30 hover:bg-[#012519] hover:text-[#FAF8F5]"
-                    : isDark 
-                      ? "bg-slate-950/40 text-slate-300 border-slate-850 hover:bg-slate-850" 
-                      : "bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100"
-              }`}
-            >
-              <span>English</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Night Mode Toggle Card */}
-        <div className={`p-4 rounded-3xl space-y-3 border transition-all duration-300 ${
-          theme === "emerald-velvet" ? "bg-[#011a12] border-[#c5a85c]/30 text-[#FAF8F5] shadow-none" :
-          theme === "navy-velvet" ? "bg-white border-slate-200 text-slate-850 shadow-sm" :
-          theme === "gold-velvet" ? "bg-white border-[#c5a85c]/30 text-slate-800 shadow-sm" :
-          isDark ? "bg-slate-900 border-slate-850 shadow-none text-slate-100" : "bg-white border-slate-100 shadow-sm text-slate-800"
-        }`}>
-          {/* Header with Switch */}
-          <div className="flex items-center justify-between gap-4">
-            <h3 className={`text-xs font-bold flex items-center gap-2.5 ${
-              theme === "emerald-velvet" ? "text-[#c5a85c]" :
-              theme === "navy-velvet" ? "text-[#3F63C6]" :
-              theme === "gold-velvet" ? "text-[#011c14]" :
-              isDark ? "text-emerald-400" : "text-[#065f46]"
-            }`}>
-              <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
-                theme === "emerald-velvet" ? "bg-[#c5a85c]/15 text-[#c5a85c]" :
-                theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6]" :
-                theme === "gold-velvet" ? "bg-[#c5a85c]/20 text-[#011c14]" :
-                isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100/80 text-[#065f46]"
-              }`}>
-                {isDark ? <Moon size={15} /> : <Sun size={15} />}
-              </div>
-              <div className="flex flex-col">
-                <span>{isRtl ? "المظهر الليلي" : "Night Appearance"}</span>
-                <span className="text-[10px] font-normal opacity-70">
-                  {isDark ? (isRtl ? "الوضع الليلي مفعّل" : "Night mode enabled") : (isRtl ? "الوضع النهاري مفعّل" : "Day mode enabled")}
-                </span>
-              </div>
-            </h3>
-
-            {onToggleDarkMode && (
-              <button
-                id="settings-darkmode-toggle"
-                onClick={onToggleDarkMode}
-                className={`w-12 h-6 rounded-full p-1 transition-all duration-300 focus:outline-none cursor-pointer flex items-center shrink-0 ${
-                  isDark 
-                    ? (theme === "emerald-velvet" ? "bg-[#c5a85c] justify-end" : theme === "navy-velvet" ? "bg-[#3F63C6] justify-end" : theme === "gold-velvet" ? "bg-[#011c14] justify-end" : "bg-emerald-500 justify-end") 
-                    : "bg-slate-300 dark:bg-slate-700 justify-start"
-                }`}
-                title={isDark ? (isRtl ? "إيقاف الوضع الليلي" : "Disable Night Mode") : (isRtl ? "تفعيل الوضع الليلي" : "Enable Night Mode")}
-              >
-                <div className="bg-white w-4 h-4 rounded-full shadow-md" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Day Theme Selector */}
-        {onChangeTheme && (
-          <div className={`p-4 rounded-3xl space-y-3 border ${
-            theme === "navy-velvet" ? "bg-white border-slate-200 text-slate-850 shadow-sm" :
-            theme === "gold-velvet" ? "bg-white border-[#c5a85c]/30 text-slate-800 shadow-sm" :
-            isDark ? "bg-slate-900 border-slate-850 shadow-none text-slate-100" : "bg-white border-slate-100 shadow-sm text-slate-800"
-          }`}>
-            <h3 className={`text-xs font-bold flex items-center gap-2 border-b pb-2 ${
-              theme === "navy-velvet" ? "text-[#3F63C6] border-slate-200" :
-              theme === "gold-velvet" ? "text-[#011c14] border-[#c5a85c]/20" :
-              isDark ? "text-emerald-400 border-slate-800" : "text-[#065f46] border-slate-50"
-            }`}>
-              <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6]" :
-                theme === "gold-velvet" ? "bg-[#c5a85c]/20 text-[#011c14]" :
-                isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100/80 text-[#065f46]"
-              }`}>
-                <Palette size={14} />
-              </div>
-              <span>{isRtl ? "المظهر النهاري" : "Day Theme"}</span>
-            </h3>
-
-            <div className="flex items-center justify-center gap-3 pt-1">
-              {/* Option 1: Classic Theme */}
-              <button
-                onClick={() => onChangeTheme?.("light")}
-                title={isRtl ? "أخضر كلاسيكي" : "Classic Green"}
-                className={`py-3 px-4 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center border-2 text-xs font-black ${
-                  theme === "light"
-                    ? "bg-emerald-500/15 text-emerald-800 border-emerald-500 ring-2 ring-emerald-500/30 scale-105 shadow-sm"
-                    : "bg-emerald-50/50 text-slate-600 border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-50"
-                }`}
-              >
-                <span className="w-5 h-5 rounded-full bg-emerald-500 border border-emerald-600/50 shadow-xs inline-block" />
-              </button>
-
-              {/* Option 2: Gold Velvet Theme */}
-              <button
-                onClick={() => onChangeTheme?.("gold-velvet")}
-                title={isRtl ? "ذهبي فاخر" : "Gold Velvet"}
-                className={`py-3 px-4 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center border-2 text-xs font-black ${
-                  theme === "gold-velvet"
-                    ? "bg-[#c5a85c]/25 text-[#011c14] border-[#9d7d2d] ring-2 ring-[#9d7d2d]/30 scale-105 shadow-sm"
-                    : "bg-[#c5a85c]/10 text-slate-700 border-[#9d7d2d]/25 hover:border-[#9d7d2d]/60 hover:bg-[#c5a85c]/20"
-                }`}
-              >
-                <span className="w-5 h-5 rounded-full bg-[#c5a85c] border border-[#9d7d2d]/60 shadow-xs inline-block" />
-              </button>
-
-              {/* Option 3: Navy Velvet Theme */}
-              <button
-                onClick={() => onChangeTheme?.("navy-velvet")}
-                title={isRtl ? "كحلي فاخر" : "Navy Velvet"}
-                className={`py-3 px-4 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center border-2 text-xs font-black ${
-                  theme === "navy-velvet"
-                    ? "bg-[#1b3168] text-white border-[#3F63C6] ring-2 ring-[#3F63C6]/40 scale-105 shadow-sm"
-                    : "bg-[#1b3168] text-white border-[#3F63C6]/30 hover:bg-[#1b3168]/90 hover:border-[#3F63C6]/60"
-                }`}
-              >
-                <span className="w-5 h-5 rounded-full bg-white border border-[#3F63C6] shadow-xs inline-block" />
-              </button>
-            </div>
+        {/* Notice Banner when toast active */}
+        {actionNotice && (
+          <div className="w-full p-3 sm:p-4 rounded-2xl bg-emerald-600 text-white font-bold text-xs sm:text-sm text-center shadow-lg animate-fade-in flex items-center justify-center gap-2">
+            <Check size={18} className="stroke-[3]" />
+            <span>{actionNotice}</span>
           </div>
         )}
 
-
-        {/* Page Navigation Mode (تقليب الصفحات - أزرار بأيقونات دون عبارات) */}
-        <div className={`p-4 rounded-3xl space-y-3 border ${
-          theme === "emerald-velvet" ? "bg-[#011a12] border-[#c5a85c]/30 text-[#FAF8F5] shadow-none" :
-          theme === "navy-velvet" ? "bg-white border-slate-200 text-slate-850 shadow-sm" :
-          theme === "gold-velvet" ? "bg-white border-[#c5a85c]/30 text-slate-800 shadow-sm" :
-          isDark ? "bg-slate-900 border-slate-850 shadow-none text-slate-100" : "bg-white border-slate-100 shadow-sm text-slate-800"
-        }`}>
-          <h3 className={`text-xs font-bold flex items-center gap-2 border-b pb-2 ${
-            theme === "emerald-velvet" ? "text-[#c5a85c] border-[#c5a85c]/20" :
-            theme === "navy-velvet" ? "text-[#3F63C6] border-slate-200" :
-            theme === "gold-velvet" ? "text-[#011c14] border-[#c5a85c]/20" :
-            isDark ? "text-emerald-400 border-slate-800" : "text-[#065f46] border-slate-50"
-          }`}>
-            <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-              theme === "emerald-velvet" ? "bg-[#c5a85c]/15 text-[#c5a85c]" :
-              theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6]" :
-              theme === "gold-velvet" ? "bg-[#c5a85c]/20 text-[#011c14]" :
-              isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100/80 text-[#065f46]"
-            }`}>
-              <Move size={14} />
+        {/* 1. لغة التطبيق / App Language */}
+        <div className={`p-4 sm:p-5 rounded-3xl border shadow-xs transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
+          <div className="flex items-center justify-end gap-2 text-xs sm:text-sm font-semibold opacity-75 mb-3">
+            <span>لغة التطبيق / App Language</span>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <Languages size={15} className={styleTokens.iconColor} />
             </div>
-            <div className="flex flex-col">
-              <span>{isRtl ? "تقليب الصفحات" : "Page Navigation"}</span>
-              <span className="text-[10px] font-normal opacity-70">
-                {(settings.scrollDirection || "horizontal") === "vertical"
-                  ? (isRtl ? "الوضع المفعّل: رأسي لأعلى وأسفل فقط (صفحة صفحة)" : "Active: Vertical (Up & Down only - Page by page)")
-                  : (isRtl ? "الوضع المفعّل: أفقي على اليمين واليسار فقط" : "Active: Horizontal (Right & Left only)")}
+          </div>
+          <div className={`w-full h-[1px] ${styleTokens.divider} mb-4`} />
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <button
+              type="button"
+              onClick={() => onChangeSettings({ language: "en" })}
+              className={`h-14 sm:h-16 rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer flex items-center justify-center border-2 active:scale-98 ${
+                currentLang === "en" ? styleTokens.activeBtn : styleTokens.inactiveBtn
+              }`}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              onClick={() => onChangeSettings({ language: "ar" })}
+              className={`h-14 sm:h-16 rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer flex items-center justify-center border-2 active:scale-98 ${
+                currentLang === "ar" ? styleTokens.activeBtn : styleTokens.inactiveBtn
+              }`}
+            >
+              العربية
+            </button>
+          </div>
+        </div>
+
+        {/* 2. المظهر الليلي */}
+        <div className={`p-4 sm:p-5 rounded-3xl border shadow-xs flex items-center justify-between transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
+          {/* Left: Switch */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isDark}
+            onClick={onToggleDarkMode}
+            className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+              isDark ? styleTokens.switchOnBg : "bg-slate-300 dark:bg-slate-700"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                isDark ? "translate-x-6" : "translate-x-0"
+              }`}
+            />
+          </button>
+
+          {/* Right: Icon + Label */}
+          <div className="flex items-center gap-3 text-right">
+            <div className="flex flex-col items-end">
+              <span className="text-sm sm:text-base font-bold">المظهر الليلي</span>
+              <span className="text-xs opacity-70">
+                {isDark ? "الوضع الليلي مفعّل" : "الوضع النهاري مفعّل"}
               </span>
             </div>
-          </h3>
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
+              {isDark ? (
+                <Moon size={18} className={styleTokens.iconColor} />
+              ) : (
+                <Sun size={18} className={styleTokens.iconColor} />
+              )}
+            </div>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            {/* Option 1: Horizontal Navigation (Right & Left only / على اليمين واليسار فقط) */}
+        {/* 3. المظهر النهاري */}
+        <div className={`p-4 sm:p-5 rounded-3xl border shadow-xs transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
+          <div className="flex items-center justify-end gap-2 text-xs sm:text-sm font-semibold opacity-75 mb-3">
+            <span>المظهر النهاري</span>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <Palette size={15} className={styleTokens.iconColor} />
+            </div>
+          </div>
+          <div className={`w-full h-[1px] ${styleTokens.divider} mb-4`} />
+          
+          {/* 3 Squircle Theme Options Centered */}
+          <div className="flex items-center justify-center gap-5 sm:gap-7 py-2">
+            {/* 1. Navy Theme (المخملي النيلي) */}
             <button
-              id="settings-portrait-nav-horizontal"
-              onClick={() => onChangeSettings({ scrollDirection: "horizontal" })}
-              title={isRtl ? "أفقي: على اليمين واليسار فقط" : "Horizontal: Right & Left only"}
-              aria-label={isRtl ? "أفقي: على اليمين واليسار فقط" : "Horizontal: Right & Left only"}
-              className={`py-3.5 px-3 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 border-2 ${
-                (settings.scrollDirection || "horizontal") === "horizontal"
-                  ? (theme === "navy-velvet"
-                      ? "bg-[#3F63C6]/15 text-[#3F63C6] border-[#3F63C6] ring-2 ring-[#3F63C6]/30 shadow-sm"
-                      : theme === "gold-velvet"
-                        ? "bg-[#c5a85c]/25 text-[#011c14] border-[#9d7d2d] ring-2 ring-[#9d7d2d]/30 shadow-sm"
-                        : theme === "emerald-velvet"
-                          ? "bg-[#c5a85c] text-[#011a12] border-[#c5a85c] ring-2 ring-[#c5a85c]/40 shadow-sm font-bold"
-                          : isDark
-                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500 ring-2 ring-emerald-500/30 shadow-sm"
-                            : "bg-emerald-500/15 text-emerald-800 border-emerald-600 ring-2 ring-emerald-500/30 shadow-sm")
-                  : (theme === "emerald-velvet"
-                      ? "bg-[#011a12] text-[#FAF8F5]/60 border-[#c5a85c]/30 hover:bg-[#012519] hover:text-[#FAF8F5]"
-                      : theme === "navy-velvet"
-                        ? "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
-                        : theme === "gold-velvet"
-                          ? "bg-[#FAF2DF]/50 text-slate-600 border-[#c5a85c]/25 hover:border-[#c5a85c]/50 hover:bg-[#FAF2DF]"
-                          : isDark
-                            ? "bg-slate-800/50 text-slate-400 border-slate-700/60 hover:border-slate-600 hover:bg-slate-800"
-                            : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-100")
+              type="button"
+              onClick={() => onChangeTheme?.("navy-velvet")}
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-[#172E54] shadow-sm active:scale-95 ${
+                theme === "navy-velvet" 
+                  ? "ring-3 ring-[#3F63C6] ring-offset-2 ring-offset-white dark:ring-offset-slate-900 scale-105" 
+                  : "opacity-85 hover:opacity-100 hover:scale-102"
               }`}
+              title="المظهر النيلي"
             >
-              <ArrowLeftRight size={20} className="stroke-[2.5px]" />
-              <span className="text-xs font-bold">{isRtl ? "أفقي (يمين ويسار)" : "Horizontal"}</span>
+              <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                {theme === "navy-velvet" && <div className="w-2.5 h-2.5 rounded-full bg-[#172E54]" />}
+              </div>
             </button>
 
-            {/* Option 2: Vertical Navigation (Up & Down only / لأعلى وأسفل فقط - صفحة صفحة) */}
+            {/* 2. Gold Velvet Theme (المخملي الذهبي - كما في الصورة) */}
             <button
-              id="settings-portrait-nav-vertical"
+              type="button"
+              onClick={() => onChangeTheme?.("gold-velvet")}
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-[#EEDBBD] border-2 border-[#C5A85C] shadow-sm active:scale-95 ${
+                theme === "gold-velvet" 
+                  ? "ring-3 ring-[#C5A85C] ring-offset-2 ring-offset-white dark:ring-offset-slate-900 scale-105" 
+                  : "opacity-85 hover:opacity-100 hover:scale-102"
+              }`}
+              title="المظهر الذهبي"
+            >
+              <div className="w-5 h-5 rounded-full bg-[#C5A85C] flex items-center justify-center shadow-xs">
+                {theme === "gold-velvet" && <div className="w-2.5 h-2.5 rounded-full bg-[#EEDBBD]" />}
+              </div>
+            </button>
+
+            {/* 3. Emerald Velvet Theme (المخملي الزمردي) */}
+            <button
+              type="button"
+              onClick={() => onChangeTheme?.("emerald-velvet")}
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-[#D5F2E3] border-2 border-[#10B981]/50 shadow-sm active:scale-95 ${
+                theme === "emerald-velvet" 
+                  ? "ring-3 ring-[#10B981] ring-offset-2 ring-offset-white dark:ring-offset-slate-900 scale-105" 
+                  : "opacity-85 hover:opacity-100 hover:scale-102"
+              }`}
+              title="المظهر الزمردي"
+            >
+              <div className="w-5 h-5 rounded-full bg-[#10B981] flex items-center justify-center shadow-xs">
+                {theme === "emerald-velvet" && <div className="w-2.5 h-2.5 rounded-full bg-[#D5F2E3]" />}
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* 4. تقليب الصفحات */}
+        <div className={`p-4 sm:p-5 rounded-3xl border shadow-xs transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
+          <div className="flex items-center justify-end gap-2 text-xs sm:text-sm font-semibold opacity-75 mb-1">
+            <div className="flex flex-col items-end">
+              <span>تقليب الصفحات</span>
+              <span className="text-[11px] opacity-70">
+                {isVertical
+                  ? "الوضع المفعّل: رأسي لأعلى وأسفل فقط"
+                  : "الوضع المفعّل: أفقي على اليمين واليسار فقط"}
+              </span>
+            </div>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <Sliders size={15} className={styleTokens.iconColor} />
+            </div>
+          </div>
+          <div className={`w-full h-[1px] ${styleTokens.divider} my-3`} />
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* رأسي */}
+            <button
+              type="button"
               onClick={() => onChangeSettings({ scrollDirection: "vertical" })}
-              title={isRtl ? "رأسي: لأعلى وأسفل فقط (صفحة صفحة)" : "Vertical: Up & Down only (Page by page)"}
-              aria-label={isRtl ? "رأسي: لأعلى وأسفل فقط (صفحة صفحة)" : "Vertical: Up & Down only (Page by page)"}
-              className={`py-3.5 px-3 rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 border-2 ${
-                settings.scrollDirection === "vertical"
-                  ? (theme === "navy-velvet"
-                      ? "bg-[#3F63C6]/15 text-[#3F63C6] border-[#3F63C6] ring-2 ring-[#3F63C6]/30 shadow-sm"
-                      : theme === "gold-velvet"
-                        ? "bg-[#c5a85c]/25 text-[#011c14] border-[#9d7d2d] ring-2 ring-[#9d7d2d]/30 shadow-sm"
-                        : theme === "emerald-velvet"
-                          ? "bg-[#c5a85c] text-[#011a12] border-[#c5a85c] ring-2 ring-[#c5a85c]/40 shadow-sm font-bold"
-                          : isDark
-                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500 ring-2 ring-emerald-500/30 shadow-sm"
-                            : "bg-emerald-500/15 text-emerald-800 border-emerald-600 ring-2 ring-emerald-500/30 shadow-sm")
-                  : (theme === "emerald-velvet"
-                      ? "bg-[#011a12] text-[#FAF8F5]/60 border-[#c5a85c]/30 hover:bg-[#012519] hover:text-[#FAF8F5]"
-                      : theme === "navy-velvet"
-                        ? "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
-                        : theme === "gold-velvet"
-                          ? "bg-[#FAF2DF]/50 text-slate-600 border-[#c5a85c]/25 hover:border-[#c5a85c]/50 hover:bg-[#FAF2DF]"
-                          : isDark
-                            ? "bg-slate-800/50 text-slate-400 border-slate-700/60 hover:border-slate-600 hover:bg-slate-800"
-                            : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-100")
+              className={`h-14 sm:h-16 rounded-2xl font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 border-2 active:scale-98 ${
+                isVertical ? styleTokens.activeBtn : styleTokens.inactiveBtn
               }`}
             >
-              <ArrowUpDown size={20} className="stroke-[2.5px]" />
-              <span className="text-xs font-bold">{isRtl ? "رأسي (أعلى وأسفل)" : "Vertical"}</span>
+              <ArrowUpDown size={17} className="shrink-0" />
+              <span>رأسي (أعلى وأسفل)</span>
+            </button>
+
+            {/* أفقي */}
+            <button
+              type="button"
+              onClick={() => onChangeSettings({ scrollDirection: "horizontal" })}
+              className={`h-14 sm:h-16 rounded-2xl font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 border-2 active:scale-98 ${
+                !isVertical ? styleTokens.activeBtn : styleTokens.inactiveBtn
+              }`}
+            >
+              <ArrowLeftRight size={17} className="shrink-0" />
+              <span>أفقي (يمين ويسار)</span>
             </button>
           </div>
         </div>
 
-
-
-
-
-
-
-
-
-
-        {/* Quick Actions Row: Rating, Share App, Suggestions */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-          {/* Rating (التقييم) */}
+        {/* 5. الثلاث أزرار: التقييم | مشاركة التطبيق | مقترحات */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          {/* مقترحات */}
           <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({ title: isRtl ? "تقييم التطبيق" : "Rate App", text: isRtl ? "تطبيق المصحف الشريف" : "Quran App" }).catch(() => {});
-              } else {
-                alert(isRtl ? "شكراً لتقييمك للتطبيق! ⭐⭐⭐⭐⭐" : "Thank you for rating the app! ⭐⭐⭐⭐⭐");
-              }
-            }}
-            className={`p-3.5 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
-              theme === "navy-velvet"
-                ? "bg-white border-slate-200 text-[#3F63C6] hover:bg-slate-50 hover:border-[#3F63C6]/40"
-                : theme === "gold-velvet"
-                  ? "bg-white border-[#c5a85c]/30 text-[#011c14] hover:bg-[#FAF2DF]/40 hover:border-[#c5a85c]"
-                  : isDark
-                    ? "bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-850 hover:border-amber-500/40"
-                    : "bg-white border-slate-200 text-amber-600 hover:bg-amber-50/50 hover:border-amber-300"
-            }`}
+            type="button"
+            onClick={() => setModalType("feedback")}
+            className={`p-3.5 sm:p-4 rounded-3xl border shadow-xs flex flex-col items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${styleTokens.cardBg} ${styleTokens.cardBorder}`}
           >
-            <Star size={20} className="fill-amber-400/20 stroke-[2]" />
-            <span className="text-xs font-black">{isRtl ? "التقييم" : "Rate App"}</span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <MessageSquarePlus size={18} className={styleTokens.iconColor} />
+            </div>
+            <span className="text-xs sm:text-sm font-bold">مقترحات</span>
           </button>
 
-          {/* Share App (مشاركة التطبيق) */}
+          {/* مشاركة التطبيق */}
           <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: isRtl ? "المصحف الشريف" : "Quran App",
-                  url: window.location.href
-                }).catch(() => {});
-              } else {
-                navigator.clipboard?.writeText(window.location.href);
-                alert(isRtl ? "تم نسخ رابط التطبيق بنجاح!" : "App link copied!");
-              }
-            }}
-            className={`p-3.5 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
-              theme === "navy-velvet"
-                ? "bg-white border-slate-200 text-[#3F63C6] hover:bg-slate-50 hover:border-[#3F63C6]/40"
-                : theme === "gold-velvet"
-                  ? "bg-white border-[#c5a85c]/30 text-[#011c14] hover:bg-[#FAF2DF]/40 hover:border-[#c5a85c]"
-                  : isDark
-                    ? "bg-slate-900 border-slate-800 text-emerald-400 hover:bg-slate-850 hover:border-emerald-500/40"
-                    : "bg-white border-slate-200 text-emerald-700 hover:bg-emerald-50/50 hover:border-emerald-300"
-            }`}
+            type="button"
+            onClick={handleShareApp}
+            className={`p-3.5 sm:p-4 rounded-3xl border shadow-xs flex flex-col items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${styleTokens.cardBg} ${styleTokens.cardBorder}`}
           >
-            <Share2 size={20} className="stroke-[2]" />
-            <span className="text-xs font-black">{isRtl ? "مشاركة التطبيق" : "Share App"}</span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <Share2 size={18} className={styleTokens.iconColor} />
+            </div>
+            <span className="text-xs sm:text-sm font-bold">مشاركة التطبيق</span>
           </button>
 
-          {/* Suggestions (مقترحات) */}
+          {/* التقييم */}
           <button
-            onClick={() => {
-              const msg = prompt(isRtl ? "أدخل مقترحك أو ملاحظتك للتطوير:" : "Enter your suggestion or feedback:");
-              if (msg && msg.trim()) {
-                alert(isRtl ? "تم إرسال مقترحك بنجاح، جزاكم الله خيراً!" : "Thank you for your feedback!");
-              }
-            }}
-            className={`p-3.5 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
-              theme === "navy-velvet"
-                ? "bg-white border-slate-200 text-[#3F63C6] hover:bg-slate-50 hover:border-[#3F63C6]/40"
-                : theme === "gold-velvet"
-                  ? "bg-white border-[#c5a85c]/30 text-[#011c14] hover:bg-[#FAF2DF]/40 hover:border-[#c5a85c]"
-                  : isDark
-                    ? "bg-slate-900 border-slate-800 text-sky-400 hover:bg-slate-850 hover:border-sky-500/40"
-                    : "bg-white border-slate-200 text-sky-700 hover:bg-sky-50/50 hover:border-sky-300"
-            }`}
+            type="button"
+            onClick={() => setModalType("rate")}
+            className={`p-3.5 sm:p-4 rounded-3xl border shadow-xs flex flex-col items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${styleTokens.cardBg} ${styleTokens.cardBorder}`}
           >
-            <MessageSquarePlus size={20} className="stroke-[2]" />
-            <span className="text-xs font-black">{isRtl ? "مقترحات" : "Suggestions"}</span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <Star size={18} className={styleTokens.iconColor} />
+            </div>
+            <span className="text-xs sm:text-sm font-bold">التقييم</span>
           </button>
         </div>
 
-        {/* Our Applications (تطبيقاتنا) */}
-        <div className={`p-4 rounded-3xl space-y-3.5 border ${
-          theme === "navy-velvet" ? "bg-white border-slate-200 text-slate-850 shadow-sm" :
-          theme === "gold-velvet" ? "bg-white border-[#c5a85c]/30 text-slate-800 shadow-sm" :
-          isDark ? "bg-slate-900 border-slate-850 shadow-none text-slate-100" : "bg-white border-slate-100 shadow-sm text-slate-800"
-        }`}>
-          <h3 className={`text-xs font-bold flex items-center gap-2 border-b pb-2 ${
-            theme === "navy-velvet" ? "text-[#3F63C6] border-slate-200" :
-            theme === "gold-velvet" ? "text-[#011c14] border-[#c5a85c]/20" :
-            isDark ? "text-emerald-400 border-slate-800" : "text-[#065f46] border-slate-50"
-          }`}>
-            <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-              theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6]" :
-              theme === "gold-velvet" ? "bg-[#c5a85c]/20 text-[#011c14]" :
-              isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100/80 text-[#065f46]"
-            }`}>
-              <Smartphone size={14} />
+        {/* 6. تطبيقاتنا */}
+        <div className={`p-4 sm:p-5 rounded-3xl border shadow-xs transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
+          <div className="flex items-center justify-end gap-2 text-xs sm:text-sm font-semibold opacity-75 mb-3">
+            <span>تطبيقاتنا</span>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <Smartphone size={15} className={styleTokens.iconColor} />
             </div>
-            <span>{isRtl ? "تطبيقاتنا" : "Our Applications"}</span>
-          </h3>
-
-          <div className="space-y-2.5">
-            {/* App 1: المفردون */}
-            <div className={`p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
-              theme === "navy-velvet" ? "bg-slate-50/80 border-slate-200 hover:border-[#3F63C6]/40" :
-              theme === "gold-velvet" ? "bg-[#FAF8F5] border-[#c5a85c]/20 hover:border-[#c5a85c]" :
-              isDark ? "bg-slate-950/40 border-slate-800 hover:border-slate-700" : "bg-slate-50/80 border-slate-100 hover:border-slate-200"
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
-                  theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6]" :
-                  theme === "gold-velvet" ? "bg-[#c5a85c]/25 text-[#011c14]" :
-                  isDark ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-100 text-emerald-800"
-                }`}>
-                  📿
-                </div>
-                <div>
-                  <h4 className="text-xs font-black">{isRtl ? "المفردون" : "Al-Mufarridun"}</h4>
-                  <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                    {isRtl ? "تطبيق الأذكار والورد القرآني المحاسب للنفس" : "Daily Dhikr & Quranic Accountability App"}
-                  </p>
-                </div>
+          </div>
+          <div className={`w-full h-[1px] ${styleTokens.divider} mb-4`} />
+          
+          <div className="flex flex-col gap-3">
+            {/* تطبيق المفردون */}
+            <div
+              onClick={() => setModalType("app_mufarridoon")}
+              className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between gap-3 ${styleTokens.subCardBg} ${styleTokens.subCardBorder}`}
+            >
+              <div className="flex flex-col text-right flex-1">
+                <span className="text-sm sm:text-base font-bold">المفردون</span>
+                <span className="text-xs opacity-70 mt-0.5">تطبيق الأذكار والورد القرآني المحاسب للنفس</span>
+              </div>
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${styleTokens.badgeBg}`}>
+                <BookMarked size={20} className={styleTokens.iconColor} />
               </div>
             </div>
 
-            {/* App 2: فضائل */}
-            <div className={`p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
-              theme === "navy-velvet" ? "bg-slate-50/80 border-slate-200 hover:border-[#3F63C6]/40" :
-              theme === "gold-velvet" ? "bg-[#FAF8F5] border-[#c5a85c]/20 hover:border-[#c5a85c]" :
-              isDark ? "bg-slate-950/40 border-slate-800 hover:border-slate-700" : "bg-slate-50/80 border-slate-100 hover:border-slate-200"
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
-                  theme === "navy-velvet" ? "bg-[#3F63C6]/15 text-[#3F63C6]" :
-                  theme === "gold-velvet" ? "bg-[#c5a85c]/25 text-[#011c14]" :
-                  isDark ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-100 text-emerald-800"
-                }`}>
-                  ✨
-                </div>
-                <div>
-                  <h4 className="text-xs font-black">{isRtl ? "فضائل" : "Fada'il"}</h4>
-                  <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                    {isRtl ? "تطبيق فضائل الأعمال والسنن والآداب النبوية" : "Virtues of Good Deeds & Prophetic Sunnahs"}
-                  </p>
-                </div>
+            {/* تطبيق فضائل */}
+            <div
+              onClick={() => setModalType("app_fadail")}
+              className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between gap-3 ${styleTokens.subCardBg} ${styleTokens.subCardBorder}`}
+            >
+              <div className="flex flex-col text-right flex-1">
+                <span className="text-sm sm:text-base font-bold">فضائل</span>
+                <span className="text-xs opacity-70 mt-0.5">تطبيق فضائل الأعمال والسنن والآداب النبوية</span>
+              </div>
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${styleTokens.badgeBg}`}>
+                <Sparkles size={20} className={styleTokens.iconColor} />
               </div>
             </div>
           </div>
+        </div>
+
+        {/* خيارات إضافية للمصحف والتلاوة (قابلة للتوسيع) */}
+        <div className={`rounded-3xl border overflow-hidden transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full p-4 flex items-center justify-between cursor-pointer hover:opacity-90 text-right"
+          >
+            <div className="flex items-center gap-2">
+              {showAdvanced ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              <span className="text-xs opacity-70">خط المصحف، حجم الخط، القارئ</span>
+            </div>
+            <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+              <span>خيارات إضافية للمصحف والتلاوة</span>
+              <Sliders size={16} className={styleTokens.iconColor} />
+            </div>
+          </button>
+
+          {showAdvanced && (
+            <div className={`p-4 pt-0 space-y-4 border-t ${styleTokens.divider}`}>
+              {/* خط الرسم القرآني */}
+              <div className="space-y-2 pt-3">
+                <span className="text-xs font-bold block opacity-80">خط الرسم القرآني:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {fontOptions.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => onChangeSettings({ quranFont: f.id })}
+                      className={`flex flex-col text-right p-3 rounded-xl border transition-all cursor-pointer ${
+                        settings.quranFont === f.id ? styleTokens.activeBtn : styleTokens.inactiveBtn
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold">{f.label}</span>
+                        {settings.quranFont === f.id && <Check size={14} className={styleTokens.iconColor} />}
+                      </div>
+                      <span className="text-[10px] opacity-70 mt-0.5">{f.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* حجم الخط */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold block opacity-80">حجم الخط:</span>
+                <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl border border-black/10 dark:border-white/10">
+                  {fontSizes.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => onChangeSettings({ fontSize: s.id })}
+                      className={`py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        settings.fontSize === s.id ? styleTokens.activeBtn : "opacity-75 hover:opacity-100"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* القارئ المفضل */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold block opacity-80">القارئ المفضل للتلاوة:</span>
+                <select
+                  value={settings.reciterId || "alafasy"}
+                  onChange={(e) => onChangeSettings({ reciterId: e.target.value })}
+                  className={`w-full p-3 rounded-xl text-xs font-bold border ${styleTokens.inactiveBtn} focus:outline-hidden`}
+                >
+                  {recitersData.map((r) => (
+                    <option key={r.id} value={r.id} className="bg-slate-900 text-white">
+                      {r.nameAr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
+
+      {/* 7. الزر السفلي العريض: حفظ وتطبيق الخيارات */}
+      <div className="w-full max-w-2xl mx-auto pt-4 sticky bottom-0 z-20">
+        <button
+          type="button"
+          onClick={handleSave}
+          className={`w-full py-4 rounded-2xl font-bold text-base sm:text-lg shadow-lg transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-2 ${styleTokens.saveBtn}`}
+        >
+          {saveToast ? (
+            <>
+              <Check size={22} className="stroke-[3] animate-bounce" />
+              <span>تم حفظ وتطبيق الخيارات بنجاح</span>
+            </>
+          ) : (
+            <span>حفظ وتطبيق الخيارات</span>
+          )}
+        </button>
+      </div>
+
+      {/* Interactive Modal: Rate App */}
+      {modalType === "rate" && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setModalType(null)}>
+          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl flex flex-col items-center text-center gap-4 ${styleTokens.cardBg} ${styleTokens.cardBorder}`} onClick={(e) => e.stopPropagation()}>
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
+              <Star size={28} className={styleTokens.iconColor} />
+            </div>
+            <h3 className="text-lg font-black">تقييم تطبيق مصحف التبيان</h3>
+            <p className="text-xs opacity-80 leading-relaxed">
+              نسعد بتقييمك لتطبيق مصحف التبيان ودعمك لنا في نشر كتاب الله الكريم وعلومه النافعة.
+            </p>
+            <div className="flex items-center justify-center gap-2 py-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRatingScore(star)}
+                  className="cursor-pointer transition-transform hover:scale-125"
+                >
+                  <Star
+                    size={28}
+                    className={star <= ratingScore ? "fill-amber-400 text-amber-400" : "text-slate-400"}
+                  />
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActionNotice("شكراً جزيلاً لتقييمك ودعمك المبارك!");
+                setModalType(null);
+                setTimeout(() => setActionNotice(null), 2500);
+              }}
+              className={`w-full py-3 rounded-xl font-bold text-sm cursor-pointer ${styleTokens.saveBtn}`}
+            >
+              إرسال التقييم
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Modal: Feedback / Suggestions */}
+      {modalType === "feedback" && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setModalType(null)}>
+          <div className={`w-full max-w-md rounded-3xl p-6 border shadow-2xl flex flex-col gap-4 ${styleTokens.cardBg} ${styleTokens.cardBorder}`} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <button type="button" onClick={() => setModalType(null)} className="p-1.5 rounded-lg opacity-70 hover:opacity-100 cursor-pointer">
+                <X size={20} />
+              </button>
+              <div className="flex items-center gap-2 font-bold text-base">
+                <span>المقترحات والملاحظات</span>
+                <MessageSquarePlus size={20} className={styleTokens.iconColor} />
+              </div>
+            </div>
+            <p className="text-xs opacity-80 text-right leading-relaxed">
+              يسعدنا تلقي أي مقترح أو إضافة ترغب برؤيتها في تطبيق مصحف التبيان.
+            </p>
+            <form onSubmit={handleSubmitFeedback} className="flex flex-col gap-3">
+              <textarea
+                rows={4}
+                required
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="اكتب مقترحك أو ملاحظتك هنا..."
+                className={`w-full p-3.5 rounded-2xl text-xs sm:text-sm border ${styleTokens.inactiveBtn} focus:outline-hidden text-right resize-none`}
+              />
+              <button
+                type="submit"
+                className={`w-full py-3 rounded-xl font-bold text-sm cursor-pointer flex items-center justify-center gap-2 ${styleTokens.saveBtn}`}
+              >
+                <Send size={16} />
+                <span>إرسال المقترح</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Modal: App Details (المفردون / فضائل) */}
+      {(modalType === "app_mufarridoon" || modalType === "app_fadail") && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setModalType(null)}>
+          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl flex flex-col items-center text-center gap-4 ${styleTokens.cardBg} ${styleTokens.cardBorder}`} onClick={(e) => e.stopPropagation()}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${styleTokens.badgeBg}`}>
+              {modalType === "app_mufarridoon" ? (
+                <BookMarked size={32} className={styleTokens.iconColor} />
+              ) : (
+                <Sparkles size={32} className={styleTokens.iconColor} />
+              )}
+            </div>
+            <h3 className="text-lg font-black">
+              {modalType === "app_mufarridoon" ? "تطبيق المفردون" : "تطبيق فضائل"}
+            </h3>
+            <p className="text-xs opacity-80 leading-relaxed">
+              {modalType === "app_mufarridoon"
+                ? "تطبيق قرآني وتربوي يُعينك على محاسبة النفس وإنجاز الأوراد اليومية والأذكار المأثورة بتتبع ذكي وخالٍ من الإعلانات."
+                : "تطبيق متخصص في جمع فضائل الأعمال الصالحة والسنن النبوية الصحيحة والآداب الشرعية بأسلوب ميسر وتصميم مريح."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActionNotice(modalType === "app_mufarridoon" ? "جاري فتح تطبيق المفردون..." : "جاري فتح تطبيق فضائل...");
+                setModalType(null);
+                setTimeout(() => setActionNotice(null), 2500);
+              }}
+              className={`w-full py-3 rounded-xl font-bold text-sm cursor-pointer flex items-center justify-center gap-2 ${styleTokens.saveBtn}`}
+            >
+              <ExternalLink size={16} />
+              <span>فتح التطبيق</span>
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
-}
+};
+
+export default SettingsScreen;

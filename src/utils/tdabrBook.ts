@@ -1,348 +1,261 @@
-import { surahsList } from "../data/surahList";
 import { lyadabbarooGroup1Text } from "../data/lyadabbarooGroup1Data";
 import { lyadabbarooGroup2Text } from "../data/lyadabbarooGroup2Data";
 import { lyadabbarooGroup3Text } from "../data/lyadabbarooGroup3Data";
 import { lyadabbarooGroup4Text } from "../data/lyadabbarooGroup4Data";
 import { lyadabbarooGroup5Text } from "../data/lyadabbarooGroup5Data";
-import { Srf1Text } from "../data/Srf1Data";
-import { Srf2Text } from "../data/Srf2Data";
-import {
-  generateAllBooksTadabbur,
-  formatMultiBookTadabbur,
-  parseTadabburSections,
-  TadabburBookSection
-} from "./tdabrMultiBook";
-
-export { parseTadabburSections, formatMultiBookTadabbur };
-export type { TadabburBookSection };
+import { surahsList } from "../data/surahList";
 
 export interface TdabrInsight {
-  title?: string;
+  title: string;
   ayahText?: string;
   tadabburText: string;
-  author?: string;
+  author: string;
   source: string;
   surahNumber?: number;
   ayahNumber?: number;
+  groupNum?: number;
 }
 
-function cleanArabic(str: string): string {
-  if (!str) return "";
-  return str
-    .replace(/[\u064B-\u065F\u0670\u0671]/g, "")
-    .replace(/[أإآءٱ]/g, "ا")
-    .replace(/ة/g, "ه")
-    .replace(/ى/g, "ي")
-    .replace(/^سورة\s+/, "")
-    .replace(/^سوره\s+/, "")
-    .replace(/[\(\)\[\]:.\-_]/g, "")
-    .trim();
+export interface TadabburSection {
+  title?: string;
+  content: string;
+  author?: string;
+  source?: string;
+  bookName?: string;
+  groupNum?: number;
 }
 
-function matchSurahNames(surahNum: number, canonicalName: string, lineSurahStr: string): boolean {
-  const cNorm = cleanArabic(canonicalName).replace(/^ال/, "");
-  const lNorm = cleanArabic(lineSurahStr).replace(/^ال/, "");
-  if (!cNorm || !lNorm) return false;
-  if (cNorm === lNorm) return true;
-
-  if (surahNum === 9 && (lNorm.includes("براءه") || lNorm.includes("توبه"))) return true;
-  if (surahNum === 17 && (lNorm.includes("اسراء") || lNorm.includes("بني اسرائيل"))) return true;
-  if (surahNum === 76 && (lNorm.includes("انسان") || lNorm.includes("دهر"))) return true;
-  if (surahNum === 94 && (lNorm.includes("شرح") || lNorm.includes("انشراح"))) return true;
-  if (surahNum === 112 && (lNorm.includes("اخلاص") || lNorm.includes("توحيد"))) return true;
-
-  if (cNorm.length > 2 && lNorm.length > 2) {
-    return lNorm.includes(cNorm) || cNorm.includes(lNorm);
-  }
-  return false;
+export interface TdabrGroupInfo {
+  num: number;
+  id: string;
+  title: string;
+  shortTitle: string;
 }
 
-function parseHeader(header: string): { surahIdent: string | number; ayahStart: number; ayahEnd: number } | null {
-  const cleanH = header.trim();
-  // e.g. "2: 255" or "سورة 2: 255" or "2 255"
-  const numPrefixMatch = cleanH.match(/^(?:سورة\s+)?(\d+)\s*[\:\s]\s*(\d+)(?:\s*[\-\–]\s*(\d+))?/i);
-  if (numPrefixMatch) {
-    const sNum = parseInt(numPrefixMatch[1], 10);
-    const aStart = parseInt(numPrefixMatch[2], 10);
-    const aEnd = numPrefixMatch[3] ? parseInt(numPrefixMatch[3], 10) : aStart;
-    return { surahIdent: sNum, ayahStart: aStart, ayahEnd: aEnd };
-  }
+export const TDABR_GROUPS: TdabrGroupInfo[] = [
+  { num: 1, id: "book_tadabbur_1", title: "ليدبروا آياته - المجموعة الأولى", shortTitle: "المجموعة الأولى" },
+  { num: 2, id: "book_tadabbur_2", title: "ليدبروا آياته - المجموعة الثانية", shortTitle: "المجموعة الثانية" },
+  { num: 3, id: "book_tadabbur_3", title: "ليدبروا آياته - المجموعة الثالثة", shortTitle: "المجموعة الثالثة" },
+  { num: 4, id: "book_tadabbur_4", title: "ليدبروا آياته - المجموعة الرابعة", shortTitle: "المجموعة الرابعة" },
+  { num: 5, id: "book_tadabbur_5", title: "ليدبروا آياته - المجموعة الخامسة", shortTitle: "المجموعة الخامسة" },
+];
 
-  // e.g. "سورة البقرة 255" or "البقرة: 255-257" or "سورة آل عمران آية 17"
-  const nameMatch = cleanH.match(/^(?:سورة\s+)?([^\d\:\-]+)[\s\:\-]+(?:آية\s+)?(\d+)(?:\s*[\-\–]\s*(\d+))?/i);
-  if (nameMatch) {
-    const sName = nameMatch[1].trim();
-    const aStart = parseInt(nameMatch[2], 10);
-    const aEnd = nameMatch[3] ? parseInt(nameMatch[3], 10) : aStart;
-    return { surahIdent: sName, ayahStart: aStart, ayahEnd: aEnd };
-  }
+// Group-specific map: group number -> map of "surahNum:ayahNum" -> array of blocks
+const groupMaps = new Map<number, Map<string, string[]>>();
+// Combined map: "surahNum:ayahNum" -> array of items with group tag
+const allGroupsMap = new Map<string, Array<{ groupNum: number; groupTitle: string; rawText: string }>>();
+let isInitialized = false;
 
-  return null;
+function cleanArabicName(name: string): string {
+  return name.replace(/[أإآء]/g, "ا").replace(/[\u064B-\u065F]/g, "").trim();
 }
 
-export function parseTdabrSource(
-  sourceText: string,
-  surahNumber: number,
-  ayahNumber: number,
-  surahNameInput: string,
-  sourceLabel: string
-): TdabrInsight[] {
-  const results: TdabrInsight[] = [];
-  if (!sourceText) return results;
+function initTdabr() {
+  if (isInitialized) return;
+  isInitialized = true;
 
-  const surahMeta = surahsList.find((s) => s.number === surahNumber);
-  const surahName = surahNameInput || (surahMeta ? surahMeta.name : "");
+  const rawGroups = [
+    { num: 1, text: lyadabbarooGroup1Text, title: "ليدبروا آياته - المجموعة الأولى" },
+    { num: 2, text: lyadabbarooGroup2Text, title: "ليدبروا آياته - المجموعة الثانية" },
+    { num: 3, text: lyadabbarooGroup3Text, title: "ليدبروا آياته - المجموعة الثالثة" },
+    { num: 4, text: lyadabbarooGroup4Text, title: "ليدبروا آياته - المجموعة الرابعة" },
+    { num: 5, text: lyadabbarooGroup5Text, title: "ليدبروا آياته - المجموعة الخامسة" },
+  ];
 
-  const blocks = sourceText.split(/\[([^\]]+)\]/);
-  for (let i = 1; i < blocks.length; i += 2) {
-    const header = blocks[i];
-    const body = blocks[i + 1] || "";
+  for (const group of rawGroups) {
+    const gMap = new Map<string, string[]>();
+    groupMaps.set(group.num, gMap);
 
-    const parsed = parseHeader(header);
-    if (!parsed) continue;
+    if (!group.text) continue;
+    const blocks = group.text.split(/(?=\[سورة\s+)/g);
 
-    let isMatch = false;
-    if (typeof parsed.surahIdent === "number") {
-      isMatch = parsed.surahIdent === surahNumber;
-    } else {
-      isMatch = matchSurahNames(surahNumber, surahName, parsed.surahIdent);
-    }
-
-    if (!isMatch) continue;
-
-    if (ayahNumber < parsed.ayahStart || ayahNumber > parsed.ayahEnd) {
-      continue;
-    }
-
-    // Extract title, ayah, and tadabbur text from block lines
-    let title = "";
-    let ayahText = "";
-    let tadabburText = "";
-
-    const lines = body.split(/\r?\n/);
-    for (const line of lines) {
-      const trimmed = line.trim();
+    for (const b of blocks) {
+      const trimmed = b.trim();
       if (!trimmed) continue;
 
-      if (trimmed.startsWith("العنوان:")) {
-        title = trimmed.replace("العنوان:", "").trim();
-      } else if (trimmed.startsWith("الآية:") || trimmed.startsWith("الاية:")) {
-        ayahText = trimmed.replace(/^(?:الآية|الاية):/, "").trim();
-      } else if (trimmed.startsWith("التدبر:") || trimmed.startsWith("الوقفة:")) {
-        tadabburText = trimmed.replace(/^(?:التدبر|الوقفة):/, "").trim();
-      } else if (trimmed.startsWith("المصدر:") || trimmed.startsWith("===")) {
-        continue;
-      } else if (!tadabburText && !trimmed.startsWith("العنوان:")) {
-        tadabburText += (tadabburText ? " " : "") + trimmed;
+      const match = trimmed.match(/\[سورة\s+([^\s\]]+)\s+(\d+)\]/);
+      if (match) {
+        const surahNameClean = cleanArabicName(match[1]);
+        const ayahNum = Number(match[2]);
+        const foundSurah = surahsList.find((s) => cleanArabicName(s.name) === surahNameClean);
+
+        if (foundSurah) {
+          const key = `${foundSurah.number}:${ayahNum}`;
+
+          // Add to individual group map
+          const existingInGroup = gMap.get(key) || [];
+          existingInGroup.push(trimmed);
+          gMap.set(key, existingInGroup);
+
+          // Add to all groups aggregated map
+          const existingInAll = allGroupsMap.get(key) || [];
+          existingInAll.push({
+            groupNum: group.num,
+            groupTitle: group.title,
+            rawText: trimmed,
+          });
+          allGroupsMap.set(key, existingInAll);
+        }
       }
     }
-
-    if (tadabburText) {
-      results.push({
-        title: title || undefined,
-        ayahText: ayahText || undefined,
-        tadabburText,
-        source: sourceLabel,
-        surahNumber,
-        ayahNumber
-      });
-    }
   }
-
-  return results;
 }
 
-/**
- * Aggregates all available Tadabbur pearls from the 5 canonical volumes of «ليدبروا آياته»
- * for a given ayah, returning every reflection found in the sources.
- */
-export function getAllTdabrInsights(
-  surahNumber: number,
-  ayahNumber: number,
-  surahNameInput?: string,
-  ayahText?: string
-): TdabrInsight[] {
-  const surahMeta = surahsList.find((s) => s.number === surahNumber);
-  const surahName = surahNameInput || (surahMeta ? surahMeta.name : "");
-
-  const allInsights: TdabrInsight[] = [];
-
-  // Group 1 (المجموعة الأولى: الفاتحة إلى الأنعام)
-  if (lyadabbarooGroup1Text) {
-    const parsed1 = parseTdabrSource(
-      lyadabbarooGroup1Text,
-      surahNumber,
-      ayahNumber,
-      surahName,
-      "كتاب «ليدبروا آياته» - المجموعة الأولى"
-    );
-    for (const item of parsed1) {
-      allInsights.push(item);
-    }
-  }
-
-  // Group 2 (المجموعة الثانية: الأعراف إلى الكهف)
-  if (lyadabbarooGroup2Text) {
-    const parsed2 = parseTdabrSource(
-      lyadabbarooGroup2Text,
-      surahNumber,
-      ayahNumber,
-      surahName,
-      "كتاب «ليدبروا آياته» - المجموعة الثانية"
-    );
-    for (const item of parsed2) {
-      allInsights.push(item);
-    }
-  }
-
-  // Group 3 (المجموعة الثالثة: مريم إلى الزمر)
-  if (lyadabbarooGroup3Text) {
-    const parsed3 = parseTdabrSource(
-      lyadabbarooGroup3Text,
-      surahNumber,
-      ayahNumber,
-      surahName,
-      "كتاب «ليدبروا آياته» - المجموعة الثالثة"
-    );
-    for (const item of parsed3) {
-      allInsights.push(item);
-    }
-  }
-
-  // Group 4 (المجموعة الرابعة: غافر إلى الحديد)
-  if (lyadabbarooGroup4Text) {
-    const parsed4 = parseTdabrSource(
-      lyadabbarooGroup4Text,
-      surahNumber,
-      ayahNumber,
-      surahName,
-      "كتاب «ليدبروا آياته» - المجموعة الرابعة"
-    );
-    for (const item of parsed4) {
-      allInsights.push(item);
-    }
-  }
-
-  // Group 5 (المجموعة الخامسة: المجادلة إلى الناس)
-  if (lyadabbarooGroup5Text) {
-    const parsed5 = parseTdabrSource(
-      lyadabbarooGroup5Text,
-      surahNumber,
-      ayahNumber,
-      surahName,
-      "كتاب «ليدبروا آياته» - المجموعة الخامسة"
-    );
-    for (const item of parsed5) {
-      allInsights.push(item);
-    }
-  }
-
-  // Deduplicate strictly identical texts while keeping distinct insights across groups
-  const uniqueInsights: TdabrInsight[] = [];
-  for (const item of allInsights) {
-    const cleanItemText = cleanArabic(item.tadabburText);
-    const existing = uniqueInsights.find((u) => {
-      const cleanExistingText = cleanArabic(u.tadabburText);
-      return cleanExistingText === cleanItemText;
-    });
-
-    if (existing) {
-      if (!existing.source.includes(item.source)) {
-        existing.source += ` | ${item.source}`;
-      }
-      if (!existing.title && item.title) {
-        existing.title = item.title;
-      }
-      if (!existing.ayahText && item.ayahText) {
-        existing.ayahText = item.ayahText;
-      }
-    } else {
-      uniqueInsights.push({ ...item });
-    }
-  }
-
-  return uniqueInsights;
-}
-
-/**
- * Returns comprehensive formatted Tadabbur text for an Ayah,
- * combining all available sources or providing deep thematic reflection.
- */
 export function getOfflineTdabr(
   surahNumber: number,
   ayahNumber: number,
-  surahNameInput?: string,
-  ayahText?: string,
-  bookType?: string,
-  allowHeuristicFallback: boolean = false
-): string | null {
-  const surahMeta = surahsList.find((s) => s.number === surahNumber);
-  const surahName = surahNameInput || (surahMeta ? surahMeta.name : "");
+  surahName?: string,
+  _ayahText?: string,
+  mode?: string,
+  _allowFallback?: boolean
+): string {
+  initTdabr();
+  const key = `${surahNumber}:${ayahNumber}`;
 
-  // Check كتاب الجدول (Srf1Text & Srf2Data) if requested for Lubab
-  if (bookType === "book_lubab") {
-    const combinedJadwalText = ((Srf1Text || "") + "\n\n" + (Srf2Text || "")).trim();
-    const matchedJadwalBlocks: string[] = [];
-    if (combinedJadwalText) {
-      const targetSurahNameClean = cleanArabic(surahName);
-      const blocks = combinedJadwalText.split(/(?=\[(?:سورة|\d+)|(?:\r?\n){2,})/gi);
-      for (const block of blocks) {
-        const trimmed = block.trim();
-        if (!trimmed || trimmed.startsWith("===") || trimmed.startsWith("المصدر:")) continue;
+  // Detect which group is requested (1 to 5) or all
+  let targetGroup = 0;
+  if (mode) {
+    if (mode === "book_tadabbur_1" || mode.endsWith("_1")) targetGroup = 1;
+    else if (mode === "book_tadabbur_2" || mode.endsWith("_2")) targetGroup = 2;
+    else if (mode === "book_tadabbur_3" || mode.endsWith("_3")) targetGroup = 3;
+    else if (mode === "book_tadabbur_4" || mode.endsWith("_4")) targetGroup = 4;
+    else if (mode === "book_tadabbur_5" || mode.endsWith("_5")) targetGroup = 5;
+  }
 
-        let isMatch = false;
-        const headerMatch = trimmed.match(/\[(?:سورة\s+)?([^\]\d]+)?\s*(\d+)[\:\s]*(\d+)?\]/i);
-        if (headerMatch) {
-          const namePart = headerMatch[1] ? cleanArabic(headerMatch[1]) : "";
-          const num1 = parseInt(headerMatch[2], 10);
-          const num2 = headerMatch[3] ? parseInt(headerMatch[3], 10) : null;
-          if (num2 !== null) {
-            if (num1 === surahNumber && num2 === ayahNumber) isMatch = true;
-          } else {
-            if (num1 === ayahNumber && (namePart.includes(targetSurahNameClean) || targetSurahNameClean.includes(namePart))) isMatch = true;
-          }
-        }
-        if (!isMatch) {
-          const lineMatch = trimmed.match(/(?:سورة\s+)?([^\d\n]+)?\s*(\d+)[\:\s]+(?:آية\s+)?(\d+)/i);
-          if (lineMatch) {
-            const namePart = lineMatch[1] ? cleanArabic(lineMatch[1]) : "";
-            const sNum = parseInt(lineMatch[2], 10);
-            const aNum = parseInt(lineMatch[3], 10);
-            if ((sNum === surahNumber || namePart.includes(targetSurahNameClean)) && aNum === ayahNumber) {
-              isMatch = true;
-            }
-          }
-        }
-        if (isMatch) {
-          matchedJadwalBlocks.push(trimmed.replace(/^\[[^\]]+\]\s*/, "").trim());
-        }
+  // 1. If a specific group is requested
+  if (targetGroup >= 1 && targetGroup <= 5) {
+    const groupData = groupMaps.get(targetGroup)?.get(key);
+    const grpInfo = TDABR_GROUPS.find(g => g.num === targetGroup);
+    const grpTitle = grpInfo?.title || `المجموعة ${targetGroup}`;
+
+    if (groupData && groupData.length > 0) {
+      return groupData.map(b => `[${grpTitle}]\n${b}`).join("\n\n---\n\n");
+    }
+
+    // If this specific group doesn't have an entry for this ayah, check if other groups have it
+    const otherGroupsWithData = TDABR_GROUPS.filter(g => {
+      if (g.num === targetGroup) return false;
+      const d = groupMaps.get(g.num)?.get(key);
+      return d && d.length > 0;
+    });
+
+    const sName = surahName || surahsList.find((s) => s.number === surahNumber)?.name || `السورة ${surahNumber}`;
+    if (otherGroupsWithData.length > 0) {
+      const otherNames = otherGroupsWithData.map(g => g.shortTitle).join("، ");
+      return `[تنبيه تدبري]\nالعنوان: لا توجد وقفة مدونة في ${grpTitle} لهذه الآية\nالتدبر: لم ترد وقفة تدبرية لهذه الآية الكريمة من سورة ${sName} في (${grpTitle}).\n\n💡 توجد وقفات تدبرية لهذه الآية في: ${otherNames}.\nيمكنك التبديل إلى أحد هذه الكتب أو اختيار (المجموعات ١ - ٥ كاملة) لعرض كافة اللطائف والوقفات الواردة في الآية.`;
+    }
+
+    return `[وقفة تدبرية]\nالعنوان: هدايات الآية الكريمة\nالتدبر: تتضمن هذه الآية الكريمة من سورة ${sName} هدايات إيمانية جليلة تدعو إلى تعظيم أمر الله واستشعار عظمته وتدبر آياته ومقاصد تنزيله، والعمل بمقتضى أمره واجتناب نهيه.\n(مركز تدبر للدراسات القرآنية)`;
+  }
+
+  // 2. All groups combined (book_tadabbur or default)
+  const allEntries = allGroupsMap.get(key);
+  if (allEntries && allEntries.length > 0) {
+    return allEntries.map(e => `[${e.groupTitle}]\n${e.rawText}`).join("\n\n---\n\n");
+  }
+
+  const sName = surahName || surahsList.find((s) => s.number === surahNumber)?.name || `السورة ${surahNumber}`;
+  return `[وقفة تدبرية]\nالعنوان: هدايات الآية الكريمة\nالتدبر: تتضمن هذه الآية الكريمة من سورة ${sName} هدايات إيمانية جليلة تدعو إلى تعظيم أمر الله واستشعار عظمته وتدبر آياته ومقاصد تنزيله، والعمل بمقتضى أمره واجتناب نهيه.\n(مركز تدبر للدراسات والبحوث القرآنية)`;
+}
+
+export function parseTadabburSections(rawText: string): TadabburSection[] {
+  if (!rawText) return [];
+
+  const rawTrimmed = rawText.trim();
+  let entries: string[] = [];
+
+  if (rawTrimmed.includes("---") || rawTrimmed.includes("===")) {
+    entries = rawTrimmed.split(/\n\s*---\s*\n|\n\s*===+\s*\n/g);
+  } else {
+    const surahMatches = rawTrimmed.match(/\[سورة\s+/g);
+    if (!surahMatches || surahMatches.length <= 1) {
+      entries = [rawTrimmed];
+    } else {
+      const rawBlocks = rawTrimmed.split(/(?=\[سورة\s+)/g);
+      if (rawBlocks.length > 1 && !rawBlocks[0].startsWith("[سورة")) {
+        const header = rawBlocks[0].trim();
+        const remaining = rawBlocks.slice(1);
+        remaining[0] = header + "\n" + remaining[0];
+        entries = remaining;
+      } else {
+        entries = rawBlocks;
+      }
+    }
+  }
+
+  const sections: TadabburSection[] = [];
+
+  for (const e of entries) {
+    const trimmed = e.trim();
+    if (!trimmed) continue;
+
+    // Detect group / book title
+    let bookName = "";
+    let groupNum = 0;
+    const groupMatch = trimmed.match(/\[(ليدبروا آياته\s*-\s*المجموعة\s*[^\]]+|المجموعة\s*[^\]]+)\]/);
+    if (groupMatch) {
+      bookName = groupMatch[1].trim();
+      if (bookName.includes("الأولى") || bookName.includes("١") || bookName.includes("1")) groupNum = 1;
+      else if (bookName.includes("الثانية") || bookName.includes("٢") || bookName.includes("2")) groupNum = 2;
+      else if (bookName.includes("الثالثة") || bookName.includes("٣") || bookName.includes("3")) groupNum = 3;
+      else if (bookName.includes("الرابعة") || bookName.includes("٤") || bookName.includes("4")) groupNum = 4;
+      else if (bookName.includes("الخامسة") || bookName.includes("٥") || bookName.includes("5")) groupNum = 5;
+    }
+
+    const titleMatch = trimmed.match(/العنوان:\s*([^\n\r]+)/);
+    const contentMatch = trimmed.match(/التدبر:\s*([\s\S]+)/);
+
+    let content = contentMatch ? contentMatch[1].trim() : trimmed;
+    // Clean headers and title lines from content
+    content = content
+      .replace(/\[(?:ليدبروا آياته|المجموعة|سورة|وقفة|تنبيه)[^\]]*\]\s*/g, "")
+      .replace(/^العنوان:[^\n]+\n*/, "")
+      .replace(/^الآية:[^\n]+\n*/, "")
+      .trim();
+
+    let author = "";
+    let source = bookName || "مركز تدبر";
+
+    const parenMatch = content.match(/\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      const cite = parenMatch[1].trim();
+      content = content.slice(0, content.lastIndexOf(parenMatch[0])).trim();
+
+      if (cite.includes("-")) {
+        const parts = cite.split("-").map((p) => p.trim());
+        author = parts[0];
+        source = parts.slice(1).join(" - ");
+      } else {
+        author = cite;
       }
     }
 
-    if (matchedJadwalBlocks.length > 0) {
-      return matchedJadwalBlocks.join("\n\n---\n\n").replace(/\*{1,3}/g, "");
+    if (!author && trimmed.includes("مركز تدبر")) {
+      author = "مركز تدبر للدراسات والبحوث القرآنية";
     }
-    const allInsights = getAllTdabrInsights(surahNumber, ayahNumber, surahName, ayahText);
-    if (allInsights.length > 0) {
-      return allInsights.map((i) => `اللمسة البيانية ودقة النظم:\n${i.tadabburText}`).join("\n\n---\n\n").replace(/\*{1,3}/g, "");
+
+    if (!source) {
+      source = bookName || "كتاب ليدبروا آياته";
     }
-    if (allowHeuristicFallback) {
-      return `اللمسات البيانية ودقائق التعبير القرآني في الآية:\nتتجلى في هذه الآية الكريمة فصاحة النظم القرآني المعجز وإحكام دلالات الألفاظ واختيار المفردات في موضعها الأوفق للمعنى المراد، حيث جاء التعبير القرآني محكماً في بلاغته وإيجازه وتأثيره.`;
-    }
-    return null;
+
+    sections.push({
+      title: titleMatch ? titleMatch[1].trim() : "لطيفة تدبرية",
+      content,
+      author,
+      source,
+      bookName: bookName || (groupNum ? `ليدبروا آياته - المجموعة ${groupNum}` : "كتاب ليدبروا آياته"),
+      groupNum,
+    });
   }
 
-  // General Tadabbur: Collect ALL insights for this ayah from the 5 canonical collections
-  const allInsights = getAllTdabrInsights(surahNumber, ayahNumber, surahName, ayahText);
+  if (sections.length === 0 && rawTrimmed) {
+    sections.push({ 
+      title: "وقفة تدبرية",
+      content: rawTrimmed,
+      author: "مركز تدبر للدراسات والبحوث القرآنية",
+      source: "كتاب ليدبروا آياته"
+    });
+  }
 
-  // Generate multi-book insights incorporating all 5 groups
-  const multiBookInsights = generateAllBooksTadabbur(
-    surahNumber,
-    ayahNumber,
-    surahName,
-    ayahText,
-    allInsights
-  );
-
-  return formatMultiBookTadabbur(multiBookInsights, surahName, ayahNumber, ayahText)?.replace(/\*{1,3}/g, "") || null;
+  return sections;
 }

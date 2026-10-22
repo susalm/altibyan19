@@ -14,6 +14,7 @@ import { quranSvgPageMetadata, getSurahStartPage } from "./data/quranSvgPageMeta
 import { getAyahsForPage } from "./data/quranPageAyahsMap";
 import { quartersList } from "./data/quartersData";
 import { surahsList } from "./data/surahList";
+import { SURAH_HEADER_POSITIONS } from "./utils/surahHeaderMap";
 import RecitationScreen from "./components/RecitationScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import KhatmahScreen from "./components/KhatmahScreen";
@@ -429,8 +430,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const provider = settings.mushafProvider || "quran-svg";
-    getCachedPagesCount(provider)
+    getCachedPagesCount()
       .then((count) => setOfflinePagesCount(count))
       .catch(() => {});
   }, [settings.mushafProvider]);
@@ -681,7 +681,10 @@ export default function App() {
     let curPage = initialPageNumber;
     try {
       const saved = localStorage.getItem("quran_last_opened_page");
-      if (saved) curPage = Number(saved);
+      if (saved) {
+        const p = Number(saved);
+        if (!isNaN(p) && p >= 1 && p <= 604) curPage = p;
+      }
     } catch {}
     if (!curPage || isNaN(curPage)) curPage = 1;
 
@@ -694,23 +697,39 @@ export default function App() {
     try {
       const savedAyah = localStorage.getItem("quran_last_opened_ayah");
       const savedSurah = localStorage.getItem("quran_last_opened_surah");
-      if (savedSurah) targetSurah = Number(savedSurah);
-      if (savedAyah) targetAyah = Number(savedAyah);
+      if (savedSurah) {
+        const s = Number(savedSurah);
+        if (!isNaN(s) && s >= 1 && s <= 114) targetSurah = s;
+      }
+      if (savedAyah) {
+        const a = Number(savedAyah);
+        if (!isNaN(a) && a >= 1) targetAyah = a;
+      }
     } catch {}
 
     // Verify targetAyah belongs to the open page
     if (pageRange) {
-      const belongs = pageRange.surahs.some(
-        s => s.surah === targetSurah && targetAyah >= s.start && targetAyah <= s.end
-      );
-      if (!belongs) {
+      const surahsOnPage: number[] = [pageRange.surahNumber];
+      const headers = SURAH_HEADER_POSITIONS[curPage] || [];
+      headers.forEach((h) => {
+        if (h && typeof h.surah === "number" && !surahsOnPage.includes(h.surah)) {
+          surahsOnPage.push(h.surah);
+        }
+      });
+
+      const isSurahOnPage = surahsOnPage.includes(targetSurah);
+      if (!isSurahOnPage) {
         targetSurah = pageRange.surahNumber;
         targetAyah = pageRange.startAyah;
+      } else if (targetSurah === pageRange.surahNumber) {
+        if (targetAyah < pageRange.startAyah || targetAyah > pageRange.endAyah) {
+          targetAyah = pageRange.startAyah;
+        }
       }
     }
 
-    if (!targetSurah) targetSurah = 1;
-    if (!targetAyah) targetAyah = 1;
+    if (!targetSurah || isNaN(targetSurah)) targetSurah = 1;
+    if (!targetAyah || isNaN(targetAyah)) targetAyah = 1;
 
     setSettings((prev) => {
       const next = { ...prev, pageMode: "continuous" as const };
@@ -1210,6 +1229,7 @@ export default function App() {
                               theme={theme}
                               onChangeTheme={handleChangeTheme}
                               inDrawer={true}
+                              onClose={() => setActiveTab("home")}
                             />
                           )}
                           {activeTab === "khatmah" && (

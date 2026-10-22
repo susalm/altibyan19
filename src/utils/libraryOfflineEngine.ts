@@ -536,9 +536,10 @@ export async function getOfflineLibraryContent(
     result = jassasAhkam.replace("للإمام أبي بكر الرازي الجصاص", "للإمام القاضي ابن العربي المالكي");
   }
 
-  // E. Tadabbur (كتب التدبر والفوائد)
+  // E. Tadabbur (كتب التدبر والفوائد - ليدبروا آياته ١، ٢، ٣، ٤، ٥ والكامل)
   else if (
     bookId === "book_tadabbur" ||
+    bookId.startsWith("book_tadabbur_") ||
     bookId === "book_fawaid_tadabbur" ||
     bookId === "book_lubab" ||
     bookId === "hidaya"
@@ -661,6 +662,11 @@ export async function warmupSurahBooks(surahNumber: number): Promise<void> {
     "suraj_garib_quran",
     "muharrar_asbab",
     "book_tadabbur",
+    "book_tadabbur_1",
+    "book_tadabbur_2",
+    "book_tadabbur_3",
+    "book_tadabbur_4",
+    "book_tadabbur_5",
     "book_mutashabihat_saghir"
   ];
 

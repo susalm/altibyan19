@@ -48,9 +48,12 @@ import { SurahSelectModal } from "./SurahSelectModal";
 import { SurahHeaderFrame } from "./SurahHeaderFrame";
 import { getAuthenticFrameSvgInner } from "../utils/mushafFrameSvgData";
 import { fetchAlquranCloud } from "../utils/quranApi";
+import { initOfflineFonts } from "../utils/fontOfflineCache";
+import { SURAH_HEADER_POSITIONS } from "../utils/surahHeaderMap";
 import {
   Qcf4Word,
   Qcf4Line,
+  Qcf4PageData,
   fetchQcf4VerseWords,
   fetchQcf4Page,
   loadQcf4Font,
@@ -69,9 +72,7 @@ import textureMarble from "../assets/images/texture_marble_1787560922634.jpg";
 import textureParchment from "../assets/images/texture_parchment_1787560941429.jpg";
 import textureCosmicSky from "../assets/images/texture_cosmic_sky_1787643332494.jpg";
 import texturePurpleWatercolor from "../assets/images/texture_purple_watercolor_1787643344233.jpg";
-import istiadhaCalligraphyImg from "../assets/images/istiadha_calligraphy_1787675484366.jpg";
 import { AlTibyanCalligraphy } from "./AlTibyanCalligraphy";
-import { IstiadhahCalligraphy, getBaseAlphaCanvas } from "./IstiadhahCalligraphy";
 
 export interface ShareAyahData {
   mode?: "single" | "range" | "page";
@@ -578,7 +579,25 @@ export const ShareSurahHeaderFrame: React.FC<{
   headerStyle = "authentic",
   scale = 1,
 }) => {
-  const widthPercentage = Math.min(100, Math.max(70, Math.round(92 * (scale || 1))));
+  const widthPercentage = scale && scale !== 1 ? Math.min(100, Math.max(70, Math.round(100 * scale))) : 100;
+
+  // Resolve Surah formatted title for fallback and QBSML glyph
+  let formattedTitle = "";
+  const surahInfo = surahNumber ? surahsList.find((s) => s.number === surahNumber) : null;
+  if (surahInfo) {
+    formattedTitle = `سُورَةُ ${surahInfo.name}`;
+  } else if (surahName && surahName.length > 1) {
+    formattedTitle = surahName.trim();
+    if (!formattedTitle.startsWith("سُورَةُ") && !formattedTitle.startsWith("سورة")) {
+      formattedTitle = `سُورَةُ ${formattedTitle}`;
+    } else if (formattedTitle.startsWith("سورة ")) {
+      formattedTitle = formattedTitle.replace("سورة ", "سُورَةُ ");
+    }
+  } else {
+    formattedTitle = surahNumber ? `سُورَةُ ${surahNumber}` : "";
+  }
+
+  const surahTextToDisplay = glyph || (surahNumber ? (isQbsmlLoaded() ? String.fromCharCode(0xF100 + (surahNumber - 1)) : (getSurahHeaderGlyph(surahNumber, formattedTitle) || formattedTitle)) : formattedTitle);
 
   if (headerStyle === "classic") {
     return (
@@ -589,14 +608,14 @@ export const ShareSurahHeaderFrame: React.FC<{
         <div className="relative w-full aspect-[900/105] flex items-center justify-center">
           <img
             src={createSurahHeaderSvg(frameColor, frameColor)}
-            alt={surahName}
+            alt={formattedTitle || surahName}
             className="w-full h-full object-contain pointer-events-none select-none"
           />
           <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
             <span
               style={{
-                fontFamily: "'QCF4_QBSML', 'Amiri', serif",
-                fontSize: "clamp(18px, 5.5cqi, 40px)",
+                fontFamily: "'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif",
+                fontSize: "clamp(16px, 5.2cqi, 36px)",
                 color: textColor,
                 transform: "translateY(-7%)",
                 direction: "rtl",
@@ -604,9 +623,10 @@ export const ShareSurahHeaderFrame: React.FC<{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
+                whiteSpace: "nowrap",
               }}
             >
-              {glyph || (surahNumber ? getSurahHeaderGlyph(surahNumber, surahName) : (surahName || ""))}
+              {surahTextToDisplay}
             </span>
           </div>
         </div>
@@ -626,8 +646,8 @@ export const ShareSurahHeaderFrame: React.FC<{
         >
           <span
             style={{
-              fontFamily: "'QCF4_QBSML', 'Amiri', serif",
-              fontSize: "clamp(16px, 4.8cqi, 32px)",
+              fontFamily: "'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif",
+              fontSize: "clamp(15px, 4.5cqi, 30px)",
               color: textColor,
               transform: "translateY(-4%)",
               direction: "rtl",
@@ -635,9 +655,10 @@ export const ShareSurahHeaderFrame: React.FC<{
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              whiteSpace: "nowrap",
             }}
           >
-            {glyph || (surahNumber ? getSurahHeaderGlyph(surahNumber, surahName) : (surahName || ""))}
+            {surahTextToDisplay}
           </span>
         </div>
       </div>
@@ -704,8 +725,8 @@ export const ShareSurahHeaderFrame: React.FC<{
         <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
           <span
             style={{
-              fontFamily: "'QCF4_QBSML', 'Amiri', serif",
-              fontSize: "clamp(18px, 5.8cqi, 40px)",
+              fontFamily: "'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif",
+              fontSize: "clamp(16px, 5.2cqi, 36px)",
               color: textColor,
               fontWeight: "normal",
               textShadow: "none",
@@ -718,9 +739,10 @@ export const ShareSurahHeaderFrame: React.FC<{
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              whiteSpace: "nowrap",
             }}
           >
-            {glyph || (surahNumber ? getSurahHeaderGlyph(surahNumber, surahName) : (surahName || ""))}
+            {surahTextToDisplay}
           </span>
         </div>
       </div>
@@ -784,10 +806,10 @@ export interface SavedShareStyle {
   surahHeaderOffsetX?: number;
   // Opening Header (Bismillah / Istiadhah / Surah Frame) Controls:
   showOpeningHeader?: boolean;
-  openingHeaderMode?: "auto" | "bismillah" | "istiadhah" | "surah_frame";
+  openingHeaderMode?: "auto" | "bismillah" | "surah_frame";
   openingHeaderSize?: number;
   openingHeaderColor?: string;
-  openingHeaderFont?: "match_ayah" | "qcf4" | "amiri" | "uthman" | "cairo";
+  openingHeaderFont?: string;
   // Card Ayahs Content & Mode Defaults:
   shareMode?: "single" | "range" | "page";
   defaultSurahNumber?: number;
@@ -797,6 +819,30 @@ export interface SavedShareStyle {
   rangeTo?: number;
   selectedPageNumber?: number;
 }
+
+export type BismillahFontId = "uthman" | "uthman_taha" | "qcf4" | "amiri" | "naskh" | "scheherazade" | "ruqaa";
+
+export interface BismillahFontOption {
+  id: BismillahFontId;
+  label: string;
+  family: string;
+  canvasFamily: string;
+}
+
+// Authentic Quran Fonts from src/utils/fontOfflineCache.ts & src/utils/qcf4Utils.ts
+export const BISMILLAH_FONTS: BismillahFontOption[] = [
+  { id: "uthman_taha", label: "مصحف عثمان طه (QCF4)", family: "'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanTaha', 'UthmanicHafs', serif", canvasFamily: '"QCF4_Hafs_01", "QCF4_QBSML", "UthmanTaha", "UthmanicHafs", serif' },
+  { id: "uthman", label: "مصحف المدينة (حفص)", family: "'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanTaha', 'UthmanicHafs', serif", canvasFamily: '"QCF4_Hafs_01", "QCF4_QBSML", "UthmanTaha", "UthmanicHafs", serif' },
+  { id: "qcf4", label: "مصحف عثمان طه (QCF4)", family: "'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanTaha', 'UthmanicHafs', serif", canvasFamily: '"QCF4_Hafs_01", "QCF4_QBSML", "UthmanTaha", "UthmanicHafs", serif' },
+  { id: "amiri", label: "الخط الأميري القرآني", family: "'Amiri', 'UthmanTaha', serif", canvasFamily: '"Amiri", serif' },
+  { id: "naskh", label: "النسخ القرآني", family: "'Noto Naskh Arabic', 'Scheherazade New', serif", canvasFamily: '"Noto Naskh Arabic", serif' },
+  { id: "scheherazade", label: "خط شهرزاد القرآني", family: "'Scheherazade New', 'Amiri', serif", canvasFamily: '"Scheherazade New", serif' },
+  { id: "ruqaa", label: "خط الرقعة", family: "'Aref Ruqaa', 'Amiri', serif", canvasFamily: '"Aref Ruqaa", serif' },
+];
+
+export const getBismillahFontObj = (fontId?: string): BismillahFontOption => {
+  return BISMILLAH_FONTS.find((f) => f.id === fontId) || BISMILLAH_FONTS[0];
+};
 
 export const DEFAULT_SHARE_STYLE: SavedShareStyle = {
   bgCategory: "solid",
@@ -822,11 +868,11 @@ export const DEFAULT_SHARE_STYLE: SavedShareStyle = {
   frameWidth: 2,
   frameInset: 24,
   showSurahHeaderFrame: true, // Surah frame at top
-  showOpeningHeader: true, // Active opening header (Bismillah / Istiadhah)
-  openingHeaderMode: "auto", // Auto: Bismillah for beginning, Istiadhah for middle
+  showOpeningHeader: true, // Active opening header (Bismillah)
+  openingHeaderMode: "auto", // Auto: Bismillah for beginning of surah
   openingHeaderSize: 30,
   openingHeaderColor: "#1C1917",
-  openingHeaderFont: "match_ayah",
+  openingHeaderFont: "uthman_taha",
   surahHeaderStyle: "authentic",
   surahHeaderColor: "#C5A85C",
   surahHeaderTextColor: "#1C1917",
@@ -871,7 +917,7 @@ export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedSha
     if (chosen) {
       const parsed = JSON.parse(chosen);
       if (parsed && typeof parsed === "object") {
-        // Enforce solid single-color background and remove istiadhah, watermark, and footer surah info by default
+        // Enforce solid single-color background and enable watermark by default
         parsed.bgCategory = "solid";
         parsed.selectedSolidColor = parsed.selectedSolidColor || "#FCFAF7";
         if ((parsed.selectedSolidColor === "#1C1917" || !parsed.selectedSolidColor) && !customDefault) {
@@ -882,8 +928,8 @@ export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedSha
           parsed.logoColor = "#1C1917";
         }
         parsed.showIstiadhah = false;
-        parsed.showSurahInfo = parsed.showSurahInfo ?? false;
-        parsed.showWatermark = parsed.showWatermark ?? true;
+        parsed.showSurahInfo = false;
+        parsed.showWatermark = true;
         parsed.showAyahFrame = false;
         parsed.selectedFrameStyle = "none";
 
@@ -893,7 +939,7 @@ export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedSha
         parsed.openingHeaderMode = parsed.openingHeaderMode || "auto";
         parsed.openingHeaderSize = parsed.openingHeaderSize ?? 30;
         parsed.openingHeaderColor = parsed.openingHeaderColor || parsed.textColor || "#1C1917";
-        parsed.openingHeaderFont = parsed.openingHeaderFont || "match_ayah";
+        parsed.openingHeaderFont = parsed.openingHeaderFont && parsed.openingHeaderFont !== "match_ayah" ? parsed.openingHeaderFont : "uthman_taha";
 
         // Discard deprecated legacy purple presets (#2e0854 / #6d156c)
         if (parsed.gradientColor1 === "#2e0854" || parsed.gradientColor2 === "#6d156c") {
@@ -1201,12 +1247,12 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const [frameWidth, setFrameWidth] = useState<number>(() => initialStyle.frameWidth ?? 2);
   const [frameInset, setFrameInset] = useState<number>(() => initialStyle.frameInset ?? 24);
 
-  // Opening Header (Bismillah / Istiadhah) Controls - Independent of Ayah settings
+  // Opening Header (Bismillah) Controls - Independent of Ayah settings
   const [showOpeningHeader, setShowOpeningHeader] = useState<boolean>(() => initialStyle.showOpeningHeader ?? true);
-  const [openingHeaderMode, setOpeningHeaderMode] = useState<"auto" | "bismillah" | "istiadhah" | "surah_frame">(() => initialStyle.openingHeaderMode || "auto");
+  const [openingHeaderMode, setOpeningHeaderMode] = useState<"auto" | "bismillah" | "surah_frame">(() => (initialStyle.openingHeaderMode === "bismillah" || initialStyle.openingHeaderMode === "surah_frame") ? initialStyle.openingHeaderMode : "auto");
   const [openingHeaderSize, setOpeningHeaderSize] = useState<number>(() => initialStyle.openingHeaderSize ?? 30);
   const [openingHeaderColor, setOpeningHeaderColor] = useState<string>(() => initialStyle.openingHeaderColor || initialStyle.textColor || "#1C1917");
-  const [openingHeaderFont, setOpeningHeaderFont] = useState<"match_ayah" | "qcf4" | "amiri" | "uthman" | "cairo">(() => (initialStyle.openingHeaderFont as any) || "match_ayah");
+  const [openingHeaderFont, setOpeningHeaderFont] = useState<string>(() => (initialStyle.openingHeaderFont && initialStyle.openingHeaderFont !== "match_ayah" ? initialStyle.openingHeaderFont : "uthman"));
 
   // Surah Header Frame Controls
   const [showSurahHeaderFrame, setShowSurahHeaderFrame] = useState<boolean>(() => initialStyle.showSurahHeaderFrame ?? true);
@@ -1230,7 +1276,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       ? '"UthmanicHafs", "Amiri", serif'
       : "'UthmanicHafs', 'Amiri', serif";
   };
-  const [textFontSize, setTextFontSize] = useState<number>(() => initialStyle.textFontSize ?? 28);
+  const [textFontSize, setTextFontSize] = useState<number>(() => {
+    const initialMode = shareData?.mode || initialStyle.shareMode || "range";
+    if (initialMode === "page") {
+      const pageNum = shareData?.pageNumber || initialStyle.selectedPageNumber || 1;
+      return (pageNum === 1 || pageNum === 2) ? 18 : 15;
+    }
+    return initialStyle.textFontSize ?? 28;
+  });
   const [textShadowOpacity, setTextShadowOpacity] = useState<number>(() => initialStyle.textShadowOpacity ?? 0);
   const [textAlign, setTextAlign] = useState<"justify" | "center" | "right" | "left">(() => initialStyle.textAlign || "justify");
   const [textColor, setTextColor] = useState<string>(() => initialStyle.textColor || "#1C1917");
@@ -1271,6 +1324,11 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   // QCF4 Font Glyphs for authentic Quranic rendering
   const [qcf4Words, setQcf4Words] = useState<Qcf4Word[]>([]);
   const [qcf4Lines, setQcf4Lines] = useState<Qcf4Line[]>([]);
+  const [pageSurahSections, setPageSurahSections] = useState<{
+    surahNumber: number;
+    surahName: string;
+    ayahsText: string;
+  }[]>([]);
   const [qcf4Font, setQcf4Font] = useState<string>("QCF4_Hafs_01");
   const [isQcf4Loaded, setIsQcf4Loaded] = useState<boolean>(false);
   const [qbsmlReady, setQbsmlReady] = useState<boolean>(() => isQbsmlLoaded());
@@ -1474,7 +1532,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   // Surah & Ayah Selector State
   const [currentShareData, setCurrentShareData] = useState<ShareAyahData | null>(shareData);
-  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode === "range" ? "range" : "range");
+  const [shareMode, setShareMode] = useState<"single" | "range" | "page">(() => shareData?.mode || initialStyle.shareMode || "range");
   const [rangeFrom, setRangeFrom] = useState<number>(() => shareData?.ayah?.numberInSurah || initialStyle.rangeFrom || 1);
   const [rangeTo, setRangeTo] = useState<number>(() => shareData?.ayahTo || initialStyle.rangeTo || 1);
   const [selectedPageNumber, setSelectedPageNumber] = useState<number>(() => shareData?.pageNumber || shareData?.ayah?.page || initialStyle.selectedPageNumber || 1);
@@ -1518,7 +1576,11 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       }
 
       setShareMode(initialMode);
-      setQcf4Lines([]);
+      if (initialMode === "page") {
+        setTextFontSize((pageNum === 1 || pageNum === 2) ? 18 : 15);
+      } else {
+        setQcf4Lines([]);
+      }
       setRangeFrom(fromNum);
       setRangeTo(toNum);
       setSelectedPageNumber(pageNum);
@@ -1580,15 +1642,15 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       (activeData?.surahNumber === 1) ||
       (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
 
-    if (shareMode === "page") {
+    if (shareMode === "page" || isOpeningMushafPage) {
       return {
         width: 1080,
-        height: 1920,
-        ratioClass: "h-auto min-h-[220px]",
+        height: isOpeningMushafPage ? 1400 : 1920,
+        ratioClass: "h-auto min-h-[460px]",
         aspectStyle: undefined,
-        fontSize: isOpeningMushafPage ? 17 : 13.5,
+        fontSize: isOpeningMushafPage ? 20 : 15,
         isTall: true,
-        label: "صفحة المصحف",
+        label: isOpeningMushafPage ? "صفحة البداية (الفاتحة / البقرة)" : "صفحة المصحف",
       };
     }
 
@@ -1894,14 +1956,18 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const applyPageDefaults = (targetPageNum?: number) => {
     setSelectedAspectRatio("9:16");
     setSelectedFrameStyle("none");
-    setShowWatermark(false);
+    setShowWatermark(true);
     setShowSurahInfo(false);
+    setShowSurahHeaderFrame(true);
     setShowIstiadhah(false);
-    // Page 1 and Page 2 have 8 lines in Mushaf instead of 15, so use larger, authentic typography
+    setShowOpeningHeader(true);
+    setOpeningHeaderMode("auto");
+    setQcf4Lines([]);
+    // Page 1 and Page 2 have fewer words, so use slightly larger, authentic typography
     if (targetPageNum === 1 || targetPageNum === 2) {
-      setTextFontSize(17);
+      setTextFontSize(20);
     } else {
-      setTextFontSize(13.5);
+      setTextFontSize(16);
     }
     setTextOffsetX(0);
     setTextOffsetY(0);
@@ -1920,27 +1986,58 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
     if (applyDefaults) {
       applyPageDefaults(safePage);
+    } else {
+      setShowWatermark(true);
+      setShowSurahHeaderFrame(true);
+      setShowIstiadhah(false);
+      setShowSurahInfo(false);
+      setTextFontSize((safePage === 1 || safePage === 2) ? 18 : 15);
     }
 
     const pageMeta = quranSvgPageMetadata.find((p) => p.page === safePage);
     const surahNumber = pageMeta?.surahNumber || 1;
     const surahName = pageMeta?.surahNameAr || "الفاتحة";
 
-    setCurrentShareData({
-      mode: "page",
-      surahNumber,
-      surahName,
-      pageNumber: safePage,
-      ayah: {
-        numberInSurah: 1,
-        text: "",
-        page: safePage,
-      },
-    });
-
     setIsLoadingVerse(true);
     try {
+      // 1. Fetch authentic QCF4 page lines and preload fonts immediately
+      let pageData: Qcf4PageData | null = null;
+      try {
+        pageData = await fetchQcf4Page(safePage);
+        if (pageData?.lines && pageData.lines.length > 0) {
+          const fontNames = new Set<string>();
+          if (pageData.font) fontNames.add(pageData.font);
+          fontNames.add("QCF4_QBSML");
+          pageData.lines.forEach((l) => {
+            l.words?.forEach((w) => {
+              if (w.font) fontNames.add(w.font);
+            });
+          });
+          await Promise.all(Array.from(fontNames).map((f) => loadQcf4Font(f)));
+          if (document.fonts) {
+            await document.fonts.ready;
+          }
+
+          const words: Qcf4Word[] = [];
+          pageData.lines.forEach((l) => {
+            l.words?.forEach((w) => {
+              if (w.type !== "surah_header" && w.type !== "bismillah") {
+                words.push(w);
+              }
+            });
+          });
+
+          setQcf4Lines(pageData.lines);
+          setQcf4Words(words);
+          setQcf4Font(pageData.font || "QCF4_Hafs_01");
+          setIsQcf4Loaded(true);
+        }
+      } catch (qcfErr) {
+        console.warn("Offline QCF page fetch error:", qcfErr);
+      }
+
       let combinedText = "";
+      const sections: { surahNumber: number; surahName: string; ayahsText: string }[] = [];
 
       try {
         const res = await fetchAlquranCloud(`v1/page/${safePage}/quran-uthmani`);
@@ -1949,34 +2046,63 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           combinedText = pageAyahs
             .map((a: any) => `${a.text} ﴿${toArabicNumerals(a.numberInSurah)}﴾`)
             .join(" ");
+
+          let curSection: { surahNumber: number; surahName: string; ayahsText: string } | null = null;
+          pageAyahs.forEach((a: any) => {
+            const sNum = a.surah?.number || surahNumber;
+            const sName = a.surah?.name || surahName;
+            if (!curSection || curSection.surahNumber !== sNum) {
+              if (curSection) sections.push(curSection);
+              curSection = {
+                surahNumber: sNum,
+                surahName: sName,
+                ayahsText: `${a.text} ﴿${toArabicNumerals(a.numberInSurah)}﴾`,
+              };
+            } else {
+              curSection.ayahsText += ` ${a.text} ﴿${toArabicNumerals(a.numberInSurah)}﴾`;
+            }
+          });
+          if (curSection) sections.push(curSection);
         }
       } catch (netErr) {
         console.warn("ShareAyahModal page network fetch failed, using offline QCF4 data:", netErr);
       }
 
       // Offline local reconstruction for full Page
-      if (!combinedText) {
-        try {
-          const pageData = await fetchQcf4Page(safePage);
-          if (pageData?.lines && pageData.lines.length > 0) {
-            const pageWords: string[] = [];
-            pageData.lines.forEach((l) => {
-              l.words?.forEach((w) => {
-                if (w.type === "word" && (w.char || w.text)) {
-                  pageWords.push(w.char || w.text || "");
-                } else if (w.type === "end") {
-                  pageWords.push(w.char || "۝");
+      if (!combinedText && pageData?.lines) {
+        const pageWords: string[] = [];
+        let curSec: { surahNumber: number; surahName: string; ayahsText: string } | null = null;
+
+        pageData.lines.forEach((l) => {
+          l.words?.forEach((w) => {
+            if (w.type === "word" && (w.char || w.text)) {
+              pageWords.push(w.char || w.text || "");
+              if (w.verse_key) {
+                const [sNum] = w.verse_key.split(":").map(Number);
+                if (sNum) {
+                  const found = surahsList.find((s) => s.number === sNum);
+                  const sName = found ? found.name : `سورة ${sNum}`;
+                  if (!curSec || curSec.surahNumber !== sNum) {
+                    if (curSec) sections.push(curSec);
+                    curSec = { surahNumber: sNum, surahName: sName, ayahsText: w.char || w.text || "" };
+                  } else {
+                    curSec.ayahsText += ` ${w.char || w.text || ""}`;
+                  }
                 }
-              });
-            });
-            if (pageWords.length > 0) {
-              combinedText = pageWords.join(" ");
+              }
+            } else if (w.type === "end") {
+              pageWords.push(w.char || "۝");
+              if (curSec) curSec.ayahsText += ` ${w.char || "۝"}`;
             }
-          }
-        } catch (e) {
-          console.warn("Offline QCF page fetch:", e);
+          });
+        });
+        if (curSec) sections.push(curSec);
+        if (pageWords.length > 0) {
+          combinedText = pageWords.join(" ");
         }
       }
+
+      setPageSurahSections(sections);
 
       setCurrentShareData({
         mode: "page",
@@ -2139,7 +2265,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const handleDeleteLayer = (element: "ayah" | "header" | "info" | "watermark") => {
     if (element === "header") {
       setShowOpeningHeader(false);
-      setDeletedLayerNotice({ layer: "header", name: "الترويسة (البسملة / الاستعاذة)" });
+      setDeletedLayerNotice({ layer: "header", name: "الترويسة (البسملة)" });
     } else if (element === "info") {
       setShowSurahInfo(false);
       setDeletedLayerNotice({ layer: "info", name: "شارة السورة والصفحة" });
@@ -2388,24 +2514,97 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
   const cardPreviewRef = useRef<HTMLDivElement>(null);
 
-  // Pre-load QBSML font
+  // Pre-load Quran core fonts and QBSML and Hafs_01 fonts
   useEffect(() => {
     let isMounted = true;
-    ensureQbsmlLoaded()
-      .then(() => {
-        if (document.fonts) {
-          document.fonts.ready.then(() => {
-            if (isMounted) setQbsmlReady(true);
-          });
-        } else {
-          if (isMounted) setQbsmlReady(true);
-        }
-      })
-      .catch(() => {});
+    Promise.all([
+      initOfflineFonts().catch(() => {}),
+      loadQcf4Font("QCF4_Hafs_01").catch(() => {}),
+      ensureQbsmlLoaded().catch(() => {}),
+    ]).then(async () => {
+      if (document.fonts) {
+        try {
+          await document.fonts.ready;
+        } catch {}
+      }
+      if (isMounted) setQbsmlReady(true);
+    });
     return () => {
       isMounted = false;
     };
   }, []);
+
+  // Helper to render Bismillah authentically in DOM preview using the Quran fonts
+  const renderBismillahContent = (fontId?: string, customChar?: string, customFont?: string) => {
+    const activeFont = fontId || openingHeaderFont;
+    const isQcf = activeFont === "uthman_taha" || activeFont === "qcf4" || activeFont === "uthman";
+    const fObj = getBismillahFontObj(activeFont);
+
+    if (isQcf) {
+      const charToUse = customChar || "\uF8DD";
+      const fontToUse = customFont || "QCF4_Hafs_01";
+      return (
+        <span
+          className="tracking-normal select-none pointer-events-none inline-block text-center"
+          style={{
+            fontFamily: `'${fontToUse}', 'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanTaha', 'UthmanicHafs', serif`,
+            direction: "rtl",
+            display: "inline-block",
+            fontSize: "0.95em",
+            lineHeight: 1.25,
+          }}
+        >
+          {charToUse}
+        </span>
+      );
+    }
+
+    return (
+      <span
+        className="tracking-normal select-none pointer-events-none inline-block text-center"
+        style={{
+          fontFamily: fObj.family,
+          direction: "rtl",
+          display: "inline-block",
+        }}
+      >
+        بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+      </span>
+    );
+  };
+
+  // Helper to render Bismillah on Canvas using authentic Quran fonts with harmonious Medina Mushaf sizing
+  const drawBismillahCanvas = (
+    ctx: CanvasRenderingContext2D,
+    fontId: string,
+    fontSize: number,
+    x: number,
+    y: number,
+    color: string,
+    customGlyph?: string,
+    customFont?: string
+  ) => {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.direction = "rtl";
+
+    const isQcf = fontId === "uthman_taha" || fontId === "qcf4" || fontId === "uthman";
+    if (isQcf) {
+      // Natural Medina Mushaf optical proportion: balanced with ayah lines, never oversized
+      const qcfFontSize = Math.round(fontSize * 0.92);
+      const glyph = customGlyph || "\uF8DD";
+      const font = customFont || "QCF4_Hafs_01";
+      ctx.font = `${qcfFontSize}px "${font}", "QCF4_Hafs_01", "QCF4_QBSML", "UthmanTaha", "UthmanicHafs", serif`;
+      ctx.fillText(glyph, x, y);
+    } else {
+      const fObj = getBismillahFontObj(fontId);
+      ctx.font = `${fontSize}px ${fObj.canvasFamily}`;
+      ctx.fillText("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", x, y);
+    }
+    ctx.restore();
+  };
 
   // Fetch QCF4 Glyphs when activeData changes
   useEffect(() => {
@@ -2419,6 +2618,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
     async function loadQcfVerseData() {
       try {
+        if (shareMode === "page") {
+          setIsLoadingVerse(true);
+        }
         await ensureQbsmlLoaded();
 
         if (shareMode === "page") {
@@ -2445,7 +2647,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           const words: Qcf4Word[] = [];
           pageData.lines?.forEach((l) => {
             l.words?.forEach((w) => {
-              words.push(w);
+              if (w.type !== "surah_header" && w.type !== "bismillah") {
+                words.push(w);
+              }
             });
           });
 
@@ -2484,11 +2688,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           const words: Qcf4Word[] = [];
           pageData.lines?.forEach((l) => {
             l.words?.forEach((w) => {
-              words.push(w);
+              if (w.type !== "surah_header" && w.type !== "bismillah") {
+                words.push(w);
+              }
             });
           });
 
-          setQcf4Lines(pageData.lines || []);
+          setQcf4Lines([]);
           setQcf4Words(words);
           setQcf4Font(pageData.font || (targetPage === 1 ? "QCF4_Hafs_01" : "QCF4_Hafs_02"));
           setIsQcf4Loaded(true);
@@ -2567,6 +2773,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       } catch (err) {
         console.warn("[ShareAyahModal] QCF4 font load fallback:", err);
         if (isMounted) setIsQcf4Loaded(false);
+      } finally {
+        if (isMounted) setIsLoadingVerse(false);
       }
     }
 
@@ -2612,7 +2820,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     const width = 1080;
     const height =
       selectedAspectRatio === "auto"
-        ? (domHeight > 0 ? Math.max(500, Math.round(domHeight * scale)) : autoDimensions.height)
+        ? (shareMode === "page"
+            ? (isOpeningMushafPage ? 1400 : 1920)
+            : (domHeight > 0 ? Math.max(500, Math.round(domHeight * scale)) : autoDimensions.height))
         : selectedAspectRatio === "custom"
         ? Math.max(300, Math.min(4000, customHeight))
         : activeAspect.height;
@@ -2872,90 +3082,24 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         const scaleRatio = width / previewW;
         const ayahFontSize = Math.max(22, Math.round(textFontSize * scaleRatio));
 
-        // 4. Draw Header Branding (Istiadhah Calligraphy at TOP - Independent Control & Scale)
-        if (showIstiadhah && activeData) {
-          ctx.save();
-          const headerBaseY = (selectedAspectRatio === "9:16" || isTallRatio) ? height * 0.085 : height * 0.095;
-          const headerX = width / 2 + (surahHeaderOffsetX / previewW) * width;
-          const headerY = headerBaseY + (surahHeaderOffsetY / previewH) * height;
-          const activeIstiadhaColor = istiadhahColor || textColor || "#FFFFFF";
-          const targetH = Math.round(istiadhahSize * scaleRatio);
-
-          try {
-            const istiadhaImg = new window.Image();
-            istiadhaImg.crossOrigin = "anonymous";
-            istiadhaImg.src = istiadhaCalligraphyImg;
-            await new Promise<void>((resolve) => {
-              if (istiadhaImg.complete && istiadhaImg.naturalWidth > 0) {
-                resolve();
-              } else {
-                istiadhaImg.onload = () => resolve();
-                istiadhaImg.onerror = () => resolve();
-              }
-            });
-
-            if (istiadhaImg.complete && istiadhaImg.naturalWidth > 0) {
-              const targetW = Math.min(Math.round(width * 0.85), Math.round((targetH * istiadhaImg.naturalWidth) / istiadhaImg.naturalHeight));
-
-              const offCanvas = document.createElement("canvas");
-              offCanvas.width = istiadhaImg.naturalWidth;
-              offCanvas.height = istiadhaImg.naturalHeight;
-              const offCtx = offCanvas.getContext("2d");
-              if (offCtx) {
-                offCtx.drawImage(istiadhaImg, 0, 0);
-                const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-                const data = imgData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                  const r = data[i];
-                  const g = data[i + 1];
-                  const b = data[i + 2];
-                  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-                  let alpha = 255 - lum;
-                  if (lum > 235) {
-                    alpha = 0;
-                  } else if (lum < 40) {
-                    alpha = 255;
-                  } else {
-                    alpha = Math.round(((235 - lum) / 195) * 255);
-                  }
-                  data[i + 3] = Math.max(0, Math.min(255, alpha));
-                  data[i] = 255;
-                  data[i + 1] = 255;
-                  data[i + 2] = 255;
-                }
-                offCtx.putImageData(imgData, 0, 0);
-
-                offCtx.globalCompositeOperation = "source-in";
-                offCtx.fillStyle = activeIstiadhaColor;
-                offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
-
-                ctx.drawImage(offCanvas, headerX - targetW / 2, headerY - targetH / 2, targetW, targetH);
-              }
-            } else {
-              ctx.textAlign = "center";
-              ctx.font = `bold ${Math.max(12, Math.round(targetH * 0.35))}px 'Amiri', 'Cairo', serif`;
-              ctx.fillStyle = activeIstiadhaColor;
-              ctx.fillText("أعوذ بالله من الشيطان الرجيم", headerX, headerY);
-            }
-          } catch (e) {
-            ctx.textAlign = "center";
-            ctx.font = `bold ${Math.max(12, Math.round(targetH * 0.35))}px 'Amiri', 'Cairo', serif`;
-            ctx.fillStyle = activeIstiadhaColor;
-            ctx.fillText("أعوذ بالله من الشيطان الرجيم", headerX, headerY);
-          }
-          ctx.restore();
-        }
+        // 4. Header Branding (Istiadhah removed completely as requested by user)
+        // No redundant Istiadhah drawn above or below the frame
+        try {
+          await loadQcf4Font("QCF4_Hafs_01");
+          await ensureQbsmlLoaded();
+          if (document.fonts) await document.fonts.ready;
+        } catch {}
 
         // 5. Wrap and Draw Ayah Text with selected Quranic Typography
         if (!activeData) return;
         const isQcfValid = selectedQuranFont === "qcf4" && isQcf4Loaded && (qcf4Lines.length > 0 || qcf4Words.length > 0);
         type WordItem = { char: string; font?: string; type?: string };
 
-        let baseFontFamily = "'QCF4_QBSML', 'Amiri', serif";
+        let baseFontFamily = "'QCF4_Hafs_01', 'QCF4_QBSML', 'Amiri', serif";
         if (selectedQuranFont === "qcf4") {
           baseFontFamily = isQcfValid
-            ? `"${qcf4Font}", "QCF4_QBSML", "Amiri", "UthmanicHafs", serif`
-            : "'QCF4_QBSML', 'Amiri', serif";
+            ? `"${qcf4Font}", "QCF4_Hafs_01", "QCF4_QBSML", "Amiri", "UthmanicHafs", serif`
+            : "'QCF4_Hafs_01', 'QCF4_QBSML', 'Amiri', serif";
         } else if (selectedQuranFont === "amiri") {
           baseFontFamily = "'Amiri', serif";
         } else if (selectedQuranFont === "uthman") {
@@ -2970,18 +3114,21 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         const frameTopY = (showAyahFrame && selectedFrameStyle !== "none") ? (frameInset / 380) * width : 0;
         const frameBottomY = (showAyahFrame && selectedFrameStyle !== "none") ? (frameInset / 380) * width : 0;
 
-        const topLimit = showIstiadhah
-          ? ((selectedAspectRatio === "9:16" || isTallRatio) ? height * 0.12 : height * 0.13)
-          : (showAyahFrame && selectedFrameStyle !== "none")
+        const topLimit = (showAyahFrame && selectedFrameStyle !== "none")
           ? frameTopY + 14 * scaleRatio
-          : height * 0.05;
+          : height * 0.035;
         const bottomLimit = (showSurahInfo || showWatermark)
-          ? height - Math.max(54 * scaleRatio, 62)
+          ? height - Math.max(42 * scaleRatio, 50)
           : (showAyahFrame && selectedFrameStyle !== "none")
           ? height - frameBottomY - 14 * scaleRatio
-          : height * 0.95;
+          : height * 0.96;
+        const isOpeningMushafPage =
+          (selectedPageNumber === 1 || selectedPageNumber === 2) ||
+          (activeData?.surahNumber === 1) ||
+          (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
+
         const availableH = bottomLimit - topLimit;
-        const availableW = width * 0.84;
+        const availableW = (shareMode === "page" || isOpeningMushafPage) ? width * 0.94 : width * 0.91;
         const ayahDeltaY = (textOffsetY / previewH) * height;
         const ayahDeltaX = (textOffsetX / previewW) * width;
 
@@ -3005,34 +3152,34 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           }
         });
 
-        // Preload approved app icon (/app-logo-512.png with fallback to /IMG_1767.png)
+        // Preload approved app icon (/app-logo-256.png with fallback to /app-logo-512.png and /IMG_1767.png)
         const appLogoImg = new window.Image();
-        appLogoImg.src = "/app-logo-512.png";
+        // Do not use crossOrigin on same-origin local assets
+        appLogoImg.src = "/app-logo-256.png";
         await new Promise<void>((resolve) => {
           if (appLogoImg.complete && appLogoImg.naturalWidth > 0) {
             resolve();
           } else {
             appLogoImg.onload = () => resolve();
             appLogoImg.onerror = () => {
-              appLogoImg.src = "/IMG_1767.png";
+              appLogoImg.src = "/app-logo-512.png";
               appLogoImg.onload = () => resolve();
-              appLogoImg.onerror = () => resolve();
+              appLogoImg.onerror = () => {
+                appLogoImg.src = "/IMG_1767.png";
+                appLogoImg.onload = () => resolve();
+                appLogoImg.onerror = () => resolve();
+              };
             };
           }
         });
 
         // MODE 1: FULL PAGE AUTHENTIC QCF4 RENDERING (All 15 lines displayed precisely, or 8 lines for Page 1 & 2)
-        const isOpeningMushafPage =
-          (selectedPageNumber === 1 || selectedPageNumber === 2) ||
-          (activeData?.surahNumber === 1) ||
-          (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
-
         if ((shareMode === "page" || isOpeningMushafPage || qcf4Lines.length > 0) && selectedQuranFont === "qcf4" && isQcfValid && qcf4Lines.length > 0) {
           const numLines = isOpeningMushafPage ? Math.max(qcf4Lines.length, 8) : Math.max(qcf4Lines.length, 15);
           const targetLineH = availableH / numLines;
           const pageLineFontSize = isOpeningMushafPage
-            ? Math.min(ayahFontSize * 1.3, Math.max(16, Math.round(targetLineH * 0.52)))
-            : Math.min(ayahFontSize, Math.max(12, Math.round(targetLineH * 0.58)));
+            ? Math.max(20, Math.round(targetLineH * 0.54))
+            : Math.max(16, Math.round(targetLineH * 0.50));
           const startY = topLimit + targetLineH / 2 + ayahDeltaY;
 
           // Shadow backdrop box for full page
@@ -3051,6 +3198,64 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             ctx.fill();
           }
 
+          const targetPageNum = selectedPageNumber || activeData?.pageNumber || activeData?.ayah?.page || 1;
+          const isPageMode = shareMode === "page";
+          const pageHeaderPositions = SURAH_HEADER_POSITIONS[targetPageNum] || [];
+          const hasHeaderAtPageTop = pageHeaderPositions.some((h) => Math.abs(h.yCenter - 25.2) < 5);
+          const isFirstQcfLineHeader = qcf4Lines.length > 0 && qcf4Lines[0]?.words?.some((w) => w.type === "surah_header");
+          const isPageStartingWithSurahAtTop = isPageMode && (
+            qcf4Lines.length > 0 ? isFirstQcfLineHeader : hasHeaderAtPageTop
+          );
+          const isPageContinuationFromPrev = isPageMode && !isPageStartingWithSurahAtTop;
+          const shouldDrawTopSurahFrame = showSurahHeaderFrame && !isPageContinuationFromPrev;
+
+          // Draw the top Surah Header Frame in Mode 1 if enabled and not a continuation page
+          if (shouldDrawTopSurahFrame) {
+            const pageMeta = quranSvgPageMetadata.find((p) => p.page === targetPageNum);
+            const topSurahNum = pageMeta?.surahNumber || activeData?.surahNumber || 1;
+            const topSurahName = pageMeta?.surahNameAr || activeData?.surahName || "الفاتحة";
+
+            const bannerScaleFactor = surahHeaderScale ? surahHeaderScale / 100 : 1;
+            const topBannerW = Math.round(availableW * bannerScaleFactor);
+            const topBannerH = topBannerW * (30.23196 / 240.20621);
+            const topBannerX = (width - topBannerW) / 2 + (surahHeaderOffsetX / previewW) * width;
+            const topBannerY = topLimit - topBannerH * 0.35 + (surahHeaderOffsetY / previewH) * height;
+
+            if (surahHeaderImg && surahHeaderImg.complete && surahHeaderImg.naturalWidth > 0) {
+              ctx.drawImage(surahHeaderImg, topBannerX, topBannerY, topBannerW, topBannerH);
+              ctx.save();
+              ctx.strokeStyle = surahHeaderColor || frameColor || "#C5A85C";
+              ctx.lineWidth = Math.max(1.5, 1.5 * scaleRatio);
+              ctx.strokeRect(topBannerX + 0.5, topBannerY + 0.5, topBannerW - 1, topBannerH - 1);
+              ctx.restore();
+            }
+
+            const useQbsml = isQbsmlLoaded();
+            const topHeaderGlyph = useQbsml
+              ? getSurahHeaderGlyph(topSurahNum, topSurahName)
+              : (topSurahName?.startsWith("سُورَةُ") || topSurahName?.startsWith("سورة") ? topSurahName : `سُورَةُ ${topSurahName}`);
+
+            ctx.save();
+            const topCartoucheY = topBannerY + topBannerH * 0.44;
+            const topCenterX = topBannerX + topBannerW / 2;
+            if (useQbsml) {
+              const glyphFontSize = Math.round(topBannerH * 0.58);
+              ctx.font = `${glyphFontSize}px "QCF4_QBSML", "Amiri", serif`;
+              ctx.fillStyle = surahHeaderTextColor || textColor || "#1C1917";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(topHeaderGlyph, topCenterX, topCartoucheY);
+            } else {
+              const textFontSize = Math.round(topBannerH * 0.36);
+              ctx.font = `bold ${textFontSize}px "Amiri", "UthmanicHafs", serif`;
+              ctx.fillStyle = surahHeaderTextColor || textColor || "#1C1917";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(topHeaderGlyph, topCenterX, topCartoucheY);
+            }
+            ctx.restore();
+          }
+
           if (showAyahText) {
             qcf4Lines.forEach((line, lineIdx) => {
             const lineY = startY + lineIdx * targetLineH;
@@ -3058,22 +3263,68 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             const isBismillah = line.words.some((w) => w.type === "bismillah");
 
             if (isSurahHeader) {
+              if (!showSurahHeaderFrame) return;
+              if (lineIdx === 0 && shouldDrawTopSurahFrame) return; // Top header is already drawn at the top of the card
               const headerWord = line.words.find((w) => w.type === "surah_header");
-              const headerGlyph = headerWord?.char || getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName);
+
+              let lineSurahNum: number | undefined;
+              const glyphChar = headerWord?.char || "";
+              if (glyphChar && glyphChar.length === 1) {
+                const code = glyphChar.charCodeAt(0);
+                if (code >= 0xF100 && code <= 0xF171) {
+                  lineSurahNum = code - 0xF100 + 1;
+                }
+              }
+              if (!lineSurahNum) {
+                let hCount = 0;
+                for (let i = 0; i < lineIdx; i++) {
+                  if (qcf4Lines[i]?.words?.some((lw) => lw.type === "surah_header")) hCount++;
+                }
+                const pageToUse = selectedPageNumber || activeData?.pageNumber || activeData?.ayah?.page || 1;
+                const pSurahs = SURAH_HEADER_POSITIONS[pageToUse] || [];
+                if (pSurahs[hCount]) lineSurahNum = pSurahs[hCount].surah;
+              }
+              if (!lineSurahNum) {
+                for (let li = lineIdx + 1; li < qcf4Lines.length; li++) {
+                  for (const lw of qcf4Lines[li]?.words || []) {
+                    if (lw.verse_key) {
+                      const [vsNum] = lw.verse_key.split(":").map(Number);
+                      if (vsNum) {
+                        lineSurahNum = vsNum;
+                        break;
+                      }
+                    }
+                  }
+                  if (lineSurahNum) break;
+                }
+              }
+              const foundS = lineSurahNum ? surahsList.find((s) => s.number === lineSurahNum) : null;
+              const lineSurahName = foundS ? foundS.name : "";
+
               ctx.save();
 
-              // Authentic Medina Mushaf Banner Frame
-              const bannerW = Math.min(availableW * 0.98, (isOpeningMushafPage ? 360 : 340) * scaleRatio);
+              // Authentic Medina Mushaf Banner Frame spanning full column width
+              const bannerScaleFactor = surahHeaderScale ? surahHeaderScale / 100 : 1;
+              const bannerW = Math.round(availableW * bannerScaleFactor);
               const bannerH = bannerW * (30.23196 / 240.20621);
-              const bannerX = width / 2 - bannerW / 2 + ayahDeltaX;
+              const bannerX = (width - bannerW) / 2 + ayahDeltaX;
               const bannerY = lineY - bannerH / 2;
 
               if (surahHeaderImg && surahHeaderImg.complete && surahHeaderImg.naturalWidth > 0) {
                 ctx.drawImage(surahHeaderImg, bannerX, bannerY, bannerW, bannerH);
+                ctx.save();
+                ctx.strokeStyle = surahHeaderColor || frameColor || "#C5A85C";
+                ctx.lineWidth = Math.max(1.5, 1.5 * scaleRatio);
+                ctx.strokeRect(bannerX + 0.5, bannerY + 0.5, bannerW - 1, bannerH - 1);
+                ctx.restore();
               }
 
               const useQbsml = isQbsmlLoaded();
               const cartoucheCenterY = bannerY + bannerH * 0.44;
+              const headerGlyph = useQbsml
+                ? (glyphChar || getSurahHeaderGlyph(lineSurahNum || activeData.surahNumber, lineSurahName))
+                : (lineSurahName?.startsWith("سُورَةُ") || lineSurahName?.startsWith("سورة") ? lineSurahName : `سُورَةُ ${lineSurahName}`);
+
               if (useQbsml) {
                 // Exact optical proportion for Medina cartouche (normal weight, no synthetic bold distortion)
                 const glyphFontSize = Math.round(bannerH * 0.58);
@@ -3095,54 +3346,101 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             }
 
             if (isBismillah) {
-              const bismillahWord = line.words.find((w) => w.type === "bismillah");
-              ctx.save();
-              const bFontSize = Math.round(pageLineFontSize * (isOpeningMushafPage ? 1.3 : 1.2));
-              ctx.font = `${bFontSize}px "QCF4_QBSML", "Amiri", serif`;
-              ctx.fillStyle = textColor;
-              ctx.textAlign = "center";
-              ctx.fillText(getBismillahGlyph(), width / 2 + ayahDeltaX, lineY - 4 * scaleRatio);
-              ctx.restore();
+              const bWord = line.words.find((w) => w.type === "bismillah");
+              const bChar = bWord?.char || "\uF8DD";
+              const bFont = bWord?.font || "QCF4_Hafs_01";
+              // Calibrated harmonious size: perfectly proportional to the verse lines
+              const bFontSize = Math.round(pageLineFontSize * (isOpeningMushafPage ? 1.05 : 0.88));
+              drawBismillahCanvas(
+                ctx,
+                openingHeaderFont,
+                bFontSize,
+                width / 2 + ayahDeltaX,
+                lineY,
+                openingHeaderColor || textColor,
+                bChar,
+                bFont
+              );
               return;
             }
 
             // Normal Quran Verse Line
-            const wordWidths = line.words.map((w) => {
+            // Measure words and auto-fit line font size so NO line ever overflows availableW
+            let lineFontSize = pageLineFontSize;
+            let wordWidths = line.words.map((w) => {
               const f = w.font || qcf4Font;
-              ctx.font = `${pageLineFontSize}px "${f}", ${baseFontFamily}`;
+              ctx.font = `${lineFontSize}px "${f}", ${baseFontFamily}`;
               return ctx.measureText(w.char || w.text || "").width;
             });
-            const totalWordW = wordWidths.reduce((acc, val) => acc + val, 0);
+            let totalWordW = wordWidths.reduce((acc, val) => acc + val, 0);
 
-            const isJustified = !isSurahHeader && !isBismillah && line.words.length > 2 && textAlign === "justify";
-            let wordSpacing = Math.max(6, Math.round(pageLineFontSize * (isOpeningMushafPage ? 0.32 : 0.22)));
+            // AUTO-FIT: If line width exceeds available column, scale line font size down safely
+            const minGap = Math.max(4, Math.round(lineFontSize * 0.1));
+            const minLineWidth = totalWordW + (line.words.length - 1) * minGap;
+            if (minLineWidth > availableW) {
+              const scaleDown = (availableW * 0.97) / minLineWidth;
+              lineFontSize = Math.max(10, Math.floor(lineFontSize * scaleDown));
+              wordWidths = line.words.map((w) => {
+                const f = w.font || qcf4Font;
+                ctx.font = `${lineFontSize}px "${f}", ${baseFontFamily}`;
+                return ctx.measureText(w.char || w.text || "").width;
+              });
+              totalWordW = wordWidths.reduce((acc, val) => acc + val, 0);
+            }
 
-            if (isJustified && totalWordW < availableW && !isOpeningMushafPage) {
+            // Identify if this line is the last line or penultimate line of a surah or of the page
+            let nextSectionIdx = qcf4Lines.length;
+            for (let i = lineIdx + 1; i < qcf4Lines.length; i++) {
+              if (qcf4Lines[i]?.words?.some((w) => w.type === "surah_header")) {
+                nextSectionIdx = i;
+                break;
+              }
+            }
+            const isLastLineOfSection = lineIdx === nextSectionIdx - 1;
+            const isPenultimateLineOfSection = lineIdx === nextSectionIdx - 2;
+            const isPageEndingLine = lineIdx >= qcf4Lines.length - 2;
+
+            // User requested: center without justification in the last line and the one before it
+            const shouldCenterWithoutJustify =
+              isLastLineOfSection ||
+              isPenultimateLineOfSection ||
+              isPageEndingLine ||
+              line.words.length < 7 ||
+              totalWordW < availableW * 0.78 ||
+              isOpeningMushafPage ||
+              textAlign === "center";
+
+            const canJustify =
+              !isSurahHeader &&
+              !isBismillah &&
+              !shouldCenterWithoutJustify &&
+              textAlign === "justify";
+
+            let wordSpacing = Math.max(6, Math.round(lineFontSize * (isOpeningMushafPage ? 0.32 : 0.22)));
+
+            if (canJustify && totalWordW < availableW) {
               wordSpacing = (availableW - totalWordW) / (line.words.length - 1);
-            } else if (isOpeningMushafPage && isJustified && totalWordW < availableW * 0.92) {
-              wordSpacing = Math.min(Math.round(pageLineFontSize * 0.45), (availableW * 0.92 - totalWordW) / Math.max(1, line.words.length - 1));
+            } else if (isOpeningMushafPage && totalWordW < availableW * 0.92) {
+              wordSpacing = Math.min(Math.round(lineFontSize * 0.42), (availableW * 0.92 - totalWordW) / Math.max(1, line.words.length - 1));
             }
 
             let startRightX = 0;
-            if (isJustified && !isOpeningMushafPage) {
+            if (canJustify) {
               startRightX = (width + availableW) / 2 + ayahDeltaX;
-            } else if (textAlign === "center" || isOpeningMushafPage) {
-              const lineWidth = totalWordW + (line.words.length - 1) * wordSpacing;
-              startRightX = (width + lineWidth) / 2 + ayahDeltaX;
             } else if (textAlign === "right") {
               startRightX = (width + availableW) / 2 + ayahDeltaX;
             } else {
+              // Always center horizontally without stretching word gaps
               const lineWidth = totalWordW + (line.words.length - 1) * wordSpacing;
-              startRightX = (width - availableW) / 2 + lineWidth + ayahDeltaX;
+              startRightX = (width + lineWidth) / 2 + ayahDeltaX;
             }
 
             let currentX = startRightX;
             line.words.forEach((w, wIdx) => {
               const wWidth = wordWidths[wIdx];
-              const isEnd = w.type === "end";
               const f = w.font || qcf4Font;
 
-              ctx.font = `${pageLineFontSize}px "${f}", ${baseFontFamily}`;
+              ctx.font = `${lineFontSize}px "${f}", ${baseFontFamily}`;
               ctx.fillStyle = textColor;
               ctx.textAlign = "right";
               ctx.fillText(w.char || w.text || "", currentX, lineY);
@@ -3204,21 +3502,32 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               });
             }
 
-            const testLineHeight = Math.round(curFontSize * (selectedQuranFont === "qcf4" ? 1.6 : 1.85));
+            const testLineHeight = Math.round(curFontSize * (selectedQuranFont === "qcf4" ? 2.15 : 2.25));
             if (lines.length * testLineHeight <= availableH || curFontSize <= 11) {
               break;
             }
             curFontSize = Math.max(10, Math.floor(curFontSize * 0.92));
           }
 
-          const isPageSurahStart =
-            shareMode === "page" &&
-            surahsList.some((s) => getSurahStartPage(s.number) === selectedPageNumber);
-          const pageStartingSurah = isPageSurahStart
-            ? surahsList.find((s) => getSurahStartPage(s.number) === selectedPageNumber)
+          const isPageMode = shareMode === "page";
+          const targetPageNum = selectedPageNumber || activeData?.pageNumber || activeData?.ayah?.page || 1;
+          const pageMeta = isPageMode ? quranSvgPageMetadata.find((p) => p.page === targetPageNum) : null;
+          const pageHeaderPositions = SURAH_HEADER_POSITIONS[targetPageNum] || [];
+          const hasHeaderAtPageTop = pageHeaderPositions.some((h) => Math.abs(h.yCenter - 25.2) < 5);
+          const isPageStartingWithSurahAtTop = isPageMode && hasHeaderAtPageTop;
+          const isPageContinuationFromPrev = isPageMode && !isPageStartingWithSurahAtTop;
+
+          const pageStartingSurah = isPageStartingWithSurahAtTop
+            ? (surahsList.find((s) => getSurahStartPage(s.number) === targetPageNum) || (pageHeaderPositions[0] ? surahsList.find((s) => s.number === pageHeaderPositions[0].surah) : null))
             : null;
-          const targetSurahNum = pageStartingSurah ? pageStartingSurah.number : (activeData?.surahNumber || 1);
-          const targetSurahName = pageStartingSurah ? pageStartingSurah.name : (activeData?.surahName || "");
+          const targetSurahNum = pageStartingSurah
+            ? pageStartingSurah.number
+            : (isPageMode ? (pageMeta?.surahNumber || activeData?.surahNumber || 1) : (activeData?.surahNumber || 1));
+          const targetSurahName = pageStartingSurah
+            ? pageStartingSurah.name
+            : (isPageMode ? (pageMeta?.surahNameAr || activeData?.surahName || "الفاتحة") : (activeData?.surahName || ""));
+
+          const isPageSurahStart = isPageStartingWithSurahAtTop;
 
           const hasSurahStart =
             (shareMode === "single" && Number(activeData?.ayah?.numberInSurah) === 1) ||
@@ -3226,47 +3535,47 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             isPageSurahStart;
 
           const isBismillah =
-            (openingHeaderMode === "bismillah" ||
-            (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9)) &&
-            shareMode !== "page";
-          const isIstiadhah =
-            (openingHeaderMode === "istiadhah" ||
-            (openingHeaderMode === "auto" && (!hasSurahStart || Number(targetSurahNum) === 9))) &&
-            shareMode !== "page";
-          const shouldDrawSurahFrame = showSurahHeaderFrame && (shareMode !== "page" || isPageSurahStart);
-          const shouldDrawOpeningHeader = (showOpeningHeader || showIstiadhah) && shareMode !== "page";
+            !isPageMode
+              ? (openingHeaderMode === "bismillah" ||
+                 (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1))
+              : (isPageSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1);
+          const shouldDrawSurahFrame = showSurahHeaderFrame && !isPageContinuationFromPrev;
+          const shouldDrawOpeningHeader = showOpeningHeader && isBismillah;
 
           const bannerFontSize = Math.max(20, Math.round(curFontSize * 1.1 * 1.6));
           const bannerScaleFactor = surahHeaderScale ? surahHeaderScale / 100 : 1;
-          const bannerW = Math.min(availableW * 0.98, 340 * scaleRatio * bannerScaleFactor);
+          const bannerW = Math.round(availableW * bannerScaleFactor);
           const bannerH = shouldDrawSurahFrame ? bannerW * (30.23196 / 240.20621) : 0;
 
           const curHeaderFontSize = Math.round(openingHeaderSize * scaleRatio);
           const ayahFontFamilyCanvas = getAyahFontFamily(true);
-          let headerFontFamily = ayahFontFamilyCanvas;
-          if (openingHeaderFont === "uthman") {
-            headerFontFamily = '"UthmanicHafs", "Amiri", serif';
-          } else if (openingHeaderFont === "cairo") {
-            headerFontFamily = '"Cairo", sans-serif';
-          } else if (openingHeaderFont === "amiri") {
-            headerFontFamily = '"Amiri", serif';
-          } else if (openingHeaderFont === "qcf4") {
-            headerFontFamily = '"QCF4_QBSML", "Amiri", serif';
-          }
-          const headerColorToUse = isBismillah ? (openingHeaderColor || textColor) : (istiadhahColor || textColor);
+          const bFontObj = getBismillahFontObj(openingHeaderFont);
+          const headerFontFamily = isBismillah ? bFontObj.canvasFamily : ayahFontFamilyCanvas;
+          const headerColorToUse = openingHeaderColor || textColor;
 
-          const openingTextH = shouldDrawOpeningHeader ? Math.max(24 * scaleRatio, curHeaderFontSize * 1.3) : 0;
-          const headerGap = (shouldDrawSurahFrame && shouldDrawOpeningHeader) ? Math.max(8 * scaleRatio, curHeaderFontSize * 0.3) : 0;
+          const openingTextH = shouldDrawOpeningHeader ? Math.max(28 * scaleRatio, curHeaderFontSize * 1.4) : 0;
+          const headerGap = (shouldDrawSurahFrame && shouldDrawOpeningHeader) ? Math.max(12 * scaleRatio, curHeaderFontSize * 0.45) : 0;
           const headerExtraH = (shouldDrawSurahFrame ? bannerH : 0) + (shouldDrawOpeningHeader ? openingTextH : 0) + headerGap;
 
           const spaceWidth = Math.max(6, Math.round(curFontSize * 0.25));
-          const lineHeight = Math.min(
-            Math.round(curFontSize * (selectedQuranFont === "qcf4" ? 1.6 : 1.85)),
-            Math.floor((availableH - headerExtraH) / Math.max(lines.length, 1))
-          );
+          const baseMultiplier = selectedQuranFont === "qcf4" ? 2.35 : 2.45;
+          const minDesiredLineHeight = Math.round(curFontSize * baseMultiplier);
+          const availableForLines = availableH - headerExtraH;
+          let calculatedLineHeight = minDesiredLineHeight;
+
+          if (availableForLines > 0 && lines.length > 0) {
+            const maxRoomPerLine = Math.floor(availableForLines / lines.length);
+            if (maxRoomPerLine > minDesiredLineHeight) {
+              // Expand line height up to 2.65x for gracious breathing room between lines
+              calculatedLineHeight = Math.min(Math.round(curFontSize * 2.65), maxRoomPerLine);
+            } else {
+              calculatedLineHeight = Math.min(minDesiredLineHeight, Math.max(Math.round(curFontSize * 2.05), maxRoomPerLine));
+            }
+          }
+          const lineHeight = calculatedLineHeight;
           const totalHeight = lines.length * lineHeight + headerExtraH;
 
-          const isCompactLayout = !showIstiadhah && !showSurahInfo && !showWatermark;
+          const isCompactLayout = !showSurahInfo && !showWatermark;
 
           let startY = isCompactLayout
             ? topLimit + headerExtraH + Math.max(0, (availableH - totalHeight) / 2) + lineHeight / 2 + ayahDeltaY
@@ -3346,75 +3655,20 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             ctx.restore();
           }
 
-          // 2. Draw Opening Header (Bismillah / Istiadhah) underneath Surah Frame
-          if (shouldDrawOpeningHeader) {
+          // 2. Draw Opening Header (Bismillah only - Isti'adhah deleted completely as requested)
+          if (shouldDrawOpeningHeader && isBismillah) {
             const baseOpeningY = topLimit + (shouldDrawSurahFrame ? bannerH + 18 * scaleRatio : 0) + Math.max(16 * scaleRatio, curHeaderFontSize * 0.8);
             const headerDrawX = width / 2 + (surahHeaderOffsetX / previewW) * width;
             const headerDrawY = baseOpeningY + (surahHeaderOffsetY / previewH) * height;
 
-            if (isBismillah) {
-              ctx.save();
-              const useQbsml = (openingHeaderFont === "qcf4" || (openingHeaderFont === "match_ayah" && selectedQuranFont === "qcf4")) && isQbsmlLoaded();
-              ctx.font = useQbsml
-                ? `${curHeaderFontSize}px "QCF4_QBSML", "Amiri", serif`
-                : `bold ${curHeaderFontSize}px ${headerFontFamily}`;
-              ctx.fillStyle = headerColorToUse;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              const bismillahText = useQbsml
-                ? getBismillahGlyph()
-                : "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
-              ctx.fillText(bismillahText, headerDrawX, headerDrawY);
-              ctx.restore();
-            } else {
-              // isIstiadhah - Use the authentic calligraphy image from src/assets/images/istiadha_calligraphy_1787675484366.jpg
-              try {
-                const baseCanvas = await getBaseAlphaCanvas();
-                if (baseCanvas && baseCanvas.width > 0 && baseCanvas.height > 0) {
-                  const targetH = Math.round(curHeaderFontSize * 1.15);
-                  const targetW = Math.min(
-                    Math.round(availableW * 0.92),
-                    Math.round((targetH * baseCanvas.width) / baseCanvas.height)
-                  );
-                  const offCanvas = document.createElement("canvas");
-                  offCanvas.width = baseCanvas.width;
-                  offCanvas.height = baseCanvas.height;
-                  const offCtx = offCanvas.getContext("2d");
-                  if (offCtx) {
-                    offCtx.drawImage(baseCanvas, 0, 0);
-                    offCtx.globalCompositeOperation = "source-in";
-                    offCtx.fillStyle = headerColorToUse;
-                    offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
-
-                    ctx.save();
-                    ctx.drawImage(
-                      offCanvas,
-                      headerDrawX - targetW / 2,
-                      headerDrawY - targetH / 2,
-                      targetW,
-                      targetH
-                    );
-                    ctx.restore();
-                  }
-                } else {
-                  ctx.save();
-                  ctx.font = `${Math.round(curHeaderFontSize * 0.95)}px ${headerFontFamily}`;
-                  ctx.fillStyle = headerColorToUse;
-                  ctx.textAlign = "center";
-                  ctx.textBaseline = "middle";
-                  ctx.fillText("أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَانِ ٱلرَّجِيمِ", headerDrawX, headerDrawY);
-                  ctx.restore();
-                }
-              } catch (e) {
-                ctx.save();
-                ctx.font = `${Math.round(curHeaderFontSize * 0.95)}px ${headerFontFamily}`;
-                ctx.fillStyle = headerColorToUse;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَانِ ٱلرَّجِيمِ", headerDrawX, headerDrawY);
-                ctx.restore();
-              }
-            }
+            drawBismillahCanvas(
+              ctx,
+              openingHeaderFont,
+              curHeaderFontSize,
+              headerDrawX,
+              headerDrawY,
+              headerColorToUse
+            );
           }
 
           // Draw each line RTL
@@ -3433,6 +3687,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             lines.forEach((line, i) => {
               const lineY = startY + i * lineHeight;
               const isLastLine = i === lines.length - 1;
+              const isPenultimateLine = i === lines.length - 2;
+              const isEndingLine = isLastLine || isPenultimateLine || line.words.length < 7;
 
               if (selectedQuranFont !== "qcf4") {
                 const lineString = line.words.map((w) => w.char).join(" ");
@@ -3440,11 +3696,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 ctx.fillStyle = textColor;
                 ctx.direction = "rtl";
 
-                if (isLastLine) {
-                  // توسيط السطر الأخير
-                  ctx.textAlign = "center";
-                  ctx.fillText(lineString, width / 2 + ayahDeltaX, lineY);
-                } else if (textAlign === "center") {
+                if (isEndingLine || textAlign === "center") {
+                  // توسيط السطر الأخير وما قبله دون ضبط
                   ctx.textAlign = "center";
                   ctx.fillText(lineString, width / 2 + ayahDeltaX, lineY);
                 } else if (textAlign === "left") {
@@ -3457,10 +3710,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 }
               } else {
                 ctx.direction = "rtl";
-                const isCenter = textAlign === "center" || isLastLine;
-                const isLeft = textAlign === "left" && !isLastLine;
+                const isCenter = textAlign === "center" || isEndingLine;
+                const isLeft = textAlign === "left" && !isEndingLine;
                 const wordsWidthTotal = line.widths.reduce((a, b) => a + b, 0);
-                const wordGap = (!isLastLine && textAlign === "justify" && line.words.length > 1)
+                const wordGap = (!isEndingLine && textAlign === "justify" && line.words.length > 1)
                   ? (maxTextWidth - wordsWidthTotal) / (line.words.length - 1)
                   : spaceWidth;
                 const calculatedLineWidth = wordsWidthTotal + (line.words.length - 1) * wordGap;
@@ -3579,16 +3832,12 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           ctx.fillStyle = activeLogoColor;
           ctx.textBaseline = "middle";
 
-          const textMetrics = ctx.measureText("مصحف التبيان");
-          const textW = textMetrics.width;
-
           // تثبيت الشعار واسم التطبيق على يمين السطر (Right of the line)
           const rightBaseX = width * 0.92 + (watermarkOffsetX / previewW) * width;
           const logoY = footerBaseY + (watermarkOffsetY / previewH) * height;
 
           ctx.translate(rightBaseX, logoY);
           ctx.scale(logoScaleFactor, logoScaleFactor);
-          ctx.translate(-rightBaseX, -logoY);
 
           // في اليمين: الشعار في أقصى اليمين، واسم التطبيق على يساره
           const iconX = -iconSize;
@@ -3603,7 +3852,21 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             } catch (e) {
               // fallback gracefully
             }
+          } else {
+            // Elegant vector fallback emblem if image fails to render
+            ctx.save();
+            ctx.fillStyle = activeLogoColor;
+            ctx.beginPath();
+            ctx.roundRect(iconX, iconY, iconSize, iconSize, iconSize * 0.22);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.font = `bold ${Math.round(iconSize * 0.55)}px 'Amiri', serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("ت", iconX + iconSize / 2, 0);
+            ctx.restore();
           }
+
           ctx.textAlign = "right";
           ctx.fillText("مصحف التبيان", textX, 0);
           ctx.restore();
@@ -4198,7 +4461,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setOpeningHeaderMode(defaultToUse.openingHeaderMode || "auto");
     setOpeningHeaderSize(defaultToUse.openingHeaderSize ?? 30);
     setOpeningHeaderColor(defaultToUse.openingHeaderColor || defaultToUse.textColor || "#1C1917");
-    setOpeningHeaderFont(defaultToUse.openingHeaderFont || "match_ayah");
+    setOpeningHeaderFont(defaultToUse.openingHeaderFont || "uthman_taha");
     setShowSurahHeaderFrame(defaultToUse.showSurahHeaderFrame ?? true);
     setSurahHeaderStyle(defaultToUse.surahHeaderStyle || "authentic");
     setSurahHeaderColor(defaultToUse.surahHeaderColor || "#C5A85C");
@@ -4260,56 +4523,70 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setTimeout(() => setShareStatus(null), 3000);
   };
 
-  // Helper to render opening header (Bismillah for beginning, Istiadhah for middle)
-  // Helper to render opening header (Surah Header Frame on top, and Isti'adha or Bismillah below it)
-  const renderOpeningHeader = () => {
-    if ((shareMode as string) === "page") return null;
-    if (!showSurahHeaderFrame && !showOpeningHeader && !showIstiadhah) return null;
+  const isOpeningMushafPage =
+    (selectedPageNumber === 1 || selectedPageNumber === 2) ||
+    (activeData?.surahNumber === 1) ||
+    (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
 
-    const isPageSurahStart =
-      (shareMode as string) === "page" &&
-      surahsList.some((s) => getSurahStartPage(s.number) === selectedPageNumber);
-    const pageStartingSurah = isPageSurahStart
-      ? surahsList.find((s) => getSurahStartPage(s.number) === selectedPageNumber)
-      : null;
-    const targetSurahNum = pageStartingSurah ? pageStartingSurah.number : (activeData?.surahNumber || 1);
-    const targetSurahName = pageStartingSurah ? pageStartingSurah.name : (activeData?.surahName || "");
+  const isDisplayingQcf4Lines =
+    (shareMode === "page" || isOpeningMushafPage) &&
+    selectedQuranFont === "qcf4" &&
+    isQcf4Loaded &&
+    qcf4Lines.length > 0;
+
+  const isPageMode = (shareMode as string) === "page";
+  const targetPageNum = selectedPageNumber || activeData?.pageNumber || activeData?.ayah?.page || 1;
+  const pageHeaderPositions = SURAH_HEADER_POSITIONS[targetPageNum] || [];
+  const hasHeaderAtPageTop = pageHeaderPositions.some((h) => Math.abs(h.yCenter - 25.2) < 5);
+  const isFirstQcfLineHeader = qcf4Lines.length > 0 && qcf4Lines[0]?.words?.some((w) => w.type === "surah_header");
+
+  const isPageStartingWithSurahAtTop = isPageMode && (
+    qcf4Lines.length > 0 ? isFirstQcfLineHeader : hasHeaderAtPageTop
+  );
+
+  // If it's page mode and does NOT start with a surah header at the top, it is a continuation of a previous surah
+  const isPageContinuationFromPrev = isPageMode && !isPageStartingWithSurahAtTop;
+  const shouldShowSurahFrameAtTop = showSurahHeaderFrame && !isPageContinuationFromPrev;
+
+  // Helper to render opening header (Surah Header Frame on top, and Bismillah below it when appropriate)
+  const renderOpeningHeader = () => {
+    if (!showSurahHeaderFrame && !showOpeningHeader) return null;
+
+    const pageMeta = isPageMode ? quranSvgPageMetadata.find((p) => p.page === targetPageNum) : null;
+    const targetSurahNum = isPageMode
+      ? (pageMeta?.surahNumber || activeData?.surahNumber || 1)
+      : (activeData?.surahNumber || 1);
+    const targetSurahName = isPageMode
+      ? (pageMeta?.surahNameAr || activeData?.surahName || "الفاتحة")
+      : (activeData?.surahName || "");
+
+    const isPageSurahStart = isPageStartingWithSurahAtTop;
+
     const hasSurahStart =
       (shareMode === "single" && Number(activeData?.ayah?.numberInSurah) === 1) ||
       (shareMode === "range" && Number(rangeFrom) === 1) ||
       isPageSurahStart;
 
     const isBismillah =
-      openingHeaderMode === "bismillah" ||
-      (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9);
+      !isPageMode
+        ? (openingHeaderMode === "bismillah" ||
+           (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1))
+        : (isPageSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1);
 
-    const ayahFontFamily = getAyahFontFamily(false);
-    let headerFontFamily = ayahFontFamily;
-    if (openingHeaderFont === "uthman") {
-      headerFontFamily = "'UthmanicHafs', 'Amiri', serif";
-    } else if (openingHeaderFont === "cairo") {
-      headerFontFamily = "'Cairo', sans-serif";
-    } else if (openingHeaderFont === "amiri") {
-      headerFontFamily = "'Amiri', serif";
-    } else if (openingHeaderFont === "qcf4") {
-      headerFontFamily = "'QCF4_QBSML', 'Amiri', serif";
+    const shouldShowBismillah = !isPageMode
+      ? (showOpeningHeader && isBismillah)
+      : (!isDisplayingQcf4Lines && isPageSurahStart && showOpeningHeader && isBismillah);
+
+    if (!shouldShowSurahFrameAtTop && !shouldShowBismillah) {
+      return null;
     }
 
-    // Istiadhah strictly matches the verses font (خط الآيات) by default or when match_ayah is active
-    const istiadhahFontToUse =
-      openingHeaderFont === "match_ayah" || !openingHeaderFont || openingHeaderFont === "qcf4"
-        ? ayahFontFamily
-        : headerFontFamily;
-
-    const fontToApply = isBismillah ? headerFontFamily : istiadhahFontToUse;
-    const headerColor = isBismillah ? (openingHeaderColor || textColor) : (istiadhahColor || textColor);
-
-    const useQbsmlBismillah = isBismillah && (openingHeaderFont === "qcf4" || (openingHeaderFont === "match_ayah" && selectedQuranFont === "qcf4")) && isQbsmlLoaded();
+    const bFontObj = getBismillahFontObj(openingHeaderFont);
 
     return (
       <div className="relative z-10 w-full flex flex-col items-center justify-center select-none cursor-default -mt-1 sm:-mt-2 mb-1.5 sm:mb-2 shrink-0 space-y-1">
-        {/* سطر أعلى البطاقة: إطار اسم السورة (مرفوع قليلاً للأعلى) */}
-        {showSurahHeaderFrame && (
+        {/* سطر أعلى البطاقة: إطار اسم السورة مع الاسم */}
+        {shouldShowSurahFrameAtTop && (
           <div className="w-full flex items-center justify-center px-1">
             <ShareSurahHeaderFrame
               surahNumber={targetSurahNum}
@@ -4322,33 +4599,20 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           </div>
         )}
 
-        {/* وتحته: الاستعاذة أو البسملة */}
-        {(showOpeningHeader || showIstiadhah) && (
+        {/* وتحته: البسملة فقط إن كانت مفعلة ومناسبة */}
+        {shouldShowBismillah && (
           <div className="w-full px-3 flex items-center justify-center select-none pointer-events-none">
-            {isBismillah ? (
-              <div
-                className="w-full text-center tracking-normal select-none pointer-events-none"
-                style={{
-                  fontFamily: useQbsmlBismillah ? "'QCF4_QBSML', 'Amiri', serif" : fontToApply,
-                  fontSize: `${openingHeaderSize}px`,
-                  color: headerColor,
-                  lineHeight: 1.25,
-                }}
-              >
-                {useQbsmlBismillah ? (
-                  getBismillahGlyph()
-                ) : (
-                  "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
-                )}
-              </div>
-            ) : (
-              <div className="w-full flex items-center justify-center select-none pointer-events-none px-2 py-0.5">
-                <IstiadhahCalligraphy
-                  color={headerColor}
-                  height={Math.max(22, openingHeaderSize)}
-                />
-              </div>
-            )}
+            <div
+              className="w-full text-center tracking-normal select-none pointer-events-none"
+              style={{
+                fontFamily: bFontObj.family,
+                fontSize: `${openingHeaderSize}px`,
+                color: openingHeaderColor || textColor,
+                lineHeight: 1.25,
+              }}
+            >
+              {renderBismillahContent(openingHeaderFont)}
+            </div>
           </div>
         )}
       </div>
@@ -4417,10 +4681,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   ref={cardPreviewRef}
                   id="share-ayah-card-preview"
                   dir="rtl"
-                  className={`w-full max-w-full rounded-2xl overflow-hidden shadow-2xl relative border-0 flex flex-col items-center justify-between select-none transition-all duration-300 min-h-0 h-auto pt-3 sm:pt-4 pb-1 sm:pb-1.5 px-3 sm:px-5`}
+                  className={`w-full max-w-full rounded-2xl overflow-hidden shadow-2xl relative border-0 flex flex-col items-center justify-between select-none transition-all duration-300 min-h-0 h-auto pt-3 sm:pt-4 pb-1 sm:pb-1.5 ${
+                    shareMode === "page" ? "px-2.5 sm:px-4" : "px-3 sm:px-5"
+                  }`}
                   style={{
                     direction: "rtl",
                     touchAction: "auto",
+                    containerType: "inline-size",
                     background: bgCategory === "none" ? "transparent" : currentBackgroundCss,
                   }}
                 >
@@ -4437,8 +4704,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                     />
                   )}
 
-                  {/* سطر أعلى البطاقة: إطار اسم السورة وتحته الاستعاذة أو البسملة */}
-                  {(showSurahHeaderFrame || showOpeningHeader || showIstiadhah) && (
+                  {/* سطر أعلى البطاقة: إطار اسم السورة وتحته البسملة */}
+                  {(showSurahHeaderFrame || showOpeningHeader) && (
                     renderOpeningHeader()
                   )}
 
@@ -4447,8 +4714,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                     <div
                       dir="rtl"
                       className={
-                        shareMode === "page"
-                          ? "w-full flex-1 flex flex-col justify-between items-stretch text-center z-10 select-none relative cursor-default my-1 px-2"
+                        shareMode === "page" || isOpeningMushafPage
+                          ? "w-full flex-1 flex flex-col justify-around items-stretch text-center z-10 select-none relative cursor-default my-1 px-2 py-1"
                           : "w-full flex flex-col items-center justify-center text-center z-10 select-none relative cursor-default my-0.5 sm:my-1 px-1 sm:px-2 py-0"
                       }
                       style={{
@@ -4457,22 +4724,52 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         touchAction: "auto",
                       }}
                     >
-                    {isLoadingVerse ? (
-                      <div className="flex flex-col items-center justify-center gap-2 py-6 text-emerald-300/80">
-                        <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs font-medium">جاري تحميل الآية الكريمة...</span>
+                    {isLoadingVerse || (shareMode === "page" && selectedQuranFont === "qcf4" && !isDisplayingQcf4Lines) ? (
+                      <div className="flex flex-col items-center justify-center gap-2.5 py-10 text-emerald-300/80">
+                        <div className="w-7 h-7 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-medium">جاري تحميل صفحة المصحف الشريف...</span>
                       </div>
-                    ) : (shareMode === "page" || ((selectedPageNumber === 1 || selectedPageNumber === 2 || activeData?.surahNumber === 1 || (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5)) && qcf4Lines.length > 0)) && selectedQuranFont === "qcf4" && isQcf4Loaded && qcf4Lines.length > 0 ? (
+                    ) : isDisplayingQcf4Lines ? (
                       <div
-                        className="w-full h-full flex flex-col justify-between items-stretch text-center select-none pointer-events-none"
+                        className={`w-full h-full flex flex-col ${isOpeningMushafPage ? "justify-around gap-1 sm:gap-1.5" : "justify-between gap-0.5 sm:gap-1"} items-stretch text-center select-none pointer-events-none`}
                         dir="rtl"
                         style={{ direction: "rtl" }}
                       >
                         {qcf4Lines.map((line, lIdx) => {
-                          const isOpeningMushafPage = (selectedPageNumber === 1 || selectedPageNumber === 2) || (activeData?.surahNumber === 1) || (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
                           const isSurahHeader = line.words.some((w) => w.type === "surah_header");
                           const isBismillah = line.words.some((w) => w.type === "bismillah");
-                          const isJustified = !isSurahHeader && !isBismillah && line.words.length > 2 && textAlign === "justify";
+
+                          // Identify if this line is the last line or penultimate line of a surah or of the page
+                          let nextSectionIdx = qcf4Lines.length;
+                          for (let i = lIdx + 1; i < qcf4Lines.length; i++) {
+                            if (qcf4Lines[i]?.words?.some((w) => w.type === "surah_header")) {
+                              nextSectionIdx = i;
+                              break;
+                            }
+                          }
+                          const isLastLineOfSection = lIdx === nextSectionIdx - 1;
+                          const isPenultimateLineOfSection = lIdx === nextSectionIdx - 2;
+                          const isPageEndingLine = lIdx >= qcf4Lines.length - 2;
+
+                          // User requested: center without justification in the last line and the one before it
+                          const shouldCenterWithoutJustify =
+                            isLastLineOfSection ||
+                            isPenultimateLineOfSection ||
+                            isPageEndingLine ||
+                            line.words.length < 7 ||
+                            isOpeningMushafPage ||
+                            textAlign === "center";
+
+                          const shouldJustify =
+                            !isSurahHeader &&
+                            !isBismillah &&
+                            !shouldCenterWithoutJustify &&
+                            textAlign === "justify";
+
+                          // In page mode, the FIRST surah header (lIdx === 0) is displayed at top of preview only if it starts at line 1.
+                          // For the 2nd and 3rd surah (lIdx > 0), we DO render it in place!
+                          if (isSurahHeader && (!showSurahHeaderFrame || (lIdx === 0 && shouldShowSurahFrameAtTop))) return null;
+                          if (isBismillah && !showOpeningHeader) return null;
 
                           return (
                             <div
@@ -4481,18 +4778,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                               className={`w-full flex items-center ${
                                 isSurahHeader || isBismillah
                                   ? "justify-center"
-                                  : isJustified && !isOpeningMushafPage
+                                  : shouldJustify
                                   ? "justify-between"
-                                  : textAlign === "right"
-                                  ? "justify-start gap-1.5"
-                                  : textAlign === "left"
-                                  ? "justify-end gap-1.5"
-                                  : "justify-center gap-1.5"
-                              } py-0 text-center flex-nowrap`}
+                                  : "justify-center gap-1.5 sm:gap-2.5"
+                              } ${isOpeningMushafPage ? "py-0.5 sm:py-1 my-0.5" : "py-0.5"} text-center flex-nowrap`}
                               style={{
                                 direction: "rtl",
-                                minHeight: isOpeningMushafPage ? "1.75em" : "1.15em",
-                                lineHeight: isOpeningMushafPage ? 1.35 : 1.1,
+                                minHeight: isOpeningMushafPage ? "2.2em" : "1.8em",
+                                lineHeight: isOpeningMushafPage ? 1.45 : 1.32,
                               }}
                             >
                               {line.words.map((w, wIdx) => {
@@ -4502,15 +4795,52 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                 const wordFont = w.font || (isSurahHeaderWord || isBismillahWord ? "QCF4_QBSML" : qcf4Font);
 
                                 if (isSurahHeaderWord) {
+                                  // If line 0 is the 1st surah and already rendered at the very top of the card
+                                  if (lIdx === 0 && shouldShowSurahFrameAtTop) return null;
+
+                                  let lineSurahNum: number | undefined;
+                                  const glyphChar = w.char || "";
+                                  if (glyphChar && glyphChar.length === 1) {
+                                    const code = glyphChar.charCodeAt(0);
+                                    if (code >= 0xF100 && code <= 0xF171) {
+                                      lineSurahNum = code - 0xF100 + 1;
+                                    }
+                                  }
+                                  if (!lineSurahNum) {
+                                    let hCount = 0;
+                                    for (let i = 0; i < lIdx; i++) {
+                                      if (qcf4Lines[i]?.words?.some((lw) => lw.type === "surah_header")) hCount++;
+                                    }
+                                    const pageToUse = selectedPageNumber || activeData?.pageNumber || activeData?.ayah?.page || 1;
+                                    const pSurahs = SURAH_HEADER_POSITIONS[pageToUse] || [];
+                                    if (pSurahs[hCount]) lineSurahNum = pSurahs[hCount].surah;
+                                  }
+                                  if (!lineSurahNum) {
+                                    for (let li = lIdx + 1; li < qcf4Lines.length; li++) {
+                                      for (const lw of qcf4Lines[li]?.words || []) {
+                                        if (lw.verse_key) {
+                                          const [vsNum] = lw.verse_key.split(":").map(Number);
+                                          if (vsNum) {
+                                            lineSurahNum = vsNum;
+                                            break;
+                                          }
+                                        }
+                                      }
+                                      if (lineSurahNum) break;
+                                    }
+                                  }
+                                  const foundS = lineSurahNum ? surahsList.find((s) => s.number === lineSurahNum) : null;
+                                  const lineSurahName = foundS ? foundS.name : "";
+
                                   return (
                                     <div
                                       key={`pw-${lIdx}-${wIdx}`}
-                                      className="w-full flex items-center justify-center py-0.5"
+                                      className="w-full flex items-center justify-center my-0.5 sm:my-1"
                                       dir="rtl"
                                     >
                                       <ShareSurahHeaderFrame
-                                        surahNumber={activeData?.surahNumber || 1}
-                                        surahName={activeData?.surahName || ""}
+                                        surahNumber={lineSurahNum || 1}
+                                        surahName={lineSurahName}
                                         glyph={w.char}
                                         frameColor={surahHeaderColor || "#C5A85C"}
                                         textColor={surahHeaderTextColor || textColor}
@@ -4522,20 +4852,24 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                 }
 
                                 if (isBismillahWord) {
+                                  if (!showOpeningHeader) return null;
+                                  const activeBFont = getBismillahFontObj(openingHeaderFont);
                                   return (
                                     <div
                                       key={`pw-${lIdx}-${wIdx}`}
-                                      className="w-full text-center my-0.5 select-none flex items-center justify-center -translate-y-1 sm:-translate-y-1.5"
+                                      className="w-full text-center my-0.5 select-none flex items-center justify-center cursor-pointer"
                                       dir="rtl"
                                       style={{
-                                        fontFamily: "'QCF4_QBSML', 'Amiri', serif",
-                                        fontSize: `${Math.max(16, isOpeningMushafPage ? textFontSize * 1.35 : textFontSize * 1.25)}px`,
-                                        color: textColor,
-                                        lineHeight: 1.2,
+                                        fontFamily: activeBFont.family,
+                                        fontSize: shareMode === "page"
+                                          ? (isOpeningMushafPage ? "clamp(1.15rem, 4.6cqi, 2.2rem)" : "clamp(0.95rem, 3.8cqi, 1.85rem)")
+                                          : `${Math.max(15, textFontSize * 0.92)}px`,
+                                        color: openingHeaderColor || textColor,
+                                        lineHeight: 1.25,
                                         direction: "rtl",
                                       }}
                                     >
-                                      {getBismillahGlyph()}
+                                      {renderBismillahContent(openingHeaderFont, w.char, w.font)}
                                     </div>
                                   );
                                 }
@@ -4544,11 +4878,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                   <span
                                     key={`pw-${lIdx}-${wIdx}`}
                                     dir="rtl"
+                                    className="inline-block select-none pointer-events-none shrink-0"
                                     style={{
                                       fontFamily: `"${wordFont}", 'QCF4_QBSML', 'Amiri', serif`,
-                                      fontSize: `${textFontSize}px`,
+                                      fontSize: shareMode === "page"
+                                        ? (isOpeningMushafPage ? "clamp(1.18rem, 5cqi, 2.45rem)" : "clamp(1.08rem, 4.65cqi, 2.3rem)")
+                                        : `${isOpeningMushafPage ? Math.min(textFontSize, 26) : textFontSize}px`,
                                       color: textColor,
-                                      lineHeight: isOpeningMushafPage ? 1.35 : 1.15,
+                                      lineHeight: isOpeningMushafPage ? 1.55 : 1.45,
                                       direction: "rtl",
                                     }}
                                   >
@@ -4572,7 +4909,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         dir="rtl"
                         style={{
                           direction: "rtl",
-                          lineHeight: 1.85,
+                          lineHeight: 2.2,
                         }}
                       >
                         {qcf4Words.map((w, idx) => (
@@ -4595,47 +4932,110 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       </div>
                     ) : (
                       <div className="w-full flex flex-col items-center justify-center select-none pointer-events-none" dir="rtl" style={{ direction: "rtl" }}>
-                        <p
-                          className={`w-full select-none pointer-events-none ${shareMode === "page" ? "line-clamp-none" : ""}`}
-                          dir="rtl"
-                          style={{
-                            fontSize: `${textFontSize}px`,
-                            color: textColor,
-                            textAlign: textAlign === "right" ? "right" : textAlign === "left" ? "left" : "justify",
-                            textAlignLast: "center",
-                            textJustify: "inter-word",
-                            direction: "rtl",
-                            lineHeight: shareMode === "page" ? 1.55 : 1.85,
-                            fontFamily:
-                              selectedQuranFont === "amiri"
-                                ? "'Amiri', serif"
-                                : selectedQuranFont === "uthman"
-                                ? "'UthmanicHafs', 'Amiri', serif"
-                                : selectedQuranFont === "cairo"
-                                ? "'Cairo', sans-serif"
-                                : "'UthmanicHafs', 'Amiri', serif",
-                          }}
-                        >
-                          {(() => {
-                            let t = activeData?.ayah?.text || "";
-                            if (activeData?.surahNumber !== 1 && ((shareMode === "single" && activeData?.ayah?.numberInSurah === 1) || (shareMode === "range" && rangeFrom === 1))) {
-                              const bismillahVariants = [
-                                "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-                                "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ",
-                                "بِسْمِ اللَّهِ الرَّحْمٰنِ الرَّحِيمِ",
-                                "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ",
-                                "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ"
-                              ];
-                              for (const b of bismillahVariants) {
-                                if (t.startsWith(b)) {
-                                  t = t.replace(b, "").trim();
-                                  break;
+                        {shareMode === "page" && pageSurahSections.length > 1 ? (
+                          <div className="w-full flex flex-col items-center gap-2 sm:gap-3">
+                            {pageSurahSections.map((sec, secIdx) => {
+                              const showSecHeader = secIdx > 0 && showSurahHeaderFrame;
+                              const showSecBismillah = secIdx > 0 && showOpeningHeader && sec.surahNumber !== 9;
+                              return (
+                                <div key={`sec-${sec.surahNumber}-${secIdx}`} className="w-full flex flex-col items-center">
+                                  {showSecHeader && (
+                                    <div className="w-full flex items-center justify-center my-1 sm:my-2 px-1">
+                                      <ShareSurahHeaderFrame
+                                        surahNumber={sec.surahNumber}
+                                        surahName={sec.surahName}
+                                        frameColor={surahHeaderColor || "#C5A85C"}
+                                        textColor={surahHeaderTextColor || textColor}
+                                        headerStyle={surahHeaderStyle}
+                                        scale={surahHeaderScale ? surahHeaderScale / 100 : 1}
+                                      />
+                                    </div>
+                                  )}
+                                  {showSecBismillah && (
+                                    <div
+                                      className="w-full text-center my-0.5 sm:my-1 select-none flex items-center justify-center"
+                                      dir="rtl"
+                                      style={{
+                                        fontFamily: "'UthmanicHafs', 'Amiri', serif",
+                                        fontSize: `${Math.max(16, textFontSize * 1.15)}px`,
+                                        color: openingHeaderColor || textColor,
+                                        lineHeight: 1.3,
+                                        direction: "rtl",
+                                      }}
+                                    >
+                                      <span>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
+                                    </div>
+                                  )}
+                                  <p
+                                    className="w-full select-none pointer-events-none"
+                                    dir="rtl"
+                                    style={{
+                                      fontSize: shareMode === "page" ? "clamp(12px, 3.8cqi, 16px)" : `${textFontSize}px`,
+                                      color: textColor,
+                                      textAlign: textAlign === "right" ? "right" : textAlign === "left" ? "left" : "justify",
+                                      textAlignLast: "center",
+                                      textJustify: "inter-word",
+                                      direction: "rtl",
+                                      lineHeight: 1.6,
+                                      fontFamily:
+                                        selectedQuranFont === "amiri"
+                                          ? "'Amiri', serif"
+                                          : selectedQuranFont === "uthman"
+                                          ? "'UthmanicHafs', 'Amiri', serif"
+                                          : selectedQuranFont === "cairo"
+                                          ? "'Cairo', sans-serif"
+                                          : "'UthmanicHafs', 'Amiri', serif",
+                                    }}
+                                  >
+                                    {sec.ayahsText}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p
+                            className={`w-full select-none pointer-events-none ${shareMode === "page" ? "line-clamp-none" : ""}`}
+                            dir="rtl"
+                            style={{
+                              fontSize: shareMode === "page" ? "clamp(12px, 3.8cqi, 16px)" : `${textFontSize}px`,
+                              color: textColor,
+                              textAlign: textAlign === "right" ? "right" : textAlign === "left" ? "left" : "justify",
+                              textAlignLast: "center",
+                              textJustify: "inter-word",
+                              direction: "rtl",
+                              lineHeight: shareMode === "page" ? 1.55 : 1.85,
+                              fontFamily:
+                                selectedQuranFont === "amiri"
+                                  ? "'Amiri', serif"
+                                  : selectedQuranFont === "uthman"
+                                  ? "'UthmanicHafs', 'Amiri', serif"
+                                  : selectedQuranFont === "cairo"
+                                  ? "'Cairo', sans-serif"
+                                  : "'UthmanicHafs', 'Amiri', serif",
+                            }}
+                          >
+                            {(() => {
+                              let t = activeData?.ayah?.text || "";
+                              if (activeData?.surahNumber !== 1 && ((shareMode === "single" && activeData?.ayah?.numberInSurah === 1) || (shareMode === "range" && rangeFrom === 1))) {
+                                const bismillahVariants = [
+                                  "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                                  "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ",
+                                  "بِسْمِ اللَّهِ الرَّحْمٰنِ الرَّحِيمِ",
+                                  "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ",
+                                  "بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ"
+                                ];
+                                for (const b of bismillahVariants) {
+                                  if (t.startsWith(b)) {
+                                    t = t.replace(b, "").trim();
+                                    break;
+                                  }
                                 }
                               }
-                            }
-                            return t;
-                          })()}
-                        </p>
+                              return t;
+                            })()}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -4657,74 +5057,46 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                     dir="rtl"
                   >
                     {/* على يمين السطر: شعار التطبيق مكبر 100% بدقة فائقة واسم التطبيق (مصحف التبيان بخط القاهرة) */}
-                    <div
-                      className="flex items-center select-none cursor-default gap-2 sm:gap-2.5"
-                    >
-                      {/* شعار التطبيق المعتمد */}
-                      <img
-                        src="/app-logo-256.png"
-                        srcSet="/app-logo-256.png 1x, /app-logo-512.png 2x"
-                        alt="شعار مصحف التبيان"
-                        className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0 select-none pointer-events-none drop-shadow-md rounded-lg"
+                    {showWatermark !== false ? (
+                      <div
+                        className="flex items-center select-none cursor-default gap-2 sm:gap-2.5"
                         style={{
-                          imageRendering: "auto",
-                          WebkitFontSmoothing: "antialiased",
-                        }}
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = "/IMG_1767.png";
-                        }}
-                      />
-                      {/* اسم التطبيق على يسار الشعار (مصحف التبيان بخط القاهرة) */}
-                      <span
-                        className="font-bold tracking-wide select-none leading-none whitespace-nowrap"
-                        style={{
-                          color: logoColor || textColor || "#1C1917",
-                          fontFamily: "'Cairo', sans-serif",
-                          fontSize: "16px",
+                          transform: `translate(${watermarkOffsetX}px, ${watermarkOffsetY}px) scale(${(watermarkScale || 100) / 100})`,
+                          transformOrigin: "right center",
                         }}
                       >
-                        مصحف التبيان
-                      </span>
-                    </div>
-
-                    {/* على يسار السطر: معلومات السورة / الصفحة */}
-                    {showSurahInfo ? (
-                      <div className="flex items-center select-none cursor-default">
+                        {/* شعار التطبيق المعتمد */}
+                        <img
+                          src="/app-logo-256.png"
+                          srcSet="/app-logo-256.png 1x, /app-logo-512.png 2x"
+                          alt="شعار مصحف التبيان"
+                          className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0 select-none pointer-events-none drop-shadow-md rounded-lg"
+                          style={{
+                            imageRendering: "auto",
+                            WebkitFontSmoothing: "antialiased",
+                          }}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = "/IMG_1767.png";
+                          }}
+                        />
+                        {/* اسم التطبيق على يسار الشعار (مصحف التبيان بخط القاهرة) */}
                         <span
-                          className="text-[11px] font-bold px-2.5 py-1 rounded-full border shadow-xs inline-flex items-center gap-1.5 backdrop-blur-[2px]"
+                          className="font-bold tracking-wide select-none leading-none whitespace-nowrap"
                           style={{
                             color: logoColor || textColor || "#1C1917",
-                            borderColor: `${logoColor || textColor || "#1C1917"}35`,
-                            backgroundColor: `${logoColor || textColor || "#1C1917"}12`,
+                            fontFamily: "'Cairo', sans-serif",
+                            fontSize: "16px",
                           }}
                         >
-                          <span className="text-sm font-normal leading-none flex items-center gap-1.5" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
-                            {getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName) ? (
-                              <>
-                                <span className="opacity-95">{getSurahHeaderGlyph(activeData.surahNumber, activeData.surahName)}</span>
-                                <span className="font-bold text-xs" style={{ fontFamily: "'Amiri', serif" }}>
-                                  {activeData.surahName?.startsWith("سورة") ? activeData.surahName : `سورة ${activeData.surahName}`}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="font-bold text-xs" style={{ fontFamily: "'Amiri', serif" }}>
-                                {activeData.surahName?.startsWith("سورة") ? activeData.surahName : `سورة ${activeData.surahName}`}
-                              </span>
-                            )}
-                          </span>
-                          {shareMode === "page" && (
-                            <>
-                              <span className="opacity-40">•</span>
-                              <span className="text-[10px] font-bold">
-                                {toArabicNumerals(selectedPageNumber)}
-                              </span>
-                            </>
-                          )}
+                          مصحف التبيان
                         </span>
                       </div>
                     ) : (
                       <div className="w-0 shrink-0" />
                     )}
+
+                    {/* على يسار السطر: مساحة خالية بعد حذف شارة معلومات السورة */}
+                    <div className="w-0 shrink-0" />
                   </div>
                 </div>
               </div>
@@ -4732,18 +5104,33 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               {/* STUDIO CONTROL TABS */}
               <div className="w-full space-y-3 pt-1">
                 
-                {/* 🌟 SHARE SCOPE SELECTOR: الآيات */}
-                <div className={`p-0.5 sm:p-1 rounded-2xl border shadow-inner flex items-center justify-center ${tTheme.tabContainer}`}>
+                {/* 🌟 SHARE SCOPE SELECTOR: الآيات / صفحة كاملة */}
+                <div className={`p-0.5 sm:p-1 rounded-2xl border shadow-inner grid grid-cols-2 gap-1 ${tTheme.tabContainer}`}>
                   <button
                     type="button"
                     onClick={() => {
                       setShareMode("range");
                       handleChangeRange(activeData.surahNumber, rangeFrom, rangeTo);
                     }}
-                    className={`w-full py-1 sm:py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${tTheme.tabActive}`}
+                    className={`py-1 sm:py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      shareMode !== "page" ? tTheme.tabActive : tTheme.tabInactive
+                    }`}
                   >
                     <Layers size={12} className="sm:w-3.5 sm:h-3.5 shrink-0" />
                     <span>الآيات</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShareMode("page");
+                      handleChangePage(selectedPageNumber || activeData.ayah?.page || 1, false);
+                    }}
+                    className={`py-1 sm:py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      shareMode === "page" ? tTheme.tabActive : tTheme.tabInactive
+                    }`}
+                  >
+                    <BookOpen size={12} className="sm:w-3.5 sm:h-3.5 shrink-0" />
+                    <span>صفحة كاملة</span>
                   </button>
                 </div>
 

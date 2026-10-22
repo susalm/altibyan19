@@ -490,3 +490,5 @@ export const recitersList: Reciter[] = [
     categories: ["masters"]
   }
 ];
+
+export const recitersData = recitersList;

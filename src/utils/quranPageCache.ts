@@ -1,305 +1,215 @@
 /**
- * Offline storage and background downloading manager for Quran SVG Pages using IndexedDB.
- * Stores Quran SVG pages locally in a hidden application database ('quran_mushaf_db_v1')
- * for instant offline loading and seamless background pre-caching.
+ * Offline Cache Manager for Quran Pages (SVG & Vector Pages 1-604)
+ * Uses CacheStorage / IndexedDB for robust, high-performance offline storage.
  */
 
-const DB_NAME = "quran_mushaf_db_v14";
-const STORE_NAME = "pages_svg";
-const DB_VERSION = 14;
+const DB_NAME = 'mushaf_altibyan_page_cache_v1';
+const STORE_NAME = 'quran_svg_pages';
+const TOTAL_PAGES = 604;
 
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function getDB(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-
-  dbPromise = new Promise((resolve, reject) => {
-    if (typeof window === "undefined" || !window.indexedDB) {
-      return reject(new Error("IndexedDB is not supported in this environment"));
+function openDB(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      resolve(null);
+      return;
     }
-
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-
-    request.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      db.onclose = () => {
-        dbPromise = null;
+    try {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
       };
-      db.onversionchange = () => {
-        try { db.close(); } catch (e) {}
-        dbPromise = null;
-      };
-      db.onerror = () => {
-        dbPromise = null;
-      };
-      resolve(db);
-    };
-
-    request.onerror = () => {
-      dbPromise = null;
-      reject(request.error);
-    };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
   });
-
-  return dbPromise;
 }
 
-/**
- * Get cached SVG string for a page from IndexedDB
- */
-export async function getCachedPageSvg(pageNum: number, provider: string = "quran-svg"): Promise<string | null> {
-  for (let attempt = 0; attempt < 2; attempt++) {
+const memoryCache = new Map<number, string>();
+
+export async function getCachedPageSvg(pageNumber: number): Promise<string | null> {
+  if (memoryCache.has(pageNumber)) {
+    return memoryCache.get(pageNumber) || null;
+  }
+
+  const db = await openDB();
+  if (!db) {
     try {
-      const db = await getDB();
-      const key = `page_${pageNum}_${provider}`;
-      return await new Promise<string | null>((resolve) => {
-        try {
-          const tx = db.transaction(STORE_NAME, "readonly");
-          const store = tx.objectStore(STORE_NAME);
-          const req = store.get(key);
-          req.onsuccess = () => {
-            const val = (req.result as string) || null;
-            if (val && (val.includes("files.quran.app") || val.includes("<image href="))) {
-              resolve(null);
-            } else {
-              resolve(val);
-            }
-          };
-          req.onerror = () => resolve(null);
-        } catch (txErr) {
-          dbPromise = null;
+      const local = localStorage.getItem(`quran_page_svg_${pageNumber}`);
+      if (local) {
+        memoryCache.set(pageNumber, local);
+        return local;
+      }
+    } catch {}
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(pageNumber);
+      req.onsuccess = () => {
+        const res = req.result as string | undefined;
+        if (res) {
+          memoryCache.set(pageNumber, res);
+          resolve(res);
+        } else {
           resolve(null);
         }
-      });
-    } catch (e) {
-      dbPromise = null;
+      };
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
     }
+  });
+}
+
+export async function saveCachedPageSvg(pageNumber: number, svgContent: string): Promise<void> {
+  if (!svgContent) return;
+  memoryCache.set(pageNumber, svgContent);
+
+  const db = await openDB();
+  if (!db) {
+    try {
+      // Limit localStorage fallback size
+      if (pageNumber <= 20) {
+        localStorage.setItem(`quran_page_svg_${pageNumber}`, svgContent);
+      }
+    } catch {}
+    return;
   }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(svgContent, pageNumber);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
+export async function getCachedPagesCount(): Promise<number> {
+  const db = await openDB();
+  if (!db) {
+    return memoryCache.size;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.count();
+      req.onsuccess = () => resolve(req.result || 0);
+      req.onerror = () => resolve(memoryCache.size);
+    } catch {
+      resolve(memoryCache.size);
+    }
+  });
+}
+
+export async function clearQuranPageCache(): Promise<void> {
+  memoryCache.clear();
+  const db = await openDB();
+  if (!db) return;
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
+let isDownloadingActive = false;
+let shouldStopDownload = false;
+
+export function startAutoQuranDownload(
+  _type: string,
+  fetchPage: (page: number) => Promise<string>,
+  onProgress?: (downloaded: number, total: number, isComplete?: boolean) => void
+): () => void {
+  shouldStopDownload = false;
+
+  const cancelFn = () => {
+    shouldStopDownload = true;
+    isDownloadingActive = false;
+  };
+
+  if (isDownloadingActive) return cancelFn;
+  isDownloadingActive = true;
+
+  (async () => {
+    try {
+      let downloaded = await getCachedPagesCount();
+      onProgress?.(downloaded, TOTAL_PAGES, downloaded >= TOTAL_PAGES);
+
+      for (let p = 1; p <= TOTAL_PAGES; p++) {
+        if (shouldStopDownload) break;
+
+        const cached = await getCachedPageSvg(p);
+        if (!cached) {
+          try {
+            const svg = await fetchPage(p);
+            if (svg) {
+              await saveCachedPageSvg(p, svg);
+              downloaded++;
+              onProgress?.(downloaded, TOTAL_PAGES, false);
+            }
+          } catch (e) {
+            console.warn(`Failed caching page ${p}:`, e);
+          }
+          // Friendly gentle delay to avoid locking main thread
+          await new Promise((r) => setTimeout(r, 60));
+        }
+      }
+
+      onProgress?.(downloaded, TOTAL_PAGES, true);
+    } finally {
+      isDownloadingActive = false;
+    }
+  })();
+
+  return cancelFn;
+}
+
+const surahAyahsMemoryCache = new Map<number, any[]>();
+
+export async function getCachedSurahAyahs(surahNumber: number): Promise<any[] | null> {
+  if (surahAyahsMemoryCache.has(surahNumber)) {
+    return surahAyahsMemoryCache.get(surahNumber) || null;
+  }
+  try {
+    const raw = localStorage.getItem(`quran_cached_surah_${surahNumber}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        surahAyahsMemoryCache.set(surahNumber, parsed);
+        return parsed;
+      }
+    }
+  } catch {}
   return null;
 }
 
-/**
- * Save SVG string for a page into IndexedDB
- */
-export async function saveCachedPageSvg(pageNum: number, provider: string = "quran-svg", svgText: string): Promise<void> {
-  if (!svgText || svgText.length < 50) return;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const db = await getDB();
-      const key = `page_${pageNum}_${provider}`;
-      return await new Promise<void>((resolve, reject) => {
-        try {
-          const tx = db.transaction(STORE_NAME, "readwrite");
-          const store = tx.objectStore(STORE_NAME);
-          const req = store.put(svgText, key);
-          req.onsuccess = () => resolve();
-          req.onerror = () => reject(req.error);
-        } catch (txErr) {
-          dbPromise = null;
-          resolve();
-        }
-      });
-    } catch (e) {
-      dbPromise = null;
-    }
-  }
-}
-
-/**
- * Get cached Surah Ayahs from IndexedDB
- */
-export async function getCachedSurahAyahs(surahNumber: number): Promise<any[] | null> {
-  try {
-    const db = await getDB();
-    const key = `surah_ayahs_${surahNumber}`;
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readonly");
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.get(key);
-        req.onsuccess = () => {
-          if (req.result) {
-            try {
-              const parsed = typeof req.result === "string" ? JSON.parse(req.result) : req.result;
-              resolve(parsed);
-            } catch {
-              resolve(null);
-            }
-          } else {
-            resolve(null);
-          }
-        };
-        req.onerror = () => resolve(null);
-      } catch {
-        resolve(null);
-      }
-    });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Save Surah Ayahs to IndexedDB for permanent offline access
- */
 export async function saveCachedSurahAyahs(surahNumber: number, ayahs: any[]): Promise<void> {
-  if (!ayahs || ayahs.length === 0) return;
+  if (!Array.isArray(ayahs) || ayahs.length === 0) return;
+  surahAyahsMemoryCache.set(surahNumber, ayahs);
   try {
-    const db = await getDB();
-    const key = `surah_ayahs_${surahNumber}`;
-    const serialized = JSON.stringify(ayahs);
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        store.put(serialized, key);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      } catch {
-        resolve();
-      }
-    });
-  } catch (_) {}
+    localStorage.setItem(`quran_cached_surah_${surahNumber}`, JSON.stringify(ayahs));
+  } catch {}
 }
 
-/**
- * Get total number of cached pages for a given provider
- */
-export async function getCachedPagesCount(provider: string = "quran-svg"): Promise<number> {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const db = await getDB();
-      return await new Promise<number>((resolve) => {
-        try {
-          const tx = db.transaction(STORE_NAME, "readonly");
-          const store = tx.objectStore(STORE_NAME);
-          const req = store.getAllKeys();
-          req.onsuccess = () => {
-            const keys = (req.result as string[]) || [];
-            const prefix = `page_`;
-            const suffix = `_${provider}`;
-            const count = keys.filter(k => typeof k === "string" && k.startsWith(prefix) && k.endsWith(suffix)).length;
-            resolve(count);
-          };
-          req.onerror = () => resolve(0);
-        } catch (txErr) {
-          dbPromise = null;
-          resolve(0);
-        }
-      });
-    } catch (e) {
-      dbPromise = null;
-    }
-  }
-  return 0;
-}
-
-/**
- * Clear offline cache for Quran pages
- */
-export async function clearQuranPageCache(): Promise<void> {
-  try {
-    const db = await getDB();
-    return new Promise((resolve, reject) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.clear();
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      } catch (txErr) {
-        dbPromise = null;
-        resolve();
-      }
-    });
-  } catch (e) {
-    dbPromise = null;
-    console.warn("Failed to clear IndexedDB cache:", e);
-  }
-}
-
-// Global state for background downloader
-let isDownloadingActive = false;
-let autoDownloadController: AbortController | null = null;
-
-/**
- * Automatically downloads all Quran pages in the background into the hidden IndexedDB store.
- * Skips pages already saved.
- */
-export function startAutoQuranDownload(
-  provider: string = "quran-svg",
-  fetchFn: (page: number, provider: string, signal?: AbortSignal) => Promise<string>,
-  onProgress?: (downloaded: number, total: number, isComplete: boolean) => void
-): () => void {
-  if (isDownloadingActive) {
-    return () => {
-      if (autoDownloadController) autoDownloadController.abort();
-    };
-  }
-
-  isDownloadingActive = true;
-  autoDownloadController = new AbortController();
-  const signal = autoDownloadController.signal;
-
-  (async () => {
-    const TOTAL_PAGES = 604;
-    let currentCount = await getCachedPagesCount(provider);
-    if (onProgress) onProgress(currentCount, TOTAL_PAGES, currentCount >= TOTAL_PAGES);
-
-    if (currentCount >= TOTAL_PAGES) {
-      isDownloadingActive = false;
-      return;
-    }
-
-    // Sequence of pages to download: prioritize first pages 1..10, then 11..604
-    const pageQueue: number[] = [];
-    for (let p = 1; p <= TOTAL_PAGES; p++) {
-      pageQueue.push(p);
-    }
-
-    for (const pageNum of pageQueue) {
-      if (signal.aborted) break;
-
-      // Check if already in cache
-      const existing = await getCachedPageSvg(pageNum, provider);
-      if (existing) {
-        continue;
-      }
-
-      try {
-        // Fetch page SVG
-        const svgText = await fetchFn(pageNum, provider, signal);
-        if (svgText && !signal.aborted) {
-          await saveCachedPageSvg(pageNum, provider, svgText);
-          currentCount = await getCachedPagesCount(provider);
-          if (onProgress) onProgress(currentCount, TOTAL_PAGES, currentCount >= TOTAL_PAGES);
-        }
-      } catch (err: any) {
-        if (err?.name === "AbortError") break;
-        console.warn(`Background auto-downloader skipped page ${pageNum}:`, err);
-      }
-
-      // Small delay between page downloads to be polite to browser & network resources
-      await new Promise((r) => setTimeout(r, 150));
-    }
-
-    isDownloadingActive = false;
-    const finalCount = await getCachedPagesCount(provider);
-    if (onProgress) onProgress(finalCount, TOTAL_PAGES, finalCount >= TOTAL_PAGES);
-  })();
-
-  return () => {
-    if (autoDownloadController) {
-      autoDownloadController.abort();
-      autoDownloadController = null;
-    }
-    isDownloadingActive = false;
-  };
-}
