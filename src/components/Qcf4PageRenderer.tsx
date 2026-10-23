@@ -198,6 +198,8 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
                   }
 
                 if (isBismillah) {
+                  const bismillahGlyph = word.char || "\uF8DD";
+                  const bismillahFont = word.font || pageData.font || "QCF4_Hafs_01";
                   return (
                     <div
                       key={`w-${lIdx}-${wIdx}`}
@@ -206,11 +208,13 @@ export const Qcf4PageRenderer: React.FC<Qcf4PageRendererProps> = ({
                         isDark ? "text-emerald-300" : "text-emerald-800"
                       }`}
                       style={{ 
-                        fontFamily: "'UthmanicHafs', 'Amiri', serif", 
+                        fontFamily: `'${bismillahFont}', 'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanicHafs', 'Amiri', serif`, 
                         fontSize: isOpeningPage ? "clamp(1.35rem, 5.6cqw, 2.95rem)" : "clamp(1.15rem, 5cqw, 2.6rem)" 
                       }}
+                      aria-label="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+                      title="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
                     >
-                      <span>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
+                      <span>{bismillahGlyph}</span>
                     </div>
                   );
                 }

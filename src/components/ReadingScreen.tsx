@@ -19,7 +19,7 @@ import { ShareAyahModal, ShareAyahData } from "./ShareAyahModal";
 import { SurahHeaderFrame } from "./SurahHeaderFrame";
 import { AppLogo } from "./AppLogo";
 import { DEFAULT_BOOKS, MainCategory, LibraryBookItem } from "../data/booksData";
-import { ensureQbsmlLoaded, loadQcf4Font, getSurahHeaderGlyph, getJuzHeaderGlyph, getBismillahGlyph } from "../utils/qcf4Utils";
+import { ensureQbsmlLoaded, loadQcf4Font, getSurahHeaderGlyph, getJuzHeaderGlyph, getBismillahGlyph, isQcfHafs01Loaded } from "../utils/qcf4Utils";
 import { fetchAlquranCloud, fetchQuranSvg, fetchTafsirData } from "../utils/quranApi";
 import { getOfflineMutashabihat } from "../utils/mutashabihatBook";
 import { getOfflineTdabr, parseTadabburSections } from "../utils/tdabrBook";
@@ -257,9 +257,28 @@ const SurahHeaderBanner = ({
 };
 
 const BismillahBanner = ({ theme, surahNumber, isDark }: { theme: string; surahNumber?: number; isDark?: boolean }) => {
+  const [qcfReady, setQcfReady] = useState(() => isQcfHafs01Loaded());
+
   useEffect(() => {
-    ensureQbsmlLoaded();
-    loadQcf4Font("QCF4_Hafs_01");
+    let isMounted = true;
+    ensureQbsmlLoaded().catch(() => {});
+    loadQcf4Font("QCF4_Hafs_01")
+      .then(() => {
+        if (isMounted) setQcfReady(true);
+      })
+      .catch(() => {});
+
+    if (typeof document !== "undefined" && "fonts" in document) {
+      document.fonts.ready.then(() => {
+        if (isMounted && isQcfHafs01Loaded()) {
+          setQcfReady(true);
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -288,11 +307,13 @@ const BismillahBanner = ({ theme, surahNumber, isDark }: { theme: string; surahN
                   : "text-slate-950"
           }`}
           style={{ 
-            fontFamily: "'QCF4_QBSML', 'QCF4_Hafs_01', 'UthmanTaha', 'UthmanicHafs', 'Amiri', serif",
+            fontFamily: "'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanTaha', 'UthmanicHafs', 'Amiri', serif",
             color: isDark ? "#f1f5f9" : undefined
           }}
+          aria-label="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+          title="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
         >
-          بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+          {qcfReady ? "\uF8DD" : "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"}
         </span>
         <div className={`h-[1px] flex-1 bg-gradient-to-r from-transparent ${
           isDark

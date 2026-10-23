@@ -959,9 +959,9 @@ export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedSha
         if (!parsed.selectedAspectRatio || parsed.selectedAspectRatio === "9:16") {
           parsed.selectedAspectRatio = "auto";
         }
-        // Ensure surahHeaderTextColor follows verse textColor
-        if (!parsed.surahHeaderTextColor || parsed.surahHeaderTextColor === parsed.surahHeaderColor) {
-          parsed.surahHeaderTextColor = parsed.textColor || DEFAULT_SHARE_STYLE.textColor;
+        // Ensure textFontSize for verses is not stuck at tiny page font size
+        if (parsed.textFontSize && parsed.textFontSize < 22) {
+          parsed.textFontSize = 28;
         }
         return { ...DEFAULT_SHARE_STYLE, ...parsed };
       }
@@ -1276,13 +1276,26 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       ? '"UthmanicHafs", "Amiri", serif'
       : "'UthmanicHafs', 'Amiri', serif";
   };
+  const savedAyahFontSizeRef = useRef<number>(
+    (initialStyle.textFontSize && initialStyle.textFontSize >= 22) ? initialStyle.textFontSize : 28
+  );
+  const [savedAyahFontSize, setSavedAyahFontSize] = useState<number>(() => {
+    return (initialStyle.textFontSize && initialStyle.textFontSize >= 22) ? initialStyle.textFontSize : 28;
+  });
+  const savedAspectRatioRef = useRef<AspectRatioType>(
+    (initialStyle.selectedAspectRatio && initialStyle.selectedAspectRatio !== "9:16")
+      ? initialStyle.selectedAspectRatio
+      : "auto"
+  );
+
   const [textFontSize, setTextFontSize] = useState<number>(() => {
     const initialMode = shareData?.mode || initialStyle.shareMode || "range";
     if (initialMode === "page") {
       const pageNum = shareData?.pageNumber || initialStyle.selectedPageNumber || 1;
       return (pageNum === 1 || pageNum === 2) ? 18 : 15;
     }
-    return initialStyle.textFontSize ?? 28;
+    const saved = initialStyle.textFontSize;
+    return (saved && saved >= 22) ? saved : 28;
   });
   const [textShadowOpacity, setTextShadowOpacity] = useState<number>(() => initialStyle.textShadowOpacity ?? 0);
   const [textAlign, setTextAlign] = useState<"justify" | "center" | "right" | "left">(() => initialStyle.textAlign || "justify");
@@ -1373,7 +1386,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         surahHeaderTextColor,
         surahHeaderScale,
         selectedQuranFont,
-        textFontSize,
+        textFontSize: shareMode === "page" ? Math.max(26, savedAyahFontSizeRef.current || 28) : Math.max(22, textFontSize),
         textShadowOpacity,
         textAlign,
         textColor,
@@ -1439,7 +1452,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         surahHeaderTextColor,
         surahHeaderScale,
         selectedQuranFont,
-        textFontSize,
+        textFontSize: shareMode === "page" ? Math.max(26, savedAyahFontSizeRef.current || 28) : Math.max(22, textFontSize),
         textShadowOpacity,
         textAlign,
         textColor,
@@ -1638,11 +1651,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           : (shareMode === "range" ? Math.max(1, (rangeTo - rangeFrom + 1)) * 70 : 100));
 
     const isOpeningMushafPage =
-      (selectedPageNumber === 1 || selectedPageNumber === 2) ||
-      (activeData?.surahNumber === 1) ||
-      (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
+      shareMode === "page" && (selectedPageNumber === 1 || selectedPageNumber === 2);
 
-    if (shareMode === "page" || isOpeningMushafPage) {
+    if (shareMode === "page") {
       return {
         width: 1080,
         height: isOpeningMushafPage ? 1400 : 1920,
@@ -1655,10 +1666,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     }
 
     // Dynamic height scaling smoothly according to verse length without rigid height constraints
-    // (حذف الفراغ الزائد أسفل البطاقة وجعل الارتفاع ملائماً تماماً للنصوص)
     const estimatedHeight = Math.max(
-      180,
-      Math.min(4200, Math.round(110 + (effectiveCharLen * 1.4) + (showSurahHeaderFrame ? 75 : 0) + (showOpeningHeader ? 55 : 0) + (showSurahInfo ? 25 : 0)))
+      240,
+      Math.min(4200, Math.round(150 + (effectiveCharLen * 1.45) + (showSurahHeaderFrame ? 85 : 0) + (showOpeningHeader ? 60 : 0) + (showWatermark ? 65 : 0) + (showSurahInfo ? 25 : 0)))
     );
 
     return {
@@ -1787,6 +1797,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setShareMode("single");
     setQcf4Lines([]);
 
+    // Restore comfortable verse font size if it was shrunk by page mode
+    setTextFontSize((prevSize) => {
+      if (prevSize < 22) {
+        return Math.max(26, savedAyahFontSizeRef.current || 28);
+      }
+      return prevSize;
+    });
+
     // Immediately update state with single ayah and clear stale multi-ayah text
     setCurrentShareData((prev) => ({
       mode: "single",
@@ -1869,6 +1887,15 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setRangeFrom(safeFrom);
     setRangeTo(safeTo);
     setShareMode("range");
+    setQcf4Lines([]);
+
+    // Restore comfortable verse font size if it was shrunk by page mode
+    setTextFontSize((prevSize) => {
+      if (prevSize < 22) {
+        return Math.max(26, savedAyahFontSizeRef.current || 28);
+      }
+      return prevSize;
+    });
 
     setCurrentShareData((prev) => ({
       mode: "range",
@@ -1954,6 +1981,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   };
 
   const applyPageDefaults = (targetPageNum?: number) => {
+    if (textFontSize >= 22) {
+      savedAyahFontSizeRef.current = textFontSize;
+      setSavedAyahFontSize(textFontSize);
+    }
+    if (selectedAspectRatio !== "9:16") {
+      savedAspectRatioRef.current = selectedAspectRatio;
+    }
     setSelectedAspectRatio("9:16");
     setSelectedFrameStyle("none");
     setShowWatermark(true);
@@ -1983,6 +2017,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     const safePage = Math.max(1, Math.min(newPageNum, 604));
     setSelectedPageNumber(safePage);
     setShareMode("page");
+
+    if (textFontSize >= 22) {
+      savedAyahFontSizeRef.current = textFontSize;
+      setSavedAyahFontSize(textFontSize);
+    }
+    if (selectedAspectRatio !== "9:16") {
+      savedAspectRatioRef.current = selectedAspectRatio;
+    }
 
     if (applyDefaults) {
       applyPageDefaults(safePage);
@@ -2401,6 +2443,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           Math.max(shareMode === "page" ? 8 : 12, Math.min(shareMode === "page" ? 24 : 52, initFontSize * factor))
         );
         setTextFontSize(newSize);
+        if (shareMode !== "page" && newSize >= 20) {
+          savedAyahFontSizeRef.current = newSize;
+          setSavedAyahFontSize(newSize);
+        }
       } else if (element === "header") {
         const newScale = Math.round(Math.max(40, Math.min(220, initHeaderScale * factor)));
         setSurahHeaderScale(newScale);
@@ -3114,18 +3160,27 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         const frameTopY = (showAyahFrame && selectedFrameStyle !== "none") ? (frameInset / 380) * width : 0;
         const frameBottomY = (showAyahFrame && selectedFrameStyle !== "none") ? (frameInset / 380) * width : 0;
 
-        const topLimit = (showAyahFrame && selectedFrameStyle !== "none")
-          ? frameTopY + 14 * scaleRatio
-          : height * 0.035;
-        const bottomLimit = (showSurahInfo || showWatermark)
-          ? height - Math.max(42 * scaleRatio, 50)
-          : (showAyahFrame && selectedFrameStyle !== "none")
-          ? height - frameBottomY - 14 * scaleRatio
-          : height * 0.96;
         const isOpeningMushafPage =
-          (selectedPageNumber === 1 || selectedPageNumber === 2) ||
-          (activeData?.surahNumber === 1) ||
-          (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
+          shareMode === "page" && (selectedPageNumber === 1 || selectedPageNumber === 2);
+        const isPageShare = shareMode === "page";
+        const topLimit = (showAyahFrame && selectedFrameStyle !== "none")
+          ? frameTopY + (isPageShare ? 10 : 14) * scaleRatio
+          : height * (isPageShare ? 0.022 : 0.035);
+        // Footer & Divider geometry with generous, comfortable breathing space:
+        const footerLogoFontSize = Math.max(18, Math.round(width * 0.024));
+        const footerIconSize = Math.round(footerLogoFontSize * 2.7);
+        const footerBaseY = height - Math.max(isPageShare ? 24 * scaleRatio : 28 * scaleRatio, 32);
+        // Generous distance between the top of the logo/app name and the divider line
+        const gapDividerToLogo = Math.max(22 * scaleRatio, 26);
+        const dividerY = Math.round(footerBaseY - footerIconSize / 2 - gapDividerToLogo);
+        // Generous distance between the last verse line and the divider line
+        const gapVerseToDivider = Math.max(28 * scaleRatio, 34);
+
+        const bottomLimit = (showSurahInfo || showWatermark)
+          ? dividerY - gapVerseToDivider
+          : (showAyahFrame && selectedFrameStyle !== "none")
+          ? height - frameBottomY - (isPageShare ? 10 : 14) * scaleRatio
+          : height * (isPageShare ? 0.978 : 0.96);
 
         const availableH = bottomLimit - topLimit;
         const availableW = (shareMode === "page" || isOpeningMushafPage) ? width * 0.94 : width * 0.91;
@@ -3174,12 +3229,12 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         });
 
         // MODE 1: FULL PAGE AUTHENTIC QCF4 RENDERING (All 15 lines displayed precisely, or 8 lines for Page 1 & 2)
-        if ((shareMode === "page" || isOpeningMushafPage || qcf4Lines.length > 0) && selectedQuranFont === "qcf4" && isQcfValid && qcf4Lines.length > 0) {
+        if (shareMode === "page" && selectedQuranFont === "qcf4" && isQcfValid && qcf4Lines.length > 0) {
           const numLines = isOpeningMushafPage ? Math.max(qcf4Lines.length, 8) : Math.max(qcf4Lines.length, 15);
           const targetLineH = availableH / numLines;
           const pageLineFontSize = isOpeningMushafPage
-            ? Math.max(20, Math.round(targetLineH * 0.54))
-            : Math.max(16, Math.round(targetLineH * 0.50));
+            ? Math.max(20, Math.round(targetLineH * 0.52))
+            : Math.max(16, Math.round(targetLineH * 0.48));
           const startY = topLimit + targetLineH / 2 + ayahDeltaY;
 
           // Shadow backdrop box for full page
@@ -3388,7 +3443,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               totalWordW = wordWidths.reduce((acc, val) => acc + val, 0);
             }
 
-            // Identify if this line is the last line or penultimate line of a surah or of the page
+            // Identify if this line is the last line of a surah or the very last line of the page
             let nextSectionIdx = qcf4Lines.length;
             for (let i = lineIdx + 1; i < qcf4Lines.length; i++) {
               if (qcf4Lines[i]?.words?.some((w) => w.type === "surah_header")) {
@@ -3397,35 +3452,30 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               }
             }
             const isLastLineOfSection = lineIdx === nextSectionIdx - 1;
-            const isPenultimateLineOfSection = lineIdx === nextSectionIdx - 2;
-            const isPageEndingLine = lineIdx >= qcf4Lines.length - 2;
+            const isLastLine = lineIdx === qcf4Lines.length - 1 || isLastLineOfSection;
 
-            // User requested: center without justification in the last line and the one before it
-            const shouldCenterWithoutJustify =
-              isLastLineOfSection ||
-              isPenultimateLineOfSection ||
-              isPageEndingLine ||
-              line.words.length < 7 ||
-              totalWordW < availableW * 0.78 ||
+            // Center ONLY the last line (or in opening ornamental pages 1 & 2), and justify all other lines
+            const shouldCenter =
+              isLastLine ||
               isOpeningMushafPage ||
               textAlign === "center";
 
             const canJustify =
               !isSurahHeader &&
               !isBismillah &&
-              !shouldCenterWithoutJustify &&
-              textAlign === "justify";
+              !shouldCenter &&
+              (textAlign === "justify" || !textAlign);
 
             let wordSpacing = Math.max(6, Math.round(lineFontSize * (isOpeningMushafPage ? 0.32 : 0.22)));
 
-            if (canJustify && totalWordW < availableW) {
+            if (canJustify && totalWordW < availableW && line.words.length > 1) {
               wordSpacing = (availableW - totalWordW) / (line.words.length - 1);
             } else if (isOpeningMushafPage && totalWordW < availableW * 0.92) {
               wordSpacing = Math.min(Math.round(lineFontSize * 0.42), (availableW * 0.92 - totalWordW) / Math.max(1, line.words.length - 1));
             }
 
             let startRightX = 0;
-            if (canJustify) {
+            if (canJustify && line.words.length > 1) {
               startRightX = (width + availableW) / 2 + ayahDeltaX;
             } else if (textAlign === "right") {
               startRightX = (width + availableW) / 2 + ayahDeltaX;
@@ -3465,7 +3515,63 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           let lines: { words: WordItem[]; widths: number[]; totalWidth: number }[] = [];
           const maxTextWidth = availableW;
 
-          // Auto-scale font size down if necessary so ALL lines fit inside available height
+          const isPageMode = shareMode === "page";
+          const targetPageNum = selectedPageNumber || activeData?.pageNumber || activeData?.ayah?.page || 1;
+          const pageMeta = isPageMode ? quranSvgPageMetadata.find((p) => p.page === targetPageNum) : null;
+          const pageHeaderPositions = SURAH_HEADER_POSITIONS[targetPageNum] || [];
+          const hasHeaderAtPageTop = pageHeaderPositions.some((h) => Math.abs(h.yCenter - 25.2) < 5);
+          const isPageStartingWithSurahAtTop = isPageMode && hasHeaderAtPageTop;
+          const isPageContinuationFromPrev = isPageMode && !isPageStartingWithSurahAtTop;
+
+          const pageStartingSurah = isPageStartingWithSurahAtTop
+            ? (surahsList.find((s) => getSurahStartPage(s.number) === targetPageNum) || (pageHeaderPositions[0] ? surahsList.find((s) => s.number === pageHeaderPositions[0].surah) : null))
+            : null;
+          const targetSurahNum = pageStartingSurah
+            ? pageStartingSurah.number
+            : (isPageMode ? (pageMeta?.surahNumber || activeData?.surahNumber || 1) : (activeData?.surahNumber || 1));
+          const targetSurahName = pageStartingSurah
+            ? pageStartingSurah.name
+            : (isPageMode ? (pageMeta?.surahNameAr || activeData?.surahName || "الفاتحة") : (activeData?.surahName || ""));
+
+          const isPageSurahStart = isPageStartingWithSurahAtTop;
+
+          const hasSurahStart =
+            (shareMode === "single" && Number(activeData?.ayah?.numberInSurah) === 1) ||
+            (shareMode === "range" && Number(rangeFrom) === 1) ||
+            isPageSurahStart;
+
+          const isBismillah =
+            !isPageMode
+              ? (openingHeaderMode === "bismillah" ||
+                 (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1))
+              : (isPageSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1);
+          const shouldDrawSurahFrame = showSurahHeaderFrame && !isPageContinuationFromPrev;
+          const shouldDrawOpeningHeader = showOpeningHeader && isBismillah;
+
+          const bannerScaleFactor = surahHeaderScale ? surahHeaderScale / 100 : 1;
+          const bannerW = Math.round(availableW * bannerScaleFactor);
+          const bannerH = shouldDrawSurahFrame ? bannerW * (30.23196 / 240.20621) : 0;
+
+          const curHeaderFontSize = Math.round(openingHeaderSize * scaleRatio);
+          const ayahFontFamilyCanvas = getAyahFontFamily(true);
+          const bFontObj = getBismillahFontObj(openingHeaderFont);
+          const headerFontFamily = isBismillah ? bFontObj.canvasFamily : ayahFontFamilyCanvas;
+          const headerColorToUse = openingHeaderColor || textColor;
+
+          const openingTextH = shouldDrawOpeningHeader ? Math.max(28 * scaleRatio, curHeaderFontSize * 1.4) : 0;
+          const headerGap = (shouldDrawSurahFrame && shouldDrawOpeningHeader) ? Math.max(14 * scaleRatio, curHeaderFontSize * 0.5) : 0;
+          // Dedicated generous margin below the header frame / bismillah so the first verse line never touches the frame
+          const headerBottomMargin = (shouldDrawSurahFrame || shouldDrawOpeningHeader)
+            ? Math.max(30 * scaleRatio, 36)
+            : 0;
+          const headerExtraH = (shouldDrawSurahFrame ? bannerH : 0) +
+            (shouldDrawOpeningHeader ? openingTextH : 0) +
+            headerGap +
+            headerBottomMargin;
+
+          const heightAvailableForVerses = Math.max(availableH * 0.35, availableH - headerExtraH);
+
+          // Auto-scale font size down if necessary so ALL lines fit comfortably inside available height with generous margins
           while (curFontSize >= 11) {
             lines = [];
             let curLineWords: WordItem[] = [];
@@ -3502,63 +3608,15 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
               });
             }
 
-            const testLineHeight = Math.round(curFontSize * (selectedQuranFont === "qcf4" ? 2.15 : 2.25));
-            if (lines.length * testLineHeight <= availableH || curFontSize <= 11) {
+            const testLineHeight = Math.round(curFontSize * (selectedQuranFont === "qcf4" ? 2.35 : 2.45));
+            if (lines.length * testLineHeight <= heightAvailableForVerses || curFontSize <= 11) {
               break;
             }
             curFontSize = Math.max(10, Math.floor(curFontSize * 0.92));
           }
 
-          const isPageMode = shareMode === "page";
-          const targetPageNum = selectedPageNumber || activeData?.pageNumber || activeData?.ayah?.page || 1;
-          const pageMeta = isPageMode ? quranSvgPageMetadata.find((p) => p.page === targetPageNum) : null;
-          const pageHeaderPositions = SURAH_HEADER_POSITIONS[targetPageNum] || [];
-          const hasHeaderAtPageTop = pageHeaderPositions.some((h) => Math.abs(h.yCenter - 25.2) < 5);
-          const isPageStartingWithSurahAtTop = isPageMode && hasHeaderAtPageTop;
-          const isPageContinuationFromPrev = isPageMode && !isPageStartingWithSurahAtTop;
-
-          const pageStartingSurah = isPageStartingWithSurahAtTop
-            ? (surahsList.find((s) => getSurahStartPage(s.number) === targetPageNum) || (pageHeaderPositions[0] ? surahsList.find((s) => s.number === pageHeaderPositions[0].surah) : null))
-            : null;
-          const targetSurahNum = pageStartingSurah
-            ? pageStartingSurah.number
-            : (isPageMode ? (pageMeta?.surahNumber || activeData?.surahNumber || 1) : (activeData?.surahNumber || 1));
-          const targetSurahName = pageStartingSurah
-            ? pageStartingSurah.name
-            : (isPageMode ? (pageMeta?.surahNameAr || activeData?.surahName || "الفاتحة") : (activeData?.surahName || ""));
-
-          const isPageSurahStart = isPageStartingWithSurahAtTop;
-
-          const hasSurahStart =
-            (shareMode === "single" && Number(activeData?.ayah?.numberInSurah) === 1) ||
-            (shareMode === "range" && Number(rangeFrom) === 1) ||
-            isPageSurahStart;
-
-          const isBismillah =
-            !isPageMode
-              ? (openingHeaderMode === "bismillah" ||
-                 (openingHeaderMode === "auto" && hasSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1))
-              : (isPageSurahStart && Number(targetSurahNum) !== 9 && Number(targetSurahNum) !== 1);
-          const shouldDrawSurahFrame = showSurahHeaderFrame && !isPageContinuationFromPrev;
-          const shouldDrawOpeningHeader = showOpeningHeader && isBismillah;
-
-          const bannerFontSize = Math.max(20, Math.round(curFontSize * 1.1 * 1.6));
-          const bannerScaleFactor = surahHeaderScale ? surahHeaderScale / 100 : 1;
-          const bannerW = Math.round(availableW * bannerScaleFactor);
-          const bannerH = shouldDrawSurahFrame ? bannerW * (30.23196 / 240.20621) : 0;
-
-          const curHeaderFontSize = Math.round(openingHeaderSize * scaleRatio);
-          const ayahFontFamilyCanvas = getAyahFontFamily(true);
-          const bFontObj = getBismillahFontObj(openingHeaderFont);
-          const headerFontFamily = isBismillah ? bFontObj.canvasFamily : ayahFontFamilyCanvas;
-          const headerColorToUse = openingHeaderColor || textColor;
-
-          const openingTextH = shouldDrawOpeningHeader ? Math.max(28 * scaleRatio, curHeaderFontSize * 1.4) : 0;
-          const headerGap = (shouldDrawSurahFrame && shouldDrawOpeningHeader) ? Math.max(12 * scaleRatio, curHeaderFontSize * 0.45) : 0;
-          const headerExtraH = (shouldDrawSurahFrame ? bannerH : 0) + (shouldDrawOpeningHeader ? openingTextH : 0) + headerGap;
-
           const spaceWidth = Math.max(6, Math.round(curFontSize * 0.25));
-          const baseMultiplier = selectedQuranFont === "qcf4" ? 2.35 : 2.45;
+          const baseMultiplier = selectedQuranFont === "qcf4" ? 2.5 : 2.6;
           const minDesiredLineHeight = Math.round(curFontSize * baseMultiplier);
           const availableForLines = availableH - headerExtraH;
           let calculatedLineHeight = minDesiredLineHeight;
@@ -3566,10 +3624,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           if (availableForLines > 0 && lines.length > 0) {
             const maxRoomPerLine = Math.floor(availableForLines / lines.length);
             if (maxRoomPerLine > minDesiredLineHeight) {
-              // Expand line height up to 2.65x for gracious breathing room between lines
-              calculatedLineHeight = Math.min(Math.round(curFontSize * 2.65), maxRoomPerLine);
+              // Expand line height up to 2.85x for gracious breathing room between lines
+              calculatedLineHeight = Math.min(Math.round(curFontSize * 2.85), maxRoomPerLine);
             } else {
-              calculatedLineHeight = Math.min(minDesiredLineHeight, Math.max(Math.round(curFontSize * 2.05), maxRoomPerLine));
+              calculatedLineHeight = Math.max(Math.round(curFontSize * 2.2), maxRoomPerLine);
             }
           }
           const lineHeight = calculatedLineHeight;
@@ -3578,14 +3636,17 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           const isCompactLayout = !showSurahInfo && !showWatermark;
 
           let startY = isCompactLayout
-            ? topLimit + headerExtraH + Math.max(0, (availableH - totalHeight) / 2) + lineHeight / 2 + ayahDeltaY
+            ? topLimit + headerExtraH + Math.max(0, (availableForLines - lines.length * lineHeight) / 2) + lineHeight / 2 + ayahDeltaY
             : height / 2 + ayahDeltaY - ((lines.length - 1) * lineHeight + headerExtraH) / 2 + headerExtraH;
 
-          if (startY - headerExtraH - lineHeight / 2 < topLimit) {
-            startY = topLimit + headerExtraH + lineHeight / 2;
+          // Hard boundary: First line must never climb above topLimit + headerExtraH + lineHeight / 2
+          // This permanently protects the first line from colliding with the surah header frame
+          const minAllowedStartY = topLimit + headerExtraH + lineHeight / 2;
+          if (startY < minAllowedStartY) {
+            startY = minAllowedStartY;
           }
           if (startY + (lines.length - 1) * lineHeight + lineHeight / 2 > bottomLimit) {
-            startY = bottomLimit - (lines.length - 1) * lineHeight - lineHeight / 2;
+            startY = Math.max(minAllowedStartY, bottomLimit - (lines.length - 1) * lineHeight - lineHeight / 2);
           }
 
           // Shadow backdrop box
@@ -3604,9 +3665,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             ctx.fill();
           }
 
-          // 1. Draw Surah Frame at the top (raised slightly)
+          // 1. Draw Surah Frame at the top
           if (shouldDrawSurahFrame) {
-            const baseHeaderY = topLimit + bannerH / 2 + 3 * scaleRatio;
+            const baseHeaderY = topLimit + bannerH / 2;
             const headerDrawX = width / 2 + (surahHeaderOffsetX / previewW) * width;
             const headerDrawY = baseHeaderY + (surahHeaderOffsetY / previewH) * height;
 
@@ -3657,7 +3718,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
           // 2. Draw Opening Header (Bismillah only - Isti'adhah deleted completely as requested)
           if (shouldDrawOpeningHeader && isBismillah) {
-            const baseOpeningY = topLimit + (shouldDrawSurahFrame ? bannerH + 18 * scaleRatio : 0) + Math.max(16 * scaleRatio, curHeaderFontSize * 0.8);
+            const baseOpeningY = topLimit + (shouldDrawSurahFrame ? bannerH + headerGap : 0) + openingTextH / 2;
             const headerDrawX = width / 2 + (surahHeaderOffsetX / previewW) * width;
             const headerDrawY = baseOpeningY + (surahHeaderOffsetY / previewH) * height;
 
@@ -3687,53 +3748,74 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             lines.forEach((line, i) => {
               const lineY = startY + i * lineHeight;
               const isLastLine = i === lines.length - 1;
-              const isPenultimateLine = i === lines.length - 2;
-              const isEndingLine = isLastLine || isPenultimateLine || line.words.length < 7;
+              const isCenter = textAlign === "center" || isLastLine;
+              const isLeft = textAlign === "left" && !isLastLine;
+              const isRight = textAlign === "right" && !isLastLine;
+              const isJustified = (textAlign === "justify" || !textAlign) && !isLastLine && line.words.length > 1;
 
-              if (selectedQuranFont !== "qcf4") {
-                const lineString = line.words.map((w) => w.char).join(" ");
-                ctx.font = `${curFontSize}px ${baseFontFamily}`;
-                ctx.fillStyle = textColor;
-                ctx.direction = "rtl";
+              const wordsWidthTotal = line.widths.reduce((a, b) => a + b, 0);
 
-                if (isEndingLine || textAlign === "center") {
-                  // توسيط السطر الأخير وما قبله دون ضبط
-                  ctx.textAlign = "center";
-                  ctx.fillText(lineString, width / 2 + ayahDeltaX, lineY);
-                } else if (textAlign === "left") {
-                  ctx.textAlign = "left";
-                  ctx.fillText(lineString, (width - maxTextWidth) / 2 + ayahDeltaX, lineY);
-                } else {
-                  // محاذاة لليمين
-                  ctx.textAlign = "right";
-                  ctx.fillText(lineString, (width + maxTextWidth) / 2 + ayahDeltaX, lineY);
-                }
-              } else {
-                ctx.direction = "rtl";
-                const isCenter = textAlign === "center" || isEndingLine;
-                const isLeft = textAlign === "left" && !isEndingLine;
-                const wordsWidthTotal = line.widths.reduce((a, b) => a + b, 0);
-                const wordGap = (!isEndingLine && textAlign === "justify" && line.words.length > 1)
-                  ? (maxTextWidth - wordsWidthTotal) / (line.words.length - 1)
-                  : spaceWidth;
-                const calculatedLineWidth = wordsWidthTotal + (line.words.length - 1) * wordGap;
-
-                let currentRight: number;
-                if (isCenter) {
-                  currentRight = (width + calculatedLineWidth) / 2 + ayahDeltaX;
-                } else if (isLeft) {
-                  currentRight = (width - maxTextWidth) / 2 + calculatedLineWidth + ayahDeltaX;
-                } else {
-                  currentRight = (width + maxTextWidth) / 2 + ayahDeltaX;
-                }
+              if (isJustified) {
+                // ضبط كامل لكافة أسطر الآيات من الحافة اليمنى لليسرى
+                const wordGap = (maxTextWidth - wordsWidthTotal) / (line.words.length - 1);
+                let currentRight = (width + maxTextWidth) / 2 + ayahDeltaX;
 
                 line.words.forEach((item, wIdx) => {
                   const wWidth = line.widths[wIdx];
-                  ctx.font = `${curFontSize}px ${item.font ? `"${item.font}", ` : ""}${baseFontFamily}`;
+                  const itemFont = item.font ? `"${item.font}", ` : "";
+                  ctx.font = `${curFontSize}px ${itemFont}${baseFontFamily}`;
                   ctx.fillStyle = textColor;
+                  ctx.direction = "rtl";
                   ctx.textAlign = "right";
                   ctx.fillText(item.char, currentRight, lineY);
                   currentRight -= (wWidth + wordGap);
+                });
+              } else if (isCenter) {
+                // توسيط السطر الأخير حصراً بتناسق تام
+                const standardSpace = spaceWidth;
+                const calculatedLineWidth = wordsWidthTotal + (line.words.length - 1) * standardSpace;
+                let currentRight = (width + calculatedLineWidth) / 2 + ayahDeltaX;
+
+                line.words.forEach((item, wIdx) => {
+                  const wWidth = line.widths[wIdx];
+                  const itemFont = item.font ? `"${item.font}", ` : "";
+                  ctx.font = `${curFontSize}px ${itemFont}${baseFontFamily}`;
+                  ctx.fillStyle = textColor;
+                  ctx.direction = "rtl";
+                  ctx.textAlign = "right";
+                  ctx.fillText(item.char, currentRight, lineY);
+                  currentRight -= (wWidth + standardSpace);
+                });
+              } else if (isLeft) {
+                // محاذاة لليسار
+                const standardSpace = spaceWidth;
+                const calculatedLineWidth = wordsWidthTotal + (line.words.length - 1) * standardSpace;
+                let currentRight = (width - maxTextWidth) / 2 + calculatedLineWidth + ayahDeltaX;
+
+                line.words.forEach((item, wIdx) => {
+                  const wWidth = line.widths[wIdx];
+                  const itemFont = item.font ? `"${item.font}", ` : "";
+                  ctx.font = `${curFontSize}px ${itemFont}${baseFontFamily}`;
+                  ctx.fillStyle = textColor;
+                  ctx.direction = "rtl";
+                  ctx.textAlign = "right";
+                  ctx.fillText(item.char, currentRight, lineY);
+                  currentRight -= (wWidth + standardSpace);
+                });
+              } else {
+                // محاذاة لليمين
+                const standardSpace = spaceWidth;
+                let currentRight = (width + maxTextWidth) / 2 + ayahDeltaX;
+
+                line.words.forEach((item, wIdx) => {
+                  const wWidth = line.widths[wIdx];
+                  const itemFont = item.font ? `"${item.font}", ` : "";
+                  ctx.font = `${curFontSize}px ${itemFont}${baseFontFamily}`;
+                  ctx.fillStyle = textColor;
+                  ctx.direction = "rtl";
+                  ctx.textAlign = "right";
+                  ctx.fillText(item.char, currentRight, lineY);
+                  currentRight -= (wWidth + standardSpace);
                 });
               }
             });
@@ -3741,12 +3823,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           }
         }
 
-        // 6. Visible Divider Line & Footer (حذف الفراغ الزائد أسفل البطاقة)
-        const footerBaseY = height - Math.max(20 * scaleRatio, 24);
-
+        // 6. Visible Divider Line & Footer with increased breathing distance
         // الحد الظاهر بين الآيات وشعار التطبيق (Visible Divider Line between Ayahs and Logo)
         ctx.save();
-        const dividerY = Math.round(footerBaseY - Math.max(16 * scaleRatio, 18));
         ctx.beginPath();
         ctx.moveTo(width * 0.08, dividerY);
         ctx.lineTo(width * 0.92, dividerY);
@@ -4524,12 +4603,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   };
 
   const isOpeningMushafPage =
-    (selectedPageNumber === 1 || selectedPageNumber === 2) ||
-    (activeData?.surahNumber === 1) ||
-    (activeData?.surahNumber === 2 && rangeFrom === 1 && rangeTo <= 5);
+    shareMode === "page" && (selectedPageNumber === 1 || selectedPageNumber === 2);
 
   const isDisplayingQcf4Lines =
-    (shareMode === "page" || isOpeningMushafPage) &&
+    shareMode === "page" &&
     selectedQuranFont === "qcf4" &&
     isQcf4Loaded &&
     qcf4Lines.length > 0;
@@ -4584,7 +4661,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     const bFontObj = getBismillahFontObj(openingHeaderFont);
 
     return (
-      <div className="relative z-10 w-full flex flex-col items-center justify-center select-none cursor-default -mt-1 sm:-mt-2 mb-1.5 sm:mb-2 shrink-0 space-y-1">
+      <div className="relative z-10 w-full flex flex-col items-center justify-center select-none cursor-default mt-0 mb-3 sm:mb-4 shrink-0 space-y-2">
         {/* سطر أعلى البطاقة: إطار اسم السورة مع الاسم */}
         {shouldShowSurahFrameAtTop && (
           <div className="w-full flex items-center justify-center px-1">
@@ -4716,7 +4793,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       className={
                         shareMode === "page" || isOpeningMushafPage
                           ? "w-full flex-1 flex flex-col justify-around items-stretch text-center z-10 select-none relative cursor-default my-1 px-2 py-1"
-                          : "w-full flex flex-col items-center justify-center text-center z-10 select-none relative cursor-default my-0.5 sm:my-1 px-1 sm:px-2 py-0"
+                          : "w-full flex flex-col items-center justify-center text-center z-10 select-none relative cursor-default mt-1.5 sm:mt-2.5 mb-1 px-1 sm:px-2 py-0"
                       }
                       style={{
                         direction: "rtl",
@@ -4731,7 +4808,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       </div>
                     ) : isDisplayingQcf4Lines ? (
                       <div
-                        className={`w-full h-full flex flex-col ${isOpeningMushafPage ? "justify-around gap-1 sm:gap-1.5" : "justify-between gap-0.5 sm:gap-1"} items-stretch text-center select-none pointer-events-none`}
+                        className={`w-full h-full flex flex-col ${isOpeningMushafPage ? "justify-around gap-1.5 sm:gap-2" : "justify-between gap-1 sm:gap-2"} items-stretch text-center select-none pointer-events-none py-1.5 sm:py-2.5`}
                         dir="rtl"
                         style={{ direction: "rtl" }}
                       >
@@ -4739,7 +4816,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           const isSurahHeader = line.words.some((w) => w.type === "surah_header");
                           const isBismillah = line.words.some((w) => w.type === "bismillah");
 
-                          // Identify if this line is the last line or penultimate line of a surah or of the page
+                          // Identify if this line is the last line of a surah or the very last line of the page
                           let nextSectionIdx = qcf4Lines.length;
                           for (let i = lIdx + 1; i < qcf4Lines.length; i++) {
                             if (qcf4Lines[i]?.words?.some((w) => w.type === "surah_header")) {
@@ -4748,23 +4825,19 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                             }
                           }
                           const isLastLineOfSection = lIdx === nextSectionIdx - 1;
-                          const isPenultimateLineOfSection = lIdx === nextSectionIdx - 2;
-                          const isPageEndingLine = lIdx >= qcf4Lines.length - 2;
+                          const isLastLine = lIdx === qcf4Lines.length - 1 || isLastLineOfSection;
 
-                          // User requested: center without justification in the last line and the one before it
-                          const shouldCenterWithoutJustify =
-                            isLastLineOfSection ||
-                            isPenultimateLineOfSection ||
-                            isPageEndingLine ||
-                            line.words.length < 7 ||
+                          // Center ONLY the last line (or in opening ornamental pages 1 & 2), and justify all other lines
+                          const shouldCenter =
+                            isLastLine ||
                             isOpeningMushafPage ||
                             textAlign === "center";
 
                           const shouldJustify =
                             !isSurahHeader &&
                             !isBismillah &&
-                            !shouldCenterWithoutJustify &&
-                            textAlign === "justify";
+                            !shouldCenter &&
+                            (textAlign === "justify" || !textAlign);
 
                           // In page mode, the FIRST surah header (lIdx === 0) is displayed at top of preview only if it starts at line 1.
                           // For the 2nd and 3rd surah (lIdx > 0), we DO render it in place!
@@ -4781,11 +4854,11 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                                   : shouldJustify
                                   ? "justify-between"
                                   : "justify-center gap-1.5 sm:gap-2.5"
-                              } ${isOpeningMushafPage ? "py-0.5 sm:py-1 my-0.5" : "py-0.5"} text-center flex-nowrap`}
+                              } ${isOpeningMushafPage ? "py-1 sm:py-1.5 my-0.5" : "py-1 sm:py-1.5"} text-center flex-nowrap`}
                               style={{
                                 direction: "rtl",
-                                minHeight: isOpeningMushafPage ? "2.2em" : "1.8em",
-                                lineHeight: isOpeningMushafPage ? 1.45 : 1.32,
+                                minHeight: isOpeningMushafPage ? "2.4em" : "2.15em",
+                                lineHeight: isOpeningMushafPage ? 1.6 : 1.52,
                               }}
                             >
                               {line.words.map((w, wIdx) => {
@@ -5043,7 +5116,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
                   {/* حد ظاهر بين الآيات وسطر شعار التطبيق */}
                   <div
-                    className="relative z-10 w-full mt-1.5 mb-1 sm:mt-2 sm:mb-1 border-t select-none pointer-events-none"
+                    className="relative z-10 w-full mt-3.5 mb-2 sm:mt-4 sm:mb-2.5 border-t select-none pointer-events-none"
                     style={{
                       borderColor: logoColor || textColor || "#1C1917",
                       opacity: 0.35,
@@ -5053,7 +5126,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
                   {/* سطر أسفل البطاقة: على اليمين شعار التطبيق (مكبر 100%) واسم التطبيق، وعلى اليسار معلومات السورة/الصفحة (منزل قليلاً للأسفل) */}
                   <div
-                    className="relative z-10 w-full flex items-center justify-between shrink-0 px-1 pt-0 pb-0.5 select-none cursor-default"
+                    className="relative z-10 w-full flex items-center justify-between shrink-0 px-1 pt-0.5 pb-1 select-none cursor-default"
                     dir="rtl"
                   >
                     {/* على يمين السطر: شعار التطبيق مكبر 100% بدقة فائقة واسم التطبيق (مصحف التبيان بخط القاهرة) */}
@@ -5110,6 +5183,14 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                     type="button"
                     onClick={() => {
                       setShareMode("range");
+                      setQcf4Lines([]);
+                      const restoredSize = Math.max(26, savedAyahFontSizeRef.current || savedAyahFontSize || 28);
+                      setTextFontSize(restoredSize);
+                      if (savedAspectRatioRef.current && savedAspectRatioRef.current !== "9:16") {
+                        setSelectedAspectRatio(savedAspectRatioRef.current);
+                      } else {
+                        setSelectedAspectRatio("auto");
+                      }
                       handleChangeRange(activeData.surahNumber, rangeFrom, rangeTo);
                     }}
                     className={`py-1 sm:py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
@@ -5122,6 +5203,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      if (textFontSize >= 22) {
+                        savedAyahFontSizeRef.current = textFontSize;
+                        setSavedAyahFontSize(textFontSize);
+                      }
+                      if (selectedAspectRatio !== "9:16") {
+                        savedAspectRatioRef.current = selectedAspectRatio;
+                      }
                       setShareMode("page");
                       handleChangePage(selectedPageNumber || activeData.ayah?.page || 1, false);
                     }}

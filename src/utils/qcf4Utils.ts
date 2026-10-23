@@ -182,9 +182,29 @@ export function isQbsmlLoaded(): boolean {
 }
 
 /**
- * Returns the authentic Medina Mushaf text for Bismillah in Uthmanic script.
+ * Checks if the QCF4_Hafs_01 font is actively loaded in document.fonts
+ */
+export function isQcfHafs01Loaded(): boolean {
+  if (typeof window === "undefined") return false;
+  if (loadedFonts.has("QCF4_Hafs_01")) return true;
+  if (typeof document !== "undefined" && "fonts" in document) {
+    try {
+      return document.fonts.check("16px QCF4_Hafs_01");
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Returns the authentic Medina Mushaf text/glyph for Bismillah in QCF4 font (\uF8DD),
+ * or falls back to the standard Arabic text if QCF4_Hafs_01 is not loaded.
  */
 export function getBismillahGlyph(fallbackText = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"): string {
+  if (isQcfHafs01Loaded()) {
+    return "\uF8DD";
+  }
   return fallbackText;
 }
 
