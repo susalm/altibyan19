@@ -63,15 +63,6 @@ import {
   getBismillahGlyph,
 } from "../utils/qcf4Utils";
 
-import textureWood from "../assets/images/texture_wood_warm_1787560837497.jpg";
-import textureClay from "../assets/images/texture_clay_natural_1787565145056.jpg";
-import textureLeather from "../assets/images/texture_leather_rich_1787565160287.jpg";
-import textureGoldFoil from "../assets/images/smooth_gold_texture_1787569064133.jpg";
-import bgDesertFlower from "../assets/images/bg_desert_flower_1787560894280.jpg";
-import textureMarble from "../assets/images/texture_marble_1787560922634.jpg";
-import textureParchment from "../assets/images/texture_parchment_1787560941429.jpg";
-import textureCosmicSky from "../assets/images/texture_cosmic_sky_1787643332494.jpg";
-import texturePurpleWatercolor from "../assets/images/texture_purple_watercolor_1787643344233.jpg";
 import { AlTibyanCalligraphy } from "./AlTibyanCalligraphy";
 
 export interface ShareAyahData {
@@ -293,98 +284,7 @@ export interface TexturePreset {
   defaultBgGradient?: { color1: string; color2: string };
 }
 
-export const texturePresets: TexturePreset[] = [
-  {
-    id: "texture-leather",
-    name: "جلد داكن فاخر",
-    category: "leather",
-    desc: "ملمس جلد طبيعي داكن فاخر ومعتق",
-    imageUrl: textureLeather,
-    defaultTextColor: "#FAF8F5",
-    defaultFrameColor: "#D4AF37",
-    defaultBgGradient: { color1: "#26150b", color2: "#4a2c1a" },
-  },
-  {
-    id: "texture-cosmic-sky",
-    name: "سماء فلكية وسديم",
-    category: "nature",
-    desc: "خامة سماء زرقاء مرصعة بالنجوم والسديم الكوني",
-    imageUrl: textureCosmicSky,
-    defaultTextColor: "#FFFFFF",
-    defaultFrameColor: "#FFE082",
-    defaultBgGradient: { color1: "#061828", color2: "#0d435e" },
-  },
-  {
-    id: "texture-purple-watercolor",
-    name: "تموجات بنفسجية فنية",
-    category: "art",
-    desc: "خامة ألوان مائية بنفسجية ولمسات انسيابية فاخرة",
-    imageUrl: texturePurpleWatercolor,
-    defaultTextColor: "#FFFFFF",
-    defaultFrameColor: "#FFE082",
-    defaultBgGradient: { color1: "#2d0b4e", color2: "#6a1b82" },
-  },
-  {
-    id: "texture-wood-warm",
-    name: "خشب دافئ عريق",
-    category: "wood",
-    desc: "ألواح خشب طبيعي معتق وأنيق",
-    imageUrl: textureWood,
-    defaultTextColor: "#FAF8F5",
-    defaultFrameColor: "#E2C376",
-    defaultBgGradient: { color1: "#2b1408", color2: "#4a2511" },
-  },
-  {
-    id: "texture-clay",
-    name: "طين وفخار تراثي",
-    category: "clay",
-    desc: "ملمس طين وجص فخاري أصيل",
-    imageUrl: textureClay,
-    defaultTextColor: "#FAF8F5",
-    defaultFrameColor: "#FFE082",
-    defaultBgGradient: { color1: "#3e1c10", color2: "#783e22" },
-  },
-  {
-    id: "texture-gold-foil",
-    name: "ذهب صقيل نقي",
-    category: "gold",
-    desc: "خامة ذهب ملكي مصقول ناعم بدون تعرجات",
-    imageUrl: textureGoldFoil,
-    defaultTextColor: "#1C1917",
-    defaultFrameColor: "#685023",
-    defaultBgGradient: { color1: "#5a431c", color2: "#C5A85C" },
-  },
-  {
-    id: "bg-desert-flower",
-    name: "زهرة الأمل بالصحراء",
-    category: "nature",
-    desc: "زهرة بيضاء تنبثق بالحياة والأمل",
-    imageUrl: bgDesertFlower,
-    defaultTextColor: "#FFFFFF",
-    defaultFrameColor: "#C5A85C",
-    defaultBgGradient: { color1: "#1b2838", color2: "#3b5878" },
-  },
-  {
-    id: "texture-marble",
-    name: "رخام أبيض وذهبي",
-    category: "marble",
-    desc: "رخام ناصع بعروق ذهبية نقية",
-    imageUrl: textureMarble,
-    defaultTextColor: "#012519",
-    defaultFrameColor: "#C5A85C",
-    defaultBgGradient: { color1: "#e4ded2", color2: "#faf8f5" },
-  },
-  {
-    id: "texture-parchment",
-    name: "مخطوطة بردي عتيقة",
-    category: "manuscript",
-    desc: "ورق مصاحف قديم بلمسة أصيلة",
-    imageUrl: textureParchment,
-    defaultTextColor: "#1C1917",
-    defaultFrameColor: "#8B1D48",
-    defaultBgGradient: { color1: "#3d2b1f", color2: "#8c6b4f" },
-  },
-];
+export const texturePresets: TexturePreset[] = [];
 
 // Frame Styles
 export type FrameStyleType =
