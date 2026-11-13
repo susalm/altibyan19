@@ -9895,7 +9895,7 @@ export default function ReadingScreen({
                                 {/* Surah Header Frame for Opening Pages (Surah Al-Fatihah & Surah Al-Baqarah) */}
                                 {!isQcf4 && (pageNum === 1 || pageNum === 2) && (
                                   <div 
-                                    className={`w-full px-1.5 sm:px-2 pt-1 ${pageNum === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20`}
+                                    className="w-full px-1.5 sm:px-2 pt-1 pb-0.5 shrink-0 relative z-20"
                                   >
                                     <SurahHeaderFrame
                                       surahNumber={pageNum === 1 ? 1 : 2}
@@ -10030,7 +10030,7 @@ export default function ReadingScreen({
                           {/* Surah Header Frame for Opening Pages (Surah Al-Fatihah & Surah Al-Baqarah) */}
                           {!isQcf4 && (currentPage === 1 || currentPage === 2) && (
                             <div 
-                              className={`w-full px-1.5 sm:px-2 pt-1 ${currentPage === 2 ? "pb-2.5 sm:pb-3.5 mb-1" : "pb-0.5"} shrink-0 relative z-20`}
+                              className="w-full px-1.5 sm:px-2 pt-1 pb-0.5 shrink-0 relative z-20"
                             >
                               <SurahHeaderFrame
                                 surahNumber={currentPage === 1 ? 1 : 2}

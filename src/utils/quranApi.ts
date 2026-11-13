@@ -248,11 +248,20 @@ export function processSvgAdjustments(text: string, pageNum: number): string {
     }
   }
 
-  // 6. Calibrate opening pages (1 and 2) to eliminate empty margins and maximize text readability and font size
-  if (pageNum === 1) {
-    result = result.replace(/viewBox=["'][^"']*["']/i, 'viewBox="10 18 215 190"');
-  } else if (pageNum === 2) {
-    result = result.replace(/viewBox=["'][^"']*["']/i, 'viewBox="8 6 226 208"');
+  // 6. Calibrate opening pages (1 and 2) to eliminate empty margins, center content, and show all verses completely
+  if (pageNum === 1 || pageNum === 2) {
+    const isMushafDatabaseSvg = result.includes('id="Mushaf_Page_') || result.includes('id="md-page"');
+    if (isMushafDatabaseSvg) {
+      // Hide duplicate text-only surah name line inside SVG since SurahHeaderFrame is rendered above
+      result = result.replace(/<g\b([^>]*\bid=["']md-line-06["'][^>]*)>/i, '<g$1 style="display:none">');
+      // MushafDatabase 001 & 002 verses span x=[99..284.3], y=[272.8..444.6] (center X = 191.5)
+      result = result.replace(/viewBox=["'][^"']*["']/i, 'viewBox="90 264 203 190"');
+    } else if (pageNum === 1) {
+      result = result.replace(/viewBox=["'][^"']*["']/i, 'viewBox="10 18 215 190"');
+    } else {
+      // ahmedmabdullatif 002.svg verses span x=[11.5..228.5] (center 120.0), y=[19.3..216.2]
+      result = result.replace(/viewBox=["'][^"']*["']/i, 'viewBox="10 18 220 200"');
+    }
   }
 
   return result;
