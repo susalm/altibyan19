@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Search, X, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { surahsList } from "../data/surahList";
@@ -35,7 +35,13 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
   align = "right",
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [openUpward, setOpenUpward] = useState(false);
+  const [computedHeights, setComputedHeights] = useState<{ height: number; maxHeight: number }>({
+    height: 340,
+    maxHeight: 420,
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,10 +49,51 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
     }
   }, [isOpen]);
 
+  // Calculate best direction (above or below trigger) and viewport-safe height so the list stays visible and scrollable
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      const parentEl = dropdownRef.current?.parentElement;
+      if (!parentEl) return;
+      const rect = parentEl.getBoundingClientRect();
+      const vh = window.innerHeight || 700;
+      const spaceBelow = vh - rect.bottom;
+      const spaceAbove = rect.top;
+      const shouldOpenUp = spaceBelow < 280 && spaceAbove > spaceBelow;
+      setOpenUpward(shouldOpenUp);
+      const availableSpace = shouldOpenUp ? spaceAbove - 68 : spaceBelow - 56;
+      const maxH = Math.min(420, Math.max(180, Math.floor(availableSpace)));
+      const targetH = Math.min(maxH, Math.max(Math.min(260, maxH), Math.floor(vh * 0.45)));
+      setComputedHeights({ height: targetH, maxHeight: maxH });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    return () => window.removeEventListener("resize", updatePosition);
+  }, [isOpen]);
+
+  // Center currently selected surah within the list container only (without scrolling outer containers)
+  useEffect(() => {
+    if (!isOpen || !listRef.current) return;
+    const rafId = requestAnimationFrame(() => {
+      const container = listRef.current;
+      if (!container) return;
+      const selectedEl = container.querySelector('[data-selected="true"]') as HTMLElement | null;
+      if (selectedEl) {
+        container.scrollTop = Math.max(
+          0,
+          selectedEl.offsetTop - container.clientHeight / 2 + selectedEl.clientHeight / 2
+        );
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [isOpen, selectedSurahNumber]);
+
   // Click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const container = dropdownRef.current?.parentElement || dropdownRef.current;
+      if (container && !container.contains(event.target as Node)) {
         onClose();
       }
     };
@@ -78,11 +125,13 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
     <AnimatePresence>
       <motion.div
         ref={dropdownRef}
-        initial={{ opacity: 0, y: -6, scale: 0.97 }}
+        initial={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+        exit={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.97 }}
         transition={{ duration: 0.15, ease: "easeOut" }}
-        className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} mt-1.5 z-[9999] rounded-2xl border shadow-2xl flex flex-col overflow-hidden ${
+        className={`absolute ${openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"} ${
+          align === "left" ? "left-0" : "right-0"
+        } z-[9999] rounded-2xl border shadow-2xl flex flex-col overflow-hidden ${
           theme === "emerald-velvet"
             ? "bg-[#011e15] border-[#c5a85c]/40 text-[#FAF8F5]"
             : theme === "navy-velvet"
@@ -97,9 +146,9 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
           width: "280px",
           minWidth: "240px",
           maxWidth: "calc(100vw - 32px)",
-          height: "45vh",
-          minHeight: "260px",
-          maxHeight: "420px"
+          height: `${computedHeights.height}px`,
+          maxHeight: `${computedHeights.maxHeight}px`,
+          touchAction: "pan-y",
         }}
         dir="rtl"
         onClick={(e) => e.stopPropagation()}
@@ -124,7 +173,6 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="ابحث عن سورة..."
               className="w-full bg-transparent text-xs font-bold outline-none placeholder-slate-400"
-              autoFocus
             />
             {searchQuery && (
               <button
@@ -140,7 +188,18 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
         </div>
 
         {/* Surahs List */}
-        <div className="p-2 overflow-y-auto space-y-1.5 custom-scrollbar flex-1">
+        <div
+          ref={listRef}
+          className="p-2 overflow-y-auto overflow-x-hidden space-y-1.5 custom-scroll flex-1 min-h-0 touch-pan-y overscroll-contain relative"
+          style={{
+            touchAction: "pan-y",
+            overscrollBehavior: "contain",
+            WebkitOverflowScrolling: "touch",
+          }}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
           {filteredSurahs.length === 0 ? (
             <div className="py-6 text-center text-xs text-slate-400 font-bold">
               لا توجد نتائج
@@ -152,11 +211,12 @@ export const SurahSelectModal: React.FC<SurahSelectDropdownProps> = ({
                 <button
                   key={surah.number}
                   type="button"
+                  data-selected={isSelected ? "true" : undefined}
                   onClick={() => {
                     onSelectSurah(surah.number);
                     onClose();
                   }}
-                  className={`w-full px-3 py-3 sm:py-3.5 min-h-[58px] sm:min-h-[64px] rounded-xl border flex items-center justify-between transition-all duration-150 cursor-pointer text-right group ${
+                  className={`w-full px-3 py-3 sm:py-3.5 min-h-[58px] sm:min-h-[64px] rounded-xl border flex items-center justify-between transition-all duration-150 cursor-pointer text-right group touch-pan-y ${
                     isSelected
                       ? theme === "emerald-velvet"
                         ? "bg-[#012f20] border-[#34d399] text-[#FAF8F5] shadow-2xs"

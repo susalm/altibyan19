@@ -888,7 +888,7 @@ export default function IndexScreen({
                               ? "bg-slate-900 text-emerald-400 border border-emerald-500/30"
                               : "bg-emerald-100/80 text-emerald-900 border border-emerald-200"
                     }`}>
-                      <span className="text-[10px] font-normal leading-none select-none opacity-100" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
+                      <span className="text-[40px] font-normal leading-none select-none opacity-100" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
                         {getJuzHeaderGlyph(juzNum, `الجزء ${toArabicNumerals(juzNum)}`)}
                       </span>
                     </div>
