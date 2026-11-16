@@ -235,7 +235,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <button
               type="button"
               onClick={() => onChangeSettings({ language: "en" })}
-              className={`h-14 sm:h-16 rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer flex items-center justify-center border-2 active:scale-98 ${
+              className={`h-14 sm:h-16 rounded-2xl font-bold text-[10px] transition-all cursor-pointer flex items-center justify-center border-2 active:scale-98 ${
                 currentLang === "en" ? styleTokens.activeBtn : styleTokens.inactiveBtn
               }`}
             >
@@ -244,7 +244,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <button
               type="button"
               onClick={() => onChangeSettings({ language: "ar" })}
-              className={`h-14 sm:h-16 rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer flex items-center justify-center border-2 active:scale-98 ${
+              className={`h-14 sm:h-16 rounded-2xl font-bold text-[10px] transition-all cursor-pointer flex items-center justify-center border-2 active:scale-98 ${
                 currentLang === "ar" ? styleTokens.activeBtn : styleTokens.inactiveBtn
               }`}
             >
@@ -357,7 +357,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <div className="flex items-center justify-end gap-2 text-xs sm:text-sm font-semibold opacity-75 mb-1">
             <div className="flex flex-col items-end">
               <span>تقليب الصفحات</span>
-              <span className="text-[11px] opacity-70">
+              <span className="text-[10px] opacity-70">
                 {isVertical
                   ? "الوضع المفعّل: رأسي لأعلى وأسفل فقط"
                   : "الوضع المفعّل: أفقي على اليمين واليسار فقط"}
@@ -562,7 +562,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         <button
           type="button"
           onClick={handleSave}
-          className={`w-full py-4 rounded-2xl font-bold text-base sm:text-lg shadow-lg transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-2 ${styleTokens.saveBtn}`}
+          className={`w-full py-4 rounded-2xl font-bold text-[10px] shadow-lg transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-2 ${styleTokens.saveBtn}`}
         >
           {saveToast ? (
             <>
@@ -582,7 +582,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <div className={`w-14 h-14 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
               <Star size={28} className={styleTokens.iconColor} />
             </div>
-            <h3 className="text-lg font-black">تقييم تطبيق مصحف التبيان</h3>
+            <h3 className="text-[10px] font-black">تقييم تطبيق مصحف التبيان</h3>
             <p className="text-xs opacity-80 leading-relaxed">
               نسعد بتقييمك لتطبيق مصحف التبيان ودعمك لنا في نشر كتاب الله الكريم وعلومه النافعة.
             </p>
@@ -664,7 +664,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <Sparkles size={32} className={styleTokens.iconColor} />
               )}
             </div>
-            <h3 className="text-lg font-black">
+            <h3 className="text-[10px] font-black">
               {modalType === "app_mufarridoon" ? "تطبيق المفردون" : "تطبيق فضائل"}
             </h3>
             <p className="text-xs opacity-80 leading-relaxed">

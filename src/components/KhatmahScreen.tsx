@@ -547,7 +547,7 @@ export default function KhatmahScreen({ isDark, theme = "light", onSelectSurah }
                   }`}>
                     شريط تقدم ختم القرآن الكريم
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-semibold">
+                  <p className="text-[10px] text-slate-400 font-semibold">
                     النسبة المئوية المنجزة من المصحف بناءً على الصفحات المقروءة ({toArabicNumerals(completedPages)} من ٦٠٤ صفحة)
                   </p>
                 </div>

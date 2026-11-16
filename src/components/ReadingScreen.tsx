@@ -2783,12 +2783,16 @@ export default function ReadingScreen({
     if (!isDraggingRef.current) return;
 
     // Smooth drag-to-scroll when dragging with mouse or pointer in continuous mode
-    if (isMouse && lastDragYRef.current !== null && isContinuousMode) {
+    if (isMouse && lastDragYRef.current !== null && (isContinuousMode || effectivePageMode === "continuous")) {
       const deltaY = clientY - lastDragYRef.current;
       if (Math.abs(deltaY) > 0) {
         window.scrollBy({ top: -deltaY, behavior: "auto" });
+        const continuousEl = document.getElementById("mushaf-continuous-canvas");
+        if (continuousEl && continuousEl.scrollHeight > continuousEl.clientHeight) {
+          continuousEl.scrollTop -= deltaY;
+        }
         const canvasEl = document.getElementById("mushaf-page-by-page-canvas");
-        if (canvasEl) {
+        if (canvasEl && canvasEl.scrollHeight > canvasEl.clientHeight) {
           canvasEl.scrollTop -= deltaY;
         }
       }
@@ -2803,6 +2807,11 @@ export default function ReadingScreen({
       dragDistanceRef.current = Math.max(dragDistanceRef.current, dist);
       if (dist > 8) {
         hasSwipedRef.current = true;
+        if (isMouse) {
+          try {
+            window.getSelection()?.removeAllRanges();
+          } catch {}
+        }
       }
     }
   };
@@ -2899,11 +2908,15 @@ export default function ReadingScreen({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("button, select, input, textarea, a, [role='button']")) return;
     handleDragStart(e.clientX, e.clientY, true);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (e.buttons === 1) {
+      checkLongPressMove(e);
       handleDragMove(e.clientX, e.clientY, true);
     }
   };
@@ -2917,6 +2930,7 @@ export default function ReadingScreen({
   };
 
   const handleAyahSelect = (ayah: Ayah) => {
+    if (hasSwipedRef.current || dragDistanceRef.current > 8) return;
     const targetSurahNum = (ayah as any).surah?.number || surahNumber;
     setSelectedAyah(ayah);
     if (targetSurahNum !== surahNumber && onChangeSurah) {
@@ -10539,13 +10553,26 @@ export default function ReadingScreen({
                 style={{
                   backgroundColor: isDark ? "#020617" : "#ffffff",
                   borderColor: isDark ? undefined : theme === "gold-velvet" ? "#c5a85c40" : theme === "emerald-velvet" ? "#c5a85c30" : undefined,
-                  touchAction: "pan-y"
+                  touchAction: "pan-y",
+                  overscrollBehaviorY: "auto"
                 }}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+                onDragStart={(e) => e.preventDefault()}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (hasSwipedRef.current || dragDistanceRef.current > 8) {
+                    return;
+                  }
                   toggleBarsUnified(undefined, e);
                 }}
-                className={`w-full rounded-none p-3 sm:p-5 md:p-8 text-right select-none transition-all duration-300 border ${
+                className={`w-full rounded-none p-3 sm:p-5 md:p-8 text-right select-none transition-all duration-300 border cursor-grab active:cursor-grabbing ${
                   isDark
                     ? "bg-slate-950 border-slate-800 text-slate-100 shadow-none"
                     : theme === "gold-velvet"
@@ -10674,47 +10701,6 @@ export default function ReadingScreen({
                         <ChevronDown size={14} className="absolute left-2 sm:left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
                       </div>
 
-                      {/* Element 2b: أزرار تحريك صفحة المصحف آية آية لأعلى وأسفل */}
-                      <div className="flex items-center gap-0.5 bg-black/5 dark:bg-white/10 rounded-xl p-0.5 border border-black/5 dark:border-white/10 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigateAyahStep("up");
-                          }}
-                          className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-90 flex items-center justify-center ${
-                            isDark
-                              ? "hover:bg-slate-700 text-emerald-400"
-                              : theme === "gold-velvet"
-                                ? "hover:bg-amber-100/60 text-[#8c6d1f]"
-                                : theme === "navy-velvet"
-                                  ? "hover:bg-[#3F63C6]/15 text-[#3F63C6]"
-                                  : "hover:bg-emerald-100/70 text-emerald-800"
-                          }`}
-                          title="الآية السابقة (تحريك لأعلى)"
-                        >
-                          <ChevronUp size={16} className="stroke-[2.5]" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigateAyahStep("down");
-                          }}
-                          className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-90 flex items-center justify-center ${
-                            isDark
-                              ? "hover:bg-slate-700 text-emerald-400"
-                              : theme === "gold-velvet"
-                                ? "hover:bg-amber-100/60 text-[#8c6d1f]"
-                                : theme === "navy-velvet"
-                                  ? "hover:bg-[#3F63C6]/15 text-[#3F63C6]"
-                                  : "hover:bg-emerald-100/70 text-emerald-800"
-                          }`}
-                          title="الآية التالية (تحريك لأسفل)"
-                        >
-                          <ChevronDown size={16} className="stroke-[2.5]" />
-                        </button>
-                      </div>
                     </div>
 
                     {/* معلومات السورة / الآيات والصفحة على اليسار */}

@@ -562,7 +562,7 @@ export default function RecitationScreen({
                       </span>
                     </h3>
                   </div>
-                  <p className={`text-[10px] sm:text-[11px] ${
+                  <p className={`text-[10px] sm:text-[10px] ${
                     theme === "emerald-velvet"
                       ? "text-[#c5a85c]/70"
                       : isDark
@@ -798,7 +798,7 @@ export default function RecitationScreen({
                           key={num}
                           type="button"
                           onClick={() => playback?.setAyahRepeatMax(num)}
-                          className={`flex-1 h-8 flex items-center justify-center text-[11px] font-black rounded-xl transition-all cursor-pointer border ${
+                          className={`flex-1 h-8 flex items-center justify-center text-[10px] font-black rounded-xl transition-all cursor-pointer border ${
                             isSelected
                               ? theme === "navy-velvet"
                                 ? "bg-[#3F63C6] border-[#3F63C6] text-white shadow-sm"
@@ -840,7 +840,7 @@ export default function RecitationScreen({
                           type="button"
                           disabled={isDisabled}
                           onClick={() => playback?.setRangeRepeatMax(num)}
-                          className={`flex-1 h-8 flex items-center justify-center text-[11px] font-black rounded-xl transition-all cursor-pointer border disabled:opacity-25 disabled:pointer-events-none ${
+                          className={`flex-1 h-8 flex items-center justify-center text-[10px] font-black rounded-xl transition-all cursor-pointer border disabled:opacity-25 disabled:pointer-events-none ${
                             isSelected && !isDisabled
                               ? theme === "navy-velvet"
                                 ? "bg-[#3F63C6] border-[#3F63C6] text-white shadow-sm"
@@ -960,7 +960,7 @@ export default function RecitationScreen({
                     key={cat.id}
                     type="button"
                     onClick={() => setSelectedCategory(cat.id as ReciterCategory)}
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border shrink-0 flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer border shrink-0 flex items-center gap-1.5 ${
                       isSelected
                         ? theme === "navy-velvet"
                           ? "bg-[#3F63C6] border-[#3F63C6] text-white shadow-sm"
@@ -1318,7 +1318,7 @@ export default function RecitationScreen({
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div>
                     <p className="text-xs font-black">سورة {downloadSurahInfo.name} محفوظة بالكامل أوفلاين</p>
-                    <p className="text-[11px] opacity-80">جميع آياتها ({downloadSurahInfo.numberOfAyahs} آية) جاهزة للاستماع بدون إنترنت بصوت {currentReciter.nameAr}.</p>
+                    <p className="text-[10px] opacity-80">جميع آياتها ({downloadSurahInfo.numberOfAyahs} آية) جاهزة للاستماع بدون إنترنت بصوت {currentReciter.nameAr}.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -1348,7 +1348,7 @@ export default function RecitationScreen({
             {downloadType === "surah" && !surahOfflineInfo.isComplete && surahOfflineInfo.cachedCount > 0 && (
               <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 text-amber-800 dark:text-amber-300 text-xs">
                 <span>محفوظة جزئياً: {surahOfflineInfo.cachedCount} من {downloadSurahInfo.numberOfAyahs} آية ({surahOfflineInfo.percent}%)</span>
-                <span className="text-[11px] opacity-75">اضغط زر التحميل أدناه لاكتمال حفظ السورة</span>
+                <span className="text-[10px] opacity-75">اضغط زر التحميل أدناه لاكتمال حفظ السورة</span>
               </div>
             )}
 

@@ -1302,7 +1302,7 @@ export default function App() {
                   : "bg-white/95 border-slate-200 text-slate-800"
         }`}
       >
-        <div className="w-full max-w-4xl mx-auto flex items-center justify-around text-center select-none text-[10px] md:text-[11px] font-bold px-4 py-1.5">
+        <div className="w-full max-w-4xl mx-auto flex items-center justify-around text-center select-none text-[10px] font-bold px-4 py-1.5">
           {/* 1. home (Catalog/Reading) */}
           <button
             id="nav-tab-home"

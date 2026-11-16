@@ -820,7 +820,7 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
           : "bg-emerald-50/80 border-emerald-100 text-emerald-900";
 
   return (
-    <div className="w-full flex flex-col gap-6 animate-fade-in pb-12" dir="rtl">
+    <div id="storage-screen-root" className="w-full flex flex-col gap-6 animate-fade-in pb-12" dir="rtl">
       
       {/* Top Banner: Info notice + Download All Button */}
       <div className={`p-4 sm:p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 ${
@@ -914,7 +914,7 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
 
       {/* Section Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 pb-1 border-b border-black/5 dark:border-white/5">
-        <h3 className={`font-extrabold text-base sm:text-lg flex items-center gap-2 ${
+        <h3 className={`font-extrabold text-[10px] flex items-center gap-2 ${
           isEmerald ? "text-white" :
           isGold ? "text-[#1c1811]" :
           isNavy ? "text-[#1b3168]" :
@@ -957,7 +957,7 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
             >
               {/* Right Side: Title & Description */}
               <div className="min-w-0 flex-1">
-                <h4 className="font-black text-base sm:text-lg leading-snug tracking-tight">
+                <h4 className="font-black text-[10px] leading-snug tracking-tight">
                   {item.title}
                 </h4>
                 <p className="text-xs sm:text-sm opacity-70 mt-1 font-medium leading-relaxed">
@@ -966,7 +966,7 @@ export default function StorageManagerScreen({ isDark, theme = "light", onClose 
 
                 {item.isDownloading && (
                   <div className="mt-2.5 w-full max-w-xs flex flex-col gap-1">
-                    <div className={`flex items-center justify-between text-[11px] font-mono font-bold ${
+                    <div className={`flex items-center justify-between text-[10px] font-mono font-bold ${
                       isEmerald ? "text-[#34d399]" :
                       isNavy ? "text-[#3F63C6]" :
                       isGold ? "text-[#c5a85c]" :
