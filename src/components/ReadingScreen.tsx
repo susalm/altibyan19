@@ -10613,7 +10613,7 @@ export default function ReadingScreen({
                           }`}
                           title="اختر السورة"
                         >
-                          <span className="text-base sm:text-xl font-normal leading-none select-none" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
+                          <span className="text-[9px] font-normal leading-none select-none" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif" }}>
                             {getSurahHeaderGlyph(surahNumber, surahsList.find(s => s.number === surahNumber)?.name) || surahsList.find(s => s.number === surahNumber)?.name}
                           </span>
                           <ChevronDown size={14} className="opacity-70" />
@@ -10652,7 +10652,7 @@ export default function ReadingScreen({
                               }
                             }, 150);
                           }}
-                          className={`appearance-none cursor-pointer pl-6 pr-2.5 sm:pl-7 sm:pr-3 h-9 sm:h-10 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 outline-none shadow-2xs flex items-center ${
+                          className={`appearance-none cursor-pointer pl-6 pr-2.5 sm:pl-7 sm:pr-3 h-9 sm:h-10 rounded-xl text-[9px] font-bold border transition-all duration-200 outline-none shadow-2xs flex items-center ${
                             theme === "navy-velvet"
                               ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-[#3F63C6]/10"
                               : theme === "gold-velvet"
@@ -10718,7 +10718,7 @@ export default function ReadingScreen({
                     </div>
 
                     {/* معلومات السورة / الآيات والصفحة على اليسار */}
-                    <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold opacity-80 shrink-0 px-1">
+                    <div className="flex items-center gap-1.5 text-[9px] font-bold opacity-80 shrink-0 px-1">
                       <span className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/10">{toArabicNumerals(currentSurahMeta?.numberOfAyahs || 0)} آية</span>
                       {currentPage && (
                         <>
@@ -10773,7 +10773,7 @@ export default function ReadingScreen({
                             setContinuousActiveService(service.mainCategory);
                           }}
                           title={service.desc}
-                          className={`py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 select-none ${
+                          className={`py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-xl text-[9px] font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 select-none ${
                             isActive
                               ? theme === "navy-velvet"
                                 ? "bg-[#3F63C6] text-white shadow-xs scale-[1.01]"

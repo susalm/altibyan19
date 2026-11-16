@@ -798,4 +798,53 @@ div:nth-of-type(2) > div#unified-service-drawer:nth-of-type(1) > div:nth-of-type
   height: 52px;
 }
 
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > main#app-viewport:nth-of-type(1) > div#tab-view-home:nth-of-type(1) > div#reading-screen-root:nth-of-type(1) > div#reading-canvas:nth-of-type(2) > div:nth-of-type(1) > div#mushaf-continuous-canvas:nth-of-type(1) > div#library-services-horizontal-bar:nth-of-type(2) > div#library-services-tab-strip:nth-of-type(3) {
+  font-size: 9px;
+}
 
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > main#app-viewport:nth-of-type(1) > div#tab-view-home:nth-of-type(1) > div#reading-screen-root:nth-of-type(1) > div#reading-canvas:nth-of-type(2) > div:nth-of-type(1) > div#mushaf-continuous-canvas:nth-of-type(1) > div#library-services-horizontal-bar:nth-of-type(2) > div#floating-surah-ayah-picker:nth-of-type(1) {
+  font-size: 9px;
+}
+
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > nav#floating-bottom-menu:nth-of-type(1) > div:nth-of-type(1) > button#nav-tab-home:nth-of-type(1) > span:nth-of-type(1) {
+  font-size: 10px;
+}
+
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > nav#floating-bottom-menu:nth-of-type(1) > div:nth-of-type(1) > button#nav-tab-tafsir:nth-of-type(2) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > nav#floating-bottom-menu:nth-of-type(1) > div:nth-of-type(1) > button#nav-tab-recitation:nth-of-type(3) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > nav#floating-bottom-menu:nth-of-type(1) > div:nth-of-type(1) > button#nav-tab-khatmah:nth-of-type(4) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > nav#floating-bottom-menu:nth-of-type(1) > div:nth-of-type(1) > button#nav-tab-favorites:nth-of-type(5) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > nav#floating-bottom-menu:nth-of-type(1) > div:nth-of-type(1) > button#nav-tab-share-ayah:nth-of-type(6) > span:nth-of-type(1) {
+  font-size: 9px;
+}
+
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > main#app-viewport:nth-of-type(1) > div#tab-view-home:nth-of-type(1) > div#reading-screen-root:nth-of-type(1) > div#reading-canvas:nth-of-type(2) > div:nth-of-type(1) > div#mushaf-continuous-canvas:nth-of-type(1) > div#library-services-horizontal-bar:nth-of-type(2) > div#library-services-tab-strip:nth-of-type(3) button,
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > main#app-viewport:nth-of-type(1) > div#tab-view-home:nth-of-type(1) > div#reading-screen-root:nth-of-type(1) > div#reading-canvas:nth-of-type(2) > div:nth-of-type(1) > div#mushaf-continuous-canvas:nth-of-type(1) > div#library-services-horizontal-bar:nth-of-type(2) > div#library-services-tab-strip:nth-of-type(3) button span {
+  font-size: 9px;
+}
+
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > main#app-viewport:nth-of-type(1) > div#tab-view-home:nth-of-type(1) > div#reading-screen-root:nth-of-type(1) > div#reading-canvas:nth-of-type(2) > div:nth-of-type(1) > div#mushaf-continuous-canvas:nth-of-type(1) > div#library-services-horizontal-bar:nth-of-type(2) > div#floating-surah-ayah-picker:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > select:nth-of-type(1) {
+  font-size: 9px;
+}
+
+div:nth-of-type(2) > div#unified-service-drawer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) {
+  font-size: 10px;
+}
+
+div:nth-of-type(2) > div#unified-service-drawer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1) > span:nth-of-type(1) {
+  font-size: 10px;
+}
+
+div:nth-of-type(2) > div#unified-service-drawer:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div#index-screen-root:nth-of-type(1) > div#index-list-container:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div#quarter-row-2:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1) {
+  font-size: 11px;
+}
+
+div:nth-of-type(2) > div#unified-service-drawer:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div#index-screen-root:nth-of-type(1) > div#index-list-container:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div#quarter-row-1:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1) {
+  font-size: 11px;
+}
+
+div:nth-of-type(2) > div#unified-service-drawer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(2) > span:nth-of-type(1),
+div:nth-of-type(2) > div#unified-service-drawer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(3) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#app-wrapper-frame:nth-of-type(1) > main#app-viewport:nth-of-type(1) > div#tab-view-home:nth-of-type(1) > div#reading-screen-root:nth-of-type(1) > div#reading-header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button#btn-back-to-index:nth-of-type(1) > span:nth-of-type(1) {
+  font-size: 11px;
+}
