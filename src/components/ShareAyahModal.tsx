@@ -64,6 +64,15 @@ import {
 } from "../utils/qcf4Utils";
 
 import { AlTibyanCalligraphy } from "./AlTibyanCalligraphy";
+import { Share } from "@capacitor/share";
+import {
+  isNativeCapacitor,
+  isShareCancelledError,
+  resolveImageBase64,
+  shareImageOnCapacitor,
+  saveImageOnCapacitor,
+  copyTextWithFallback,
+} from "../utils/nativeShare";
 
 export interface ShareAyahData {
   mode?: "single" | "range" | "page";
@@ -2847,18 +2856,20 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   texImg.onerror = () => resolve();
                 }
               });
-              ctx.save();
-              ctx.globalAlpha = Math.min(1, Math.max(0.05, textureOpacity));
-              ctx.drawImage(texImg, 0, 0, width, height);
+              if (texImg.complete && texImg.naturalWidth > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, Math.max(0.05, textureOpacity));
+                ctx.drawImage(texImg, 0, 0, width, height);
 
-              // Contrast vignette layer for optimal Quranic text legibility
-              const vignette = ctx.createLinearGradient(0, 0, 0, height);
-              vignette.addColorStop(0, "rgba(0, 0, 0, 0.35)");
-              vignette.addColorStop(0.5, "rgba(0, 0, 0, 0.12)");
-              vignette.addColorStop(1, "rgba(0, 0, 0, 0.45)");
-              ctx.fillStyle = vignette;
-              ctx.fillRect(0, 0, width, height);
-              ctx.restore();
+                // Contrast vignette layer for optimal Quranic text legibility
+                const vignette = ctx.createLinearGradient(0, 0, 0, height);
+                vignette.addColorStop(0, "rgba(0, 0, 0, 0.35)");
+                vignette.addColorStop(0.5, "rgba(0, 0, 0, 0.12)");
+                vignette.addColorStop(1, "rgba(0, 0, 0, 0.45)");
+                ctx.fillStyle = vignette;
+                ctx.fillRect(0, 0, width, height);
+                ctx.restore();
+              }
             } catch (e) {
               console.warn("Texture canvas draw error:", e);
             }
@@ -2886,14 +2897,16 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   patImg.onerror = () => resolve();
                 }
               });
-              ctx.save();
-              ctx.globalAlpha = Math.max(0.02, patternOpacity);
-              const pattern = ctx.createPattern(patImg, "repeat");
-              if (pattern) {
-                ctx.fillStyle = pattern;
-                ctx.fillRect(0, 0, width, height);
+              if (patImg.complete && patImg.naturalWidth > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0.02, patternOpacity);
+                const pattern = ctx.createPattern(patImg, "repeat");
+                if (pattern) {
+                  ctx.fillStyle = pattern;
+                  ctx.fillRect(0, 0, width, height);
+                }
+                ctx.restore();
               }
-              ctx.restore();
             } catch (e) {
               console.warn("Pattern canvas draw error:", e);
             }
@@ -3863,15 +3876,18 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         } catch (exportErr) {
           console.warn("Canvas toDataURL export error:", exportErr);
           try {
-            canvas.toBlob((blob) => {
-              if (blob) {
-                cachedExportBlobRef.current = blob;
-                const blobUrl = URL.createObjectURL(blob);
-                cachedDataUrlRef.current = blobUrl;
-                isCardDirtyRef.current = false;
-                setGeneratedImageUrl(blobUrl);
-              }
-            }, "image/png");
+            await new Promise<void>((resolve) => {
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  cachedExportBlobRef.current = blob;
+                  const blobUrl = URL.createObjectURL(blob);
+                  cachedDataUrlRef.current = blobUrl;
+                  isCardDirtyRef.current = false;
+                  setGeneratedImageUrl(blobUrl);
+                }
+                resolve();
+              }, "image/png");
+            });
           } catch (blobErr) {
             console.warn("Canvas toBlob export fallback failed:", blobErr);
           }
@@ -4116,7 +4132,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     }
   };
 
-  const handleCopyShareText = () => {
+  const handleCopyShareText = async () => {
     if (!activeData) return;
     const cleanedText = getCleanedAyahTextForShare();
     let textToShare = "";
@@ -4127,8 +4143,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     } else {
       textToShare = `﴿ ${cleanedText} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}]`;
     }
-    navigator.clipboard.writeText(textToShare);
-    setShareStatus("تم نسخ نص الآيات بنجاح!");
+    const copied = await copyTextWithFallback(textToShare);
+    setShareStatus(copied ? "تم نسخ نص الآيات بنجاح!" : "تعذر نسخ النص تلقائياً");
     setTimeout(() => setShareStatus(null), 3000);
   };
 
@@ -4165,6 +4181,27 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             return;
           } catch (bridgeErr) {
             console.warn("Android native saveImage failed:", bridgeErr);
+          }
+        }
+      }
+
+      // 1b. Capacitor Native Android/iOS Filesystem save
+      if (isNativeCapacitor()) {
+        const base64Data = await resolveImageBase64(targetUrl, finalBlob);
+        if (base64Data) {
+          const saveRes = await saveImageOnCapacitor({ base64Data, fileName });
+          if (saveRes.cancelled) {
+            setShareStatus(null);
+            return;
+          }
+          if (saveRes.saved) {
+            setShareStatus(
+              saveRes.sharedFallback
+                ? "اختر تطبيق المعرض أو الملفات لحفظ البطاقة"
+                : `تم حفظ بطاقة الآية في الجهاز (${saveRes.location || "Documents/MushafAltibyan"}) بنجاح!`
+            );
+            setTimeout(() => setShareStatus(null), 3500);
+            return;
           }
         }
       }
@@ -4264,16 +4301,25 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         return;
       }
 
-      const fileName = shareMode === "page" ? `quran-page-${selectedPageNumber}.png` : `ayah-${activeData.ayah.numberInSurah}.png`;
-      const titleText = shareMode === "page" 
+      const fileName = shareMode === "page"
+        ? `quran-page-${selectedPageNumber}.png`
+        : shareMode === "range"
+          ? `ayah-${activeData.surahNumber}-${rangeFrom}-${rangeTo}.png`
+          : `ayah-${activeData.surahNumber}-${activeData.ayah.numberInSurah}.png`;
+      const titleText = shareMode === "page"
         ? `صفحة ${selectedPageNumber} من القرآن الكريم - سورة ${activeData.surahName}`
         : shareMode === "range"
-        ? `آيات من سورة ${activeData.surahName} (${rangeFrom}-${rangeTo})`
-        : `آية من سورة ${activeData.surahName}`;
+          ? `آيات من سورة ${activeData.surahName} (${rangeFrom}-${rangeTo})`
+          : `آية من سورة ${activeData.surahName}`;
 
-      const shareText = `﴿ ${getCleanedAyahTextForShare()} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`;
+      const cleanedShareText = getCleanedAyahTextForShare();
+      const shareText = shareMode === "page"
+        ? `﴿ ${cleanedShareText} ﴾\n[القرآن الكريم - صفحة ${toArabicNumerals(selectedPageNumber)} - سورة ${activeData.surahName}] - مصحف التبيان`
+        : shareMode === "range"
+          ? `﴿ ${cleanedShareText} ﴾\n[سورة ${activeData.surahName} : الآيات ${toArabicNumerals(rangeFrom)}-${toArabicNumerals(rangeTo)}] - مصحف التبيان`
+          : `﴿ ${cleanedShareText} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`;
 
-      // 1. Android Native Javascript Interface (if app was wrapped with a native bridge)
+      // 1. Android Native Javascript Interface (if app was wrapped with a custom WebView bridge)
       if (typeof window !== "undefined") {
         const anyWin = window as any;
         if (anyWin.Android?.shareImage) {
@@ -4286,87 +4332,116 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             console.warn("Android native shareImage failed:", bridgeErr);
           }
         }
-        if (anyWin.Capacitor?.Plugins?.Share) {
-          try {
-            await anyWin.Capacitor.Plugins.Share.share({
-              title: titleText,
-              text: shareText,
-              url: targetUrl.startsWith("http") ? targetUrl : undefined,
-              dialogTitle: "مشاركة بطاقة الآية",
-            });
+      }
+
+      // 1b. Capacitor Native Share (writes PNG to Filesystem cache & invokes Android Intent FileProvider)
+      if (isNativeCapacitor()) {
+        const base64Data = await resolveImageBase64(targetUrl, finalBlob);
+        if (base64Data) {
+          const capRes = await shareImageOnCapacitor({
+            base64Data,
+            fileName,
+            title: titleText,
+            text: shareText,
+            dialogTitle: "مشاركة بطاقة الآية",
+          });
+          if (capRes.status === "shared") {
+            setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
+            setTimeout(() => setShareStatus(null), 3000);
+            setIsSharing(false);
+            return;
+          }
+          if (capRes.status === "cancelled") {
             setShareStatus(null);
             setIsSharing(false);
             return;
-          } catch (capErr) {
-            console.warn("Capacitor share failed:", capErr);
           }
         }
       }
 
-      // 2. Web Share API with File object (Sharing the actual card image)
-      let shareSucceeded = false;
-      if (finalBlob && typeof File !== "undefined" && typeof navigator !== "undefined" && navigator.canShare) {
-        try {
-          const file = new File([finalBlob], fileName, { type: "image/png" });
-          if (navigator.canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                files: [file],
-                title: titleText,
-                text: shareText,
-              });
-              shareSucceeded = true;
-              setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
-              setTimeout(() => setShareStatus(null), 3000);
-              setIsSharing(false);
-              return;
-            } catch (shareWithTextErr: any) {
-              if (
-                shareWithTextErr?.name === "AbortError" ||
-                shareWithTextErr?.code === 20 ||
-                shareWithTextErr?.message?.toLowerCase().includes("cancel") ||
-                shareWithTextErr?.message?.toLowerCase().includes("abort")
-              ) {
-                setShareStatus(null);
-                setIsSharing(false);
-                return; // User cancelled share sheet
-              }
-              // Some mobile browsers fail when both text and files are passed, retry with file only:
-              try {
-                await navigator.share({
-                  files: [file],
-                  title: titleText,
-                });
-                shareSucceeded = true;
-                setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
-                setTimeout(() => setShareStatus(null), 3000);
-                setIsSharing(false);
-                return;
-              } catch (shareOnlyFileErr: any) {
-                if (
-                  shareOnlyFileErr?.name === "AbortError" ||
-                  shareOnlyFileErr?.code === 20 ||
-                  shareOnlyFileErr?.message?.toLowerCase().includes("cancel")
-                ) {
-                  setShareStatus(null);
-                  setIsSharing(false);
-                  return;
-                }
-              }
-            }
-          }
-        } catch (shareFileErr: any) {
-          if (
-            shareFileErr?.name === "AbortError" ||
-            shareFileErr?.code === 20 ||
-            shareFileErr?.message?.toLowerCase().includes("cancel") ||
-            shareFileErr?.message?.toLowerCase().includes("abort")
-          ) {
-            setShareStatus(null);
+      // 2. Web Share API (with Capacitor Share web fallback & Android Chrome/Browser file compatibility)
+      if (finalBlob && typeof File !== "undefined" && typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        const file = new File([finalBlob], fileName, { type: "image/png" });
+        const canShareFiles = typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : true;
+
+        if (canShareFiles) {
+          // 2a. Try files + title + text
+          try {
+            await navigator.share({
+              files: [file],
+              title: titleText,
+              text: shareText,
+            });
+            setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
+            setTimeout(() => setShareStatus(null), 3000);
             setIsSharing(false);
             return;
+          } catch (shareWithTextErr) {
+            if (isShareCancelledError(shareWithTextErr)) {
+              setShareStatus(null);
+              setIsSharing(false);
+              return;
+            }
           }
-          console.warn("navigator.share with files failed:", shareFileErr);
+
+          // 2b. Retry with files + title only (some Android targets reject combined text + file)
+          try {
+            await navigator.share({
+              files: [file],
+              title: titleText,
+            });
+            setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
+            setTimeout(() => setShareStatus(null), 3000);
+            setIsSharing(false);
+            return;
+          } catch (shareFilesTitleErr) {
+            if (isShareCancelledError(shareFilesTitleErr)) {
+              setShareStatus(null);
+              setIsSharing(false);
+              return;
+            }
+          }
+
+          // 2c. Retry with files only (strictest Android Web Share compatibility)
+          try {
+            await navigator.share({
+              files: [file],
+            });
+            setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
+            setTimeout(() => setShareStatus(null), 3000);
+            setIsSharing(false);
+            return;
+          } catch (shareFilesOnlyErr) {
+            if (isShareCancelledError(shareFilesOnlyErr)) {
+              setShareStatus(null);
+              setIsSharing(false);
+              return;
+            }
+            console.warn("navigator.share with files failed:", shareFilesOnlyErr);
+          }
+        }
+      }
+
+      // 2d. Try @capacitor/share web/hybrid fallback if available
+      try {
+        const capCanShare = await Share.canShare();
+        if (capCanShare.value && targetUrl.startsWith("http")) {
+          await Share.share({
+            title: titleText,
+            text: shareText,
+            url: targetUrl,
+            dialogTitle: "مشاركة بطاقة الآية",
+          });
+          setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
+          setTimeout(() => setShareStatus(null), 3000);
+          setIsSharing(false);
+          return;
+        }
+      } catch (capWebErr) {
+        if (isShareCancelledError(capWebErr)) {
+          setShareStatus(null);
+          setIsSharing(false);
+          return;
         }
       }
 
@@ -4385,7 +4460,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
       }
 
       // 4. Open the full-featured Card Share & Save Modal:
-      // This guarantees the user has immediate access to download the card image, copy it, or long-press!
+      // This guarantees the user has immediate access to download the card image, copy it, or share!
       setPreviewModalImageUrl(targetUrl);
       setShowAndroidSaveModal(true);
       if (copiedToClipboard) {
@@ -5411,7 +5486,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                 <div className="space-y-1">
                   <p className="font-bold text-amber-300">طريقة الحفظ والمشاركة المباشرة:</p>
                   <p className="text-[11px] text-amber-100/90 leading-relaxed">
-                    اضغط <strong>مطولاً (Long Press)</strong> على الصورة بالأسفل ثم اختر <strong>"تنزيل الصورة"</strong> أو <strong>"مشاركة الصورة"</strong>، أو اضغط زر <strong>"تنزيل البطاقة"</strong> أو <strong>"نسخ الصورة"</strong> بالأسفل.
+                    {isNativeCapacitor()
+                      ? <>اضغط زر <strong>"مشاركة"</strong> لإرسال البطاقة مباشرة عبر واتساب أو تطبيقات التواصل، أو اضغط <strong>"تنزيل البطاقة"</strong> لحفظها في جهازك.</>
+                      : <>اضغط <strong>مطولاً (Long Press)</strong> على الصورة بالأسفل ثم اختر <strong>"تنزيل الصورة"</strong> أو <strong>"مشاركة الصورة"</strong>، أو اضغط زر <strong>"تنزيل البطاقة"</strong> أو <strong>"مشاركة"</strong> بالأسفل.</>}
                   </p>
                 </div>
               </div>
@@ -5435,32 +5512,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
               {/* Action Buttons Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full pt-1">
-                {/* 1. Direct Download */}
+                {/* 1. Direct Download / Save */}
                 <button
                   type="button"
-                  onClick={() => {
-                    const src = previewModalImageUrl || generatedImageUrl;
-                    if (!src) return;
-                    let downloadUrl = src;
-                    let revokeNeeded = false;
-                    if (src.startsWith("data:")) {
-                      const b = dataUrlToBlob(src);
-                      if (b) {
-                        downloadUrl = URL.createObjectURL(b);
-                        revokeNeeded = true;
-                      }
-                    }
-                    const a = document.createElement("a");
-                    a.download = `مصحف_التبيان_آية_${activeData?.ayah?.numberInSurah || ""}.png`;
-                    a.href = downloadUrl;
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => {
-                      if (document.body.contains(a)) document.body.removeChild(a);
-                      if (revokeNeeded) URL.revokeObjectURL(downloadUrl);
-                    }, 1000);
-                    setShareStatus("تم تنزيل بطاقة الآية بنجاح إلى جهازك!");
-                  }}
+                  onClick={handleDownloadImage}
                   className="px-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                 >
                   <Download size={15} />
@@ -5479,9 +5534,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                           new ClipboardItem({ "image/png": finalBlob }),
                         ]);
                         setShareStatus("تم نسخ صورة البطاقة بنجاح! يمكنك لصقها الآن في واتساب أو أي تطبيق");
+                        return;
                       } catch {
-                        setShareStatus("تعذر النسخ التلقائي - اضغط مطولاً على الصورة لحفظها");
+                        // Fall through
                       }
+                    }
+                    if (isNativeCapacitor()) {
+                      await handleShareImage();
                     } else {
                       setShareStatus("اضغط مطولاً على الصورة لنسخها أو حفظها");
                     }
@@ -5492,41 +5551,10 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   <span>نسخ الصورة</span>
                 </button>
 
-                {/* 3. Share via Web Share */}
+                {/* 3. Share via Capacitor / Web Share */}
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (activeData) {
-                      const src = previewModalImageUrl || generatedImageUrl;
-                      const finalBlob = cachedExportBlobRef.current || (src && src.startsWith("data:") ? dataUrlToBlob(src) : null);
-                      
-                      // Try file share first
-                      if (finalBlob && typeof File !== "undefined" && navigator.canShare) {
-                        try {
-                          const file = new File([finalBlob], `ayah-${activeData.ayah.numberInSurah}.png`, { type: "image/png" });
-                          if (navigator.canShare({ files: [file] })) {
-                            await navigator.share({
-                              files: [file],
-                              title: `آية من سورة ${activeData.surahName}`,
-                              text: `﴿ ${getCleanedAyahTextForShare()} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`,
-                            });
-                            return;
-                          }
-                        } catch {}
-                      }
-
-                      // If file share not supported, download instead:
-                      const a = document.createElement("a");
-                      a.download = `مصحف_التبيان_آية_${activeData?.ayah?.numberInSurah || ""}.png`;
-                      a.href = src;
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        if (document.body.contains(a)) document.body.removeChild(a);
-                      }, 500);
-                      setShareStatus("تم تنزيل البطاقة لجهازك!");
-                    }
-                  }}
+                  onClick={handleShareImage}
                   className="px-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                 >
                   <Share2 size={15} />

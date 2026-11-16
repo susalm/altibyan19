@@ -27,6 +27,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { recitersData } from "../data/recitersData";
+import { shareTextOnCapacitor, copyTextWithFallback } from "../utils/nativeShare";
 
 interface SettingsScreenProps {
   settings: QuranSettings;
@@ -176,18 +177,27 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     const shareData = {
       title: "مصحف التبيان الجامع",
       text: "أنصحكم بتطبيق مصحف التبيان الجامع، قراءة وتفاسير وإعراب وتدبر بدون إنترنت وبأجمل الخطوط والتصاميم.",
-      url: window.location.origin,
+      url: window.location.origin.startsWith("http") ? window.location.origin : undefined,
     };
+    const capRes = await shareTextOnCapacitor({
+      title: shareData.title,
+      text: shareData.text,
+      url: shareData.url,
+      dialogTitle: "مشاركة التطبيق",
+    });
+    if (capRes === "shared" || capRes === "cancelled") {
+      return;
+    }
     if (navigator.share) {
       try {
         await navigator.share(shareData);
+        return;
       } catch (_) {}
-    } else {
-      try {
-        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
-        setActionNotice("تم نسخ رابط التطبيق ورسالة المشاركة بنجاح!");
-        setTimeout(() => setActionNotice(null), 2500);
-      } catch (_) {}
+    }
+    const ok = await copyTextWithFallback(`${shareData.title}\n${shareData.text}${shareData.url ? `\n${shareData.url}` : ""}`);
+    if (ok) {
+      setActionNotice("تم نسخ رابط التطبيق ورسالة المشاركة بنجاح!");
+      setTimeout(() => setActionNotice(null), 2500);
     }
   };
 
