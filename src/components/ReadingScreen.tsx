@@ -9019,14 +9019,14 @@ export default function ReadingScreen({
                                 title="فتح فهرس الأجزاء والأحزاب"
                                 className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer hover:opacity-80 active:scale-95 transition-all h-full"
                               >
-                                <span className="text-2xl sm:text-4xl md:text-5xl font-normal leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif", fontSize: "20px", marginLeft: "0px", marginTop: "-5px" }}>
+                                <span className="text-2xl sm:text-4xl md:text-5xl font-normal leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif", fontSize: "20px", marginLeft: "0px", marginTop: "0px" }}>
                                   {getJuzHeaderGlyph(pageMeta.juzNum, `الجزء ${toArabicNumerals(pageMeta.juzNum)}`)}
                                 </span>
                                 <span className={`font-light opacity-40 text-base sm:text-xl md:text-2xl ${isDark ? "text-slate-400" : "text-slate-500"}`}>|</span>
-                                <span className="quarter-name-text text-xs sm:text-sm font-normal leading-none text-center flex items-center justify-center tracking-normal select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "10px", marginTop: "-1px" }}>
+                                <span className="quarter-name-text text-xs sm:text-sm font-normal leading-none text-center flex items-center justify-center tracking-normal select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "10px", marginTop: "5px", marginLeft: "0px" }}>
                                   {quarterDisplayName}
                                 </span>
-                                <span className="hizb-number-text font-normal text-sm sm:text-base leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "'UthmanTaha', 'UthmanTahaNaskh', serif", fontSize: "14px" }}>
+                                <span className="hizb-number-text font-normal text-sm sm:text-base leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "'UthmanTaha', 'UthmanTahaNaskh', serif", fontSize: "14px", marginTop: "8px" }}>
                                   {hizbText}
                                 </span>
                               </div>
@@ -9616,7 +9616,7 @@ export default function ReadingScreen({
                           visibility: visible !important;
                           opacity: 1 !important;
                           font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
-                          font-size: 13.8px !important;
+                          font-size: 16px !important;
                           font-weight: normal !important;
                           text-anchor: middle !important;
                           dominant-baseline: central !important;

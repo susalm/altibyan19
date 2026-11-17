@@ -917,7 +917,7 @@ export function getAuthenticFrameSvg(
       .surah_frame_outer_border, [id*="path3763"], [id*="path4079"] { fill: none !important; fill-opacity: 0 !important; stroke: ${frameStroke} !important; stroke-width: 1.5px !important; stroke-opacity: 1 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
       .surah_frame_cartouche_bg, [id*="path4395"], [class*="cartouche"], [id*="cartouche"] { fill: ${frameBg} !important; fill-opacity: 1 !important; stroke: none !important; }
       .surah_frame_inner_contour { fill: none !important; fill-opacity: 0 !important; stroke: ${frameStroke} !important; }
-      .surah_header_text { font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important; font-size: 13.8px !important; font-weight: normal !important; text-anchor: middle !important; dominant-baseline: central !important; fill: ${textColor} !important; text-shadow: none !important; filter: none !important; -webkit-filter: none !important; stroke: none !important; stroke-width: 0 !important; }
+      .surah_header_text { font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important; font-size: 16px !important; font-weight: normal !important; text-anchor: middle !important; dominant-baseline: central !important; fill: ${textColor} !important; text-shadow: none !important; filter: none !important; -webkit-filter: none !important; stroke: none !important; stroke-width: 0 !important; }
     </style>
   </defs>`;
 
@@ -932,12 +932,12 @@ export function getAuthenticFrameSvg(
   if (resolvedSurah && resolvedSurah >= 1 && resolvedSurah <= 114) {
     const glyph = String.fromCharCode(0xF100 + (resolvedSurah - 1));
     textElement = `<g class="surah_header_title_group" pointer-events="none">
-      <text x="120.103" y="11.8" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif" font-size="13.8" font-weight="normal" fill="${textColor}" stroke="none" filter="none">${glyph}</text>
+      <text x="120.103" y="15.116" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif" font-size="16" font-weight="normal" fill="${textColor}" stroke="none" filter="none">${glyph}</text>
     </g>`;
   } else if (surahName) {
     const titleText = surahName.startsWith("سُورَةُ") || surahName.startsWith("سورة") ? surahName : `سُورَةُ ${surahName}`;
     textElement = `<g class="surah_header_title_group" pointer-events="none">
-      <text x="120.103" y="11.8" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'Amiri', 'Traditional Arabic', serif" font-size="10.8" font-weight="normal" fill="${textColor}" stroke="none" filter="none">${titleText}</text>
+      <text x="120.103" y="15.116" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'Amiri', 'Traditional Arabic', serif" font-size="16" font-weight="normal" fill="${textColor}" stroke="none" filter="none">${titleText}</text>
     </g>`;
   }
 
@@ -955,12 +955,12 @@ export function getAuthenticFrameSvg(
     if (resolvedSurah && resolvedSurah >= 1 && resolvedSurah <= 114) {
       const glyph = String.fromCharCode(0xF100 + (resolvedSurah - 1));
       textElement = `<g class="surah_header_title_group" pointer-events="none">
-        <text x="120.103" y="11.8" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif" font-size="13.8" font-weight="normal" fill="${textColor}" stroke="none" stroke-width="0" filter="none" -webkit-filter="none" text-shadow="none" style="font-weight:normal !important; stroke:none !important; stroke-width:0 !important; filter:none !important; text-shadow:none !important;">${glyph}</text>
+        <text x="120.103" y="15.116" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif" font-size="16" font-weight="normal" fill="${textColor}" stroke="none" stroke-width="0" filter="none" -webkit-filter="none" text-shadow="none" style="font-weight:normal !important; stroke:none !important; stroke-width:0 !important; filter:none !important; text-shadow:none !important;">${glyph}</text>
       </g>`;
     } else if (surahName) {
       const titleText = surahName.startsWith("سُورَةُ") || surahName.startsWith("سورة") ? surahName : `سُورَةُ ${surahName}`;
       textElement = `<g class="surah_header_title_group" pointer-events="none">
-        <text x="120.103" y="11.8" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'Amiri', 'Traditional Arabic', serif" font-size="10.8" font-weight="normal" fill="${textColor}" stroke="none" stroke-width="0" filter="none" -webkit-filter="none" text-shadow="none" style="font-weight:normal !important; stroke:none !important; stroke-width:0 !important; filter:none !important; text-shadow:none !important;">${titleText}</text>
+        <text x="120.103" y="15.116" text-anchor="middle" dominant-baseline="central" class="surah_header_text" font-family="'Amiri', 'Traditional Arabic', serif" font-size="16" font-weight="normal" fill="${textColor}" stroke="none" stroke-width="0" filter="none" -webkit-filter="none" text-shadow="none" style="font-weight:normal !important; stroke:none !important; stroke-width:0 !important; filter:none !important; text-shadow:none !important;">${titleText}</text>
       </g>`;
     }
 

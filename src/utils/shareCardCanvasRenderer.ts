@@ -857,8 +857,8 @@ function drawSurahHeaderBanner(
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     if (useSectionQbsml) {
-      ctx.font = `400 ${Math.round(targetBannerH * 0.56)}px "QCF4_QBSML"`;
-      ctx.fillText(qbsmlChar, W / 2, by + targetBannerH * 0.47);
+      ctx.font = `400 ${Math.round(targetBannerH * (16 / 30.23196))}px "QCF4_QBSML"`;
+      ctx.fillText(qbsmlChar, W / 2, by + targetBannerH * 0.5);
     } else {
       ctx.direction = "rtl";
       ctx.font = `700 ${Math.max(16, Math.round(targetBannerH * 0.39))}px "Amiri", "Cairo", serif`;
@@ -890,7 +890,7 @@ function drawSurahHeaderBanner(
     ctx.textBaseline = "middle";
     if (useSectionQbsml) {
       ctx.font = `400 ${Math.max(20, Math.round(boxH * 0.62))}px "QCF4_QBSML"`;
-      ctx.fillText(qbsmlChar, W / 2, by + boxH * 0.48);
+      ctx.fillText(qbsmlChar, W / 2, by + boxH * 0.5);
     } else {
       ctx.direction = "rtl";
       ctx.font = `700 ${Math.max(16, Math.round(boxH * 0.44))}px "Amiri", "Cairo", serif`;

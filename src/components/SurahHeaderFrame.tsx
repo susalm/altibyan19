@@ -254,7 +254,7 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
                 }
                 .surah_header_text {
                   font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
-                  font-size: 13.8px !important;
+                  font-size: 16px !important;
                   font-weight: normal !important;
                   text-anchor: middle !important;
                   dominant-baseline: central !important;
@@ -277,12 +277,12 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
           <g className="surah_header_title_group" pointerEvents="none">
             <text
               x="120.103"
-              y="11.8"
+              y="15.116"
               textAnchor="middle"
               dominantBaseline="central"
               className="surah_header_text"
               fontFamily="'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif"
-              fontSize="13.8"
+              fontSize="16"
               fontWeight="normal"
               fill={palette.textColor}
               stroke="none"
@@ -290,7 +290,7 @@ export const SurahHeaderFrame: React.FC<SurahHeaderFrameProps> = ({
               filter="none"
               style={{
                 fontFamily: "'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif",
-                fontSize: "13.8px",
+                fontSize: "16px",
                 fontWeight: "normal",
                 textAnchor: "middle",
                 dominantBaseline: "central",

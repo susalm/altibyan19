@@ -660,7 +660,7 @@ svg.mushaf_injected_surah_frame,
 .surah_header_frame text.surah_header_text,
 .surah_header_frame_svg text.surah_header_text {
   font-family: 'QCF4_QBSML', 'Amiri', 'Traditional Arabic', serif !important;
-  font-size: 13.8px !important;
+  font-size: 16px !important;
   font-weight: normal !important;
   text-anchor: middle !important;
   dominant-baseline: central !important;
