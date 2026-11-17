@@ -20,7 +20,8 @@ import SettingsScreen from "./components/SettingsScreen";
 import KhatmahScreen from "./components/KhatmahScreen";
 import FavoritesScreen from "./components/FavoritesScreen";
 import StorageManagerScreen from "./components/StorageManagerScreen";
-import { ShareAyahModal, ShareAyahData } from "./components/ShareAyahModal";
+import { ShareAyahData } from "./components/ShareAyahModal";
+import { ShareAyahPage } from "./components/ShareAyahPage";
 import { AppLogo } from "./components/AppLogo";
 import { initCapacitorNativeHandlers } from "./utils/capacitorInit";
 import { applyAppIconToDocument } from "./utils/appIcon";
@@ -54,7 +55,7 @@ const toArabicNumerals = (num: number): string => {
 
 export default function App() {
   const appSheetDragControls = useDragControls();
-  const [activeTab, setActiveTab] = useState<"home" | "recitation" | "settings" | "khatmah" | "favorites" | "storage">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "recitation" | "settings" | "khatmah" | "favorites" | "storage" | "share">("home");
   
   // Quran reader active navigation
   const [indexTab, setIndexTab] = useState<"surahs" | "quarters" | "go">("surahs");
@@ -111,20 +112,12 @@ export default function App() {
   const [shareAyahData, setShareAyahData] = useState<ShareAyahData | null>(null);
 
   const handleOpenShareAyah = (customData?: Partial<ShareAyahData>) => {
-    // 1. Immediately reset activeTab to "home" so that no full screen sheet (z-[490]) obscures the share modal!
-    if (activeTab !== "home") {
-      setActiveTab("home");
-    }
-
-    // 2. Ensure bottom/top bars timer is refreshed
     triggerShowBars(5000);
 
-    // 3. If index screen is currently open, restore the last opened surah
     if (activeSurahNumber === null) {
       setActiveSurahNumber(lastOpenedSurah || 1);
     }
 
-    // 4. If specific ayah/surah data was passed (e.g. from ReadingScreen):
     if (customData && customData.ayah) {
       const sNum = customData.surahNumber || activeSurahNumber || lastOpenedSurah || 1;
       const sObj = surahsList.find((s) => s.number === sNum) || surahsList[0];
@@ -137,10 +130,10 @@ export default function App() {
         pageNumber: customData.pageNumber || customData.ayah.page || initialPageNumber || 1,
         isNavDefaultOpen: false,
       });
+      setActiveTab("share");
       return;
     }
 
-    // 5. When opened directly from the bottom navigation bar:
     let targetSurahNum = activeSurahNumber || lastOpenedSurah || 1;
     let targetAyahNum = initialAyahNumber || lastOpenedAyah || 1;
     let targetMode: "single" | "range" | "page" = "single";
@@ -149,7 +142,6 @@ export default function App() {
 
     try {
       const savedAyahRaw = localStorage.getItem("quran_share_default_ayah_v3");
-      const savedStyleRaw = localStorage.getItem("quran_share_user_custom_default_v3");
       if (savedAyahRaw) {
         const parsed = JSON.parse(savedAyahRaw);
         if (parsed.surahNumber) targetSurahNum = Number(parsed.surahNumber);
@@ -157,20 +149,16 @@ export default function App() {
         if (parsed.mode) targetMode = parsed.mode;
         if (parsed.rangeTo) targetRangeTo = Number(parsed.rangeTo);
         if (parsed.pageNumber) targetPageNum = Number(parsed.pageNumber);
-      } else if (savedStyleRaw) {
-        const parsed = JSON.parse(savedStyleRaw);
-        if (parsed.defaultSurahNumber) targetSurahNum = Number(parsed.defaultSurahNumber);
-        if (parsed.defaultAyahNumber) targetAyahNum = Number(parsed.defaultAyahNumber);
-        if (parsed.shareMode) targetMode = parsed.shareMode;
-        if (parsed.rangeTo) targetRangeTo = Number(parsed.rangeTo);
-        if (parsed.selectedPageNumber) targetPageNum = Number(parsed.selectedPageNumber);
       }
     } catch {
       targetSurahNum = activeSurahNumber || lastOpenedSurah || 1;
       targetAyahNum = initialAyahNumber || lastOpenedAyah || 1;
     }
 
-    const currentSurah = surahsList.find((s) => s.number === targetSurahNum) || surahsList.find((s) => s.number === 1) || surahsList[0];
+    const currentSurah =
+      surahsList.find((s) => s.number === targetSurahNum) ||
+      surahsList.find((s) => s.number === 1) ||
+      surahsList[0];
 
     setShareAyahData({
       mode: targetMode,
@@ -185,6 +173,7 @@ export default function App() {
       pageNumber: targetPageNum,
       isNavDefaultOpen: true,
     });
+    setActiveTab("share");
   };
 
   // Auto-track last opened surah & ayah
@@ -320,12 +309,12 @@ export default function App() {
     
     // Handle back button / back gesture safely without exiting the app
     const handleBackNavigation = () => {
-      if (shareAyahData !== null) {
-        setShareAyahData(null);
-        return true;
-      }
       if (activeTab !== "home") {
         setActiveTab("home");
+        return true;
+      }
+      if (shareAyahData !== null) {
+        setShareAyahData(null);
         return true;
       }
       return true; // Keep user inside the app on back gesture
@@ -354,12 +343,12 @@ export default function App() {
         window.history.pushState({ app: "tebyan_quran" }, "");
       } catch {}
 
-      if (shareAyahData !== null) {
-        setShareAyahData(null);
-        return;
-      }
       if (activeTab !== "home") {
         setActiveTab("home");
+        return;
+      }
+      if (shareAyahData !== null) {
+        setShareAyahData(null);
         return;
       }
     };
@@ -369,15 +358,6 @@ export default function App() {
     let touchStartX = 0;
     let touchStartY = 0;
     let isEdgeSwipe = false;
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches && e.touches.length === 1) {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        const edgeThreshold = 28;
-        isEdgeSwipe = touchStartX <= edgeThreshold || touchStartX >= (window.innerWidth - edgeThreshold);
-      }
-    };
 
     const onTouchMove = (e: TouchEvent) => {
       if (isEdgeSwipe && e.touches && e.touches.length === 1) {
@@ -395,21 +375,36 @@ export default function App() {
       }
     };
 
-    const onTouchEnd = () => {
-      isEdgeSwipe = false;
+    const detachEdgeTouchMove = () => {
+      if (isEdgeSwipe) {
+        isEdgeSwipe = false;
+        window.removeEventListener("touchmove", onTouchMove);
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      detachEdgeTouchMove();
+      if (e.touches && e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        const edgeThreshold = 28;
+        isEdgeSwipe = touchStartX <= edgeThreshold || touchStartX >= (window.innerWidth - edgeThreshold);
+        if (isEdgeSwipe) {
+          window.addEventListener("touchmove", onTouchMove, { passive: false });
+        }
+      }
     };
 
     window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    window.addEventListener("touchend", detachEdgeTouchMove, { passive: true });
+    window.addEventListener("touchcancel", detachEdgeTouchMove, { passive: true });
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      window.removeEventListener("touchcancel", onTouchEnd);
+      window.removeEventListener("touchend", detachEdgeTouchMove);
+      window.removeEventListener("touchcancel", detachEdgeTouchMove);
     };
   }, [shareAyahData, activeTab]);
 
@@ -1075,7 +1070,7 @@ export default function App() {
               {/* Full Screen Popups for Khatmah, Bookmarks, Recitation, Storage, and Settings */}
               {createPortal(
                 <AnimatePresence>
-                  {(activeTab === "khatmah" || activeTab === "favorites" || activeTab === "recitation" || activeTab === "settings" || activeTab === "storage") && (
+                  {(activeTab === "khatmah" || activeTab === "favorites" || activeTab === "recitation" || activeTab === "settings" || activeTab === "storage" || activeTab === "share") && (
                     <React.Fragment key="app-sheet-fragment">
                       {/* Backdrop */}
                       <motion.div
@@ -1132,12 +1127,14 @@ export default function App() {
                             {activeTab === "favorites" && <BookmarkIcon size={20} className={theme === "emerald-velvet" ? "text-[#34d399] shrink-0" : theme === "gold-velvet" ? "text-[#c5a85c] shrink-0" : isDark ? "text-emerald-300 shrink-0" : "text-emerald-400 shrink-0"} />}
                             {activeTab === "storage" && <Download size={20} className={theme === "emerald-velvet" ? "text-[#34d399] shrink-0" : theme === "gold-velvet" ? "text-[#c5a85c] shrink-0" : isDark ? "text-emerald-300 shrink-0" : "text-[#34d399] shrink-0"} />}
                             {activeTab === "settings" && <Settings size={20} className={theme === "emerald-velvet" ? "text-[#34d399] shrink-0" : theme === "gold-velvet" ? "text-[#c5a85c] shrink-0" : isDark ? "text-emerald-300 shrink-0" : "text-emerald-400 shrink-0"} />}
+                            {activeTab === "share" && <Share2 size={20} className={theme === "emerald-velvet" ? "text-[#34d399] shrink-0" : theme === "gold-velvet" ? "text-[#c5a85c] shrink-0" : isDark ? "text-emerald-300 shrink-0" : "text-emerald-400 shrink-0"} />}
                             <span className="truncate">
                               {activeTab === "recitation" && "التلاوة"}
                               {activeTab === "khatmah" && "الختمة"}
                               {activeTab === "favorites" && "علاماتي"}
                               {activeTab === "storage" && "التحميلات"}
                               {activeTab === "settings" && "الإعدادات"}
+                              {activeTab === "share" && "مشاركة الآيات"}
                             </span>
                           </div>
 
@@ -1188,6 +1185,16 @@ export default function App() {
                               }`}
                             >
                               التحميلات
+                            </button>
+                            <button
+                              onClick={() => handleOpenShareAyah()}
+                              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                                activeTab === "share"
+                                  ? (theme === "emerald-velvet" ? "bg-[#10b981] text-[#011c14] font-bold" : "bg-emerald-600 text-white font-bold")
+                                  : "opacity-70 hover:opacity-100"
+                              }`}
+                            >
+                              مشاركة الآيات
                             </button>
                             <button
                               onClick={() => setActiveTab("settings")}
@@ -1271,6 +1278,14 @@ export default function App() {
                               theme={theme}
                             />
                           )}
+                          {activeTab === "share" && (
+                            <ShareAyahPage
+                              initialData={shareAyahData}
+                              theme={theme}
+                              isDark={isDark}
+                              onClose={() => setActiveTab("home")}
+                            />
+                          )}
                         </div>
                       </motion.div>
                     </React.Fragment>
@@ -1289,7 +1304,7 @@ export default function App() {
         id="floating-bottom-menu" 
         data-bottom-bar="true"
         className={`fixed bottom-0 left-0 right-0 w-full z-[500] border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] rounded-t-2xl transition-all duration-300 transform ${
-          (showBars || shareAyahData !== null) ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
+          showBars ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
         } ${
           theme === "emerald-velvet"
             ? "bg-[#012519] border-t border-[#10b981]/35 text-[#FAF8F5]"
@@ -1308,12 +1323,12 @@ export default function App() {
             id="nav-tab-home"
             onClick={handleOpenMushaf}
             className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer ${
-              activeTab === "home" && settings.pageMode !== "continuous" && activeSurahNumber !== null && shareAyahData === null
+              activeTab === "home" && settings.pageMode !== "continuous" && activeSurahNumber !== null
                 ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
                 : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
             }`}
           >
-            <BookOpen size={18} className={activeTab === "home" && settings.pageMode !== "continuous" && activeSurahNumber !== null && shareAyahData === null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
+            <BookOpen size={18} className={activeTab === "home" && settings.pageMode !== "continuous" && activeSurahNumber !== null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
             <span>{t.mushaf}</span>
           </button>
 
@@ -1322,12 +1337,12 @@ export default function App() {
             id="nav-tab-tafsir"
             onClick={handleOpenLibrary}
             className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer ${
-              activeTab === "home" && settings.pageMode === "continuous" && shareAyahData === null
+              activeTab === "home" && settings.pageMode === "continuous"
                 ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
                 : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
             }`}
           >
-            <Library size={18} className={activeTab === "home" && settings.pageMode === "continuous" && shareAyahData === null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
+            <Library size={18} className={activeTab === "home" && settings.pageMode === "continuous" ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
             <span>{t.tafsirs}</span>
           </button>
 
@@ -1335,7 +1350,6 @@ export default function App() {
           <button
             id="nav-tab-recitation"
             onClick={() => {
-              if (shareAyahData !== null) setShareAyahData(null);
               if (activeTab === "recitation") {
                 setActiveTab("home");
               } else {
@@ -1343,7 +1357,7 @@ export default function App() {
               }
             }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer relative ${
-              activeTab === "recitation" && shareAyahData === null
+              activeTab === "recitation"
                 ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
                 : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
             }`}
@@ -1351,7 +1365,7 @@ export default function App() {
             <div className="relative flex items-center justify-center">
               <Headphones 
                 size={18} 
-                className={activeTab === "recitation" && shareAyahData === null ? "stroke-[2.5px]" : "stroke-[1.8px]"} 
+                className={activeTab === "recitation" ? "stroke-[2.5px]" : "stroke-[1.8px]"} 
               />
               {playbackSync?.isPlaying && (
                 <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
@@ -1367,7 +1381,6 @@ export default function App() {
           <button
             id="nav-tab-khatmah"
             onClick={() => {
-              if (shareAyahData !== null) setShareAyahData(null);
               if (activeTab === "khatmah") {
                 setActiveTab("home");
               } else {
@@ -1375,12 +1388,12 @@ export default function App() {
               }
             }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer ${
-              activeTab === "khatmah" && shareAyahData === null
+              activeTab === "khatmah"
                 ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
                 : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
             }`}
           >
-            <Calendar size={18} className={activeTab === "khatmah" && shareAyahData === null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
+            <Calendar size={18} className={activeTab === "khatmah" ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
             <span>{t.khatmah}</span>
           </button>
 
@@ -1388,7 +1401,6 @@ export default function App() {
           <button
             id="nav-tab-favorites"
             onClick={() => {
-              if (shareAyahData !== null) setShareAyahData(null);
               if (activeTab === "favorites") {
                 setActiveTab("home");
               } else {
@@ -1396,7 +1408,7 @@ export default function App() {
               }
             }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer relative ${
-              activeTab === "favorites" && shareAyahData === null
+              activeTab === "favorites"
                 ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
                 : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
             }`}
@@ -1404,7 +1416,7 @@ export default function App() {
             <BookmarkIcon 
               size={18} 
               className={`${
-                activeTab === "favorites" && shareAyahData === null
+                activeTab === "favorites"
                   ? (theme === "emerald-velvet" ? "stroke-[2.5px] text-[#34d399]" : theme === "navy-velvet" ? "stroke-[2.5px] text-[#3F63C6]" : theme === "gold-velvet" ? "stroke-[2.5px] text-[#c5a85c]" : isDark ? "stroke-[2.5px] text-emerald-300" : "stroke-[2.5px] fill-emerald-500/20 text-emerald-500")
                   : "stroke-[1.8px]"
               } ${bookmarks.length > 0 ? (theme === "emerald-velvet" ? "text-[#34d399] fill-[#34d399]/20" : theme === "navy-velvet" ? "text-[#3F63C6] fill-[#3F63C6]/20" : theme === "gold-velvet" ? "text-[#c5a85c] fill-[#c5a85c]/20" : isDark ? "text-emerald-300 fill-emerald-500/20" : "text-emerald-500 fill-emerald-500") : ""}`} 
@@ -1419,35 +1431,29 @@ export default function App() {
             )}
           </button>
 
-          {/* 6. Share Ayah Tab */}
+          {/* 6. Share Ayah Page Tab */}
           <button
             id="nav-tab-share-ayah"
             onClick={(e) => {
               e.stopPropagation();
-              handleOpenShareAyah();
+              if (activeTab === "share") {
+                setActiveTab("home");
+              } else {
+                handleOpenShareAyah();
+              }
             }}
             title={t.shareAyah}
             className={`flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-colors cursor-pointer ${
-              shareAyahData !== null
+              activeTab === "share"
                 ? (theme === "emerald-velvet" ? "text-[#34d399] font-black" : theme === "navy-velvet" ? "text-[#3F63C6] font-black" : theme === "gold-velvet" ? "text-[#c5a85c] font-black" : isDark ? "text-emerald-300 font-black" : "text-emerald-500 font-bold")
                 : (theme === "emerald-velvet" ? "text-[#FAF8F5]/60 hover:text-[#FAF8F5]" : isDark ? "text-slate-400 hover:text-emerald-300" : "text-slate-400 hover:text-slate-600")
             }`}
           >
-            <Share2 size={18} className={shareAyahData !== null ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
+            <Share2 size={18} className={activeTab === "share" ? "stroke-[2.5px]" : "stroke-[1.8px]"} />
             <span>{t.shareAyah}</span>
           </button>
         </div>
       </nav>
-
-      {/* Share Ayah Studio Modal */}
-      {shareAyahData !== null && (
-        <ShareAyahModal
-          shareData={shareAyahData}
-          onClose={() => setShareAyahData(null)}
-          theme={theme}
-          isDark={isDark}
-        />
-      )}
 
     </div>
   );

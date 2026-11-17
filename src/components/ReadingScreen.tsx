@@ -1570,12 +1570,13 @@ const AyahWithTafsirCard = ({
     <div 
       ref={containerRef}
       id={`ayah-block-${ayah.numberInSurah}`}
-      className="w-full mb-6 select-none mx-auto flex flex-col gap-3.5"
+      className="w-full mb-6 select-none mx-auto flex flex-col gap-3.5 touch-pan-y"
+      style={{ touchAction: "pan-y pinch-zoom" }}
     >
       {/* Ayah Window Card (Library Window Style) */}
       <div 
         id={`ayah-word-span-${ayah.numberInSurah}`}
-        style={getAyahStyle(ayah.page || currentPage)}
+        style={{ ...getAyahStyle(ayah.page || currentPage), touchAction: "pan-y pinch-zoom" }}
         ref={(el) => { ayahElementsRef.current[ayah.numberInSurah] = el as HTMLDivElement; }}
         onClick={handleClick}
         onDoubleClick={(e) => {
@@ -1805,7 +1806,8 @@ const AyahWithTafsirCard = ({
       <div 
         id={`tafsir-card-${ayah.numberInSurah}`}
         onClick={handleClick}
-        className={`w-full rounded-2xl border-2 overflow-hidden shadow-xs transition-all duration-300 relative cursor-pointer ${
+        style={{ touchAction: "pan-y pinch-zoom" }}
+        className={`w-full rounded-2xl border-2 overflow-hidden shadow-xs transition-colors duration-300 relative cursor-pointer touch-pan-y ${
           theme === "emerald-velvet"
             ? "bg-[#012519] border-[#c5a85c]/35 text-[#FAF8F5]"
             : theme === "gold-velvet"
@@ -2305,6 +2307,7 @@ export default function ReadingScreen({
   const [isAyahNoteFullScreen, setIsAyahNoteFullScreen] = useState(false);
   
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
+  const [ayahsSurah, setAyahsSurah] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [continuousActiveService, setContinuousActiveService] = useState<MainCategory>("tafsir");
@@ -3444,7 +3447,6 @@ export default function ReadingScreen({
       longPressTimeoutRef.current = null;
     }
     longPressActiveRef.current = false;
-    setSelectedAyah(null);
 
     let clientX = 0;
     let clientY = 0;
@@ -4859,7 +4861,7 @@ export default function ReadingScreen({
 
   // Synchronize currentPage on initial load or ayahs arrival IF not applied yet
   useEffect(() => {
-    if (ayahs.length > 0 && !hasAppliedInitialPageRef.current) {
+    if (ayahs.length > 0 && ayahsSurah === surahNumber && !hasAppliedInitialPageRef.current) {
       hasAppliedInitialPageRef.current = true;
       if (initialPageNumber) {
         setCurrentPage(initialPageNumber);
@@ -5000,6 +5002,7 @@ export default function ReadingScreen({
           page: ayah.page || startPage
         }));
         setAyahs(mappedAyahs);
+        setAyahsSurah(surahNumber);
         setLoading(false);
         return;
       }
@@ -5010,6 +5013,7 @@ export default function ReadingScreen({
         if (dbCached && dbCached.length > 0) {
           if (isMounted) {
             setAyahs(dbCached);
+            setAyahsSurah(surahNumber);
             setLoading(false);
           }
           return;
@@ -5049,6 +5053,7 @@ export default function ReadingScreen({
 
           if (isMounted) {
             setAyahs(mergedAyahs);
+            setAyahsSurah(surahNumber);
             setLoading(false);
             return;
           }
@@ -5076,6 +5081,7 @@ export default function ReadingScreen({
 
       if (isMounted) {
         setAyahs(offlineAyahs);
+        setAyahsSurah(surahNumber);
         setLoading(false);
         setFetchError(null);
       }
@@ -5091,7 +5097,7 @@ export default function ReadingScreen({
 
   // Scroll to starting ayah if provided, especially when opening continuous (Library) mode
   useEffect(() => {
-    if (loading || ayahs.length === 0) return;
+    if (loading || ayahs.length === 0 || ayahsSurah !== surahNumber) return;
 
     let targetAyahNum = initialAyahNumber;
     if (!targetAyahNum || targetAyahNum < 1) {
@@ -6367,7 +6373,7 @@ export default function ReadingScreen({
     "3xl": "text-7xl md:text-8xl"
   };
 
-  const activeAyah = ayahs.length > 0
+  const activeAyah = ayahs.length > 0 && ayahsSurah === surahNumber
     ? (playingIndex !== null
         ? ayahs[playingIndex]
         : selectedAyah)
@@ -6488,7 +6494,8 @@ export default function ReadingScreen({
             min-height: calc(100vh - ${showBars ? "170px" : "70px"}) !important;
             max-width: none !important;
             max-height: none !important;
-            overflow-y: auto !important;
+            overflow-y: visible !important;
+            touch-action: pan-y pinch-zoom !important;
             padding: 16px 20px !important;
             border-radius: 12px !important;
             box-shadow: 0 10px 30px rgba(0, 0, 0, ${isDark ? "0.55" : "0.3"}) !important;
@@ -6945,21 +6952,55 @@ export default function ReadingScreen({
                         }
                         if (!targetPage) targetPage = 1;
 
-                        setCurrentPage(targetPage);
-                        setPageAyahs([]);
+                        isContinuousTransitioningRef.current = false;
+                        setPlayingIndex(null);
+                        setIsPlaying(false);
+                        quranAudioEngine.stop();
+                        if (audioRef.current) {
+                          audioRef.current.pause();
+                        }
 
-                        if (startAyah) {
-                          const parentAyah = ayahs.find(a => a.numberInSurah === startAyah);
-                          if (parentAyah) setSelectedAyah(parentAyah);
-                          else setSelectedAyah({ number: 0, numberInSurah: startAyah, text: "", translationEn: "" });
-                        } else {
+                        lastSyncedAyahNumberRef.current = null;
+                        hasAppliedInitialPageRef.current = true;
+                        lastInitialAyahKeyRef.current = null;
+
+                        if (surahNum !== surahNumber || !startAyah || startAyah <= 1) {
                           setSelectedAyah(null);
+                        } else {
+                          const parentAyah = ayahsSurah === surahNum
+                            ? ayahs.find(a => a.numberInSurah === startAyah)
+                            : undefined;
+                          setSelectedAyah(parentAyah || null);
+                        }
+
+                        setPageAyahs([]);
+                        setCurrentPage(targetPage);
+
+                        if (isContinuousMode) {
+                          setAutoScrollStartPage(targetPage);
+                          try {
+                            localStorage.removeItem("quran_scroll_position");
+                          } catch {}
                         }
 
                         if (onChangeSurah) {
                           onChangeSurah(surahNum, startAyah, targetPage);
                         }
                         setServiceDrawerTab(null);
+
+                        requestAnimationFrame(() => {
+                          window.scrollTo({ top: 0, behavior: "instant" });
+                          const continuousEl = document.getElementById("mushaf-continuous-canvas");
+                          if (continuousEl) {
+                            continuousEl.scrollTop = 0;
+                          }
+                          if (isContinuousMode) {
+                            const el = document.querySelector(`[data-mushaf-page="${targetPage}"]`);
+                            if (el) {
+                              el.scrollIntoView({ behavior: "instant", block: "start" });
+                            }
+                          }
+                        });
                       }}
                       bookmarks={bookmarks}
                       isDark={isDark}
@@ -10553,8 +10594,9 @@ export default function ReadingScreen({
                 style={{
                   backgroundColor: isDark ? "#020617" : "#ffffff",
                   borderColor: isDark ? undefined : theme === "gold-velvet" ? "#c5a85c40" : theme === "emerald-velvet" ? "#c5a85c30" : undefined,
-                  touchAction: "pan-y",
-                  overscrollBehaviorY: "auto"
+                  touchAction: "pan-y pinch-zoom",
+                  overscrollBehaviorY: "auto",
+                  WebkitOverflowScrolling: "touch"
                 }}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -10572,7 +10614,7 @@ export default function ReadingScreen({
                   }
                   toggleBarsUnified(undefined, e);
                 }}
-                className={`w-full rounded-none p-3 sm:p-5 md:p-8 text-right select-none transition-all duration-300 border cursor-grab active:cursor-grabbing ${
+                className={`w-full rounded-none p-3 sm:p-5 md:p-8 text-right select-none transition-colors duration-300 border touch-pan-y cursor-grab active:cursor-grabbing ${
                   isDark
                     ? "bg-slate-950 border-slate-800 text-slate-100 shadow-none"
                     : theme === "gold-velvet"
@@ -10833,7 +10875,7 @@ export default function ReadingScreen({
                   <BismillahBanner theme={theme} surahNumber={surahNumber} isDark={isDark} />
                 ) : null}
 
-                <div className="flex flex-col gap-6 w-full mt-6 select-none">
+                <div className="flex flex-col gap-6 w-full mt-6 select-none touch-pan-y" style={{ touchAction: "pan-y pinch-zoom" }}>
                   {ayahs.map((ayah, idx) => {
                     const isActivePlaying = playingIndex === idx;
                     const isSelected = selectedAyah?.numberInSurah === ayah.numberInSurah;

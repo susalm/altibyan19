@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { toPng, toBlob } from "html-to-image";
+import { toPng, toBlob, toSvg } from "html-to-image";
 import {
   Sparkles,
   X,
@@ -59,8 +59,11 @@ import {
   loadQcf4Font,
   ensureQbsmlLoaded,
   isQbsmlLoaded,
+  isQcf4FontLoaded,
+  isQcfHafs01Loaded,
   getSurahHeaderGlyph,
   getBismillahGlyph,
+  getQcf4FontEmbedCss,
 } from "../utils/qcf4Utils";
 
 import { AlTibyanCalligraphy } from "./AlTibyanCalligraphy";
@@ -107,7 +110,7 @@ const toArabicNumerals = (num: number): string => {
 };
 
 // Aspect Ratios
-export type AspectRatioType = "auto" | "9:16" | "1:1" | "16:9" | "custom";
+export type AspectRatioType = "auto" | "3:4" | "4:3" | "16:9" | "9:16" | "1:1" | "4:5" | "custom";
 
 interface AspectRatioOption {
   id: AspectRatioType;
@@ -119,11 +122,14 @@ interface AspectRatioOption {
 }
 
 const aspectRatioOptions: AspectRatioOption[] = [
-  { id: "auto", label: "تلقائي (متجاوب)", subLabel: "حسب طول الآيات", ratioClass: "", width: 1080, height: 1350 },
-  { id: "9:16", label: "طول (9:16)", subLabel: "ستوري", ratioClass: "aspect-[9/16]", width: 1080, height: 1920 },
-  { id: "1:1", label: "مربع (1:1)", subLabel: "مربع", ratioClass: "aspect-square", width: 1080, height: 1080 },
-  { id: "16:9", label: "عريض (16:9)", subLabel: "عريض", ratioClass: "aspect-[16/9]", width: 1920, height: 1080 },
-  { id: "custom", label: "قياس مخصص", subLabel: "أبعاد حرة", ratioClass: "", width: 1080, height: 1350 },
+  { id: "auto", label: "تلقائي", subLabel: "متجاوب", ratioClass: "", width: 1080, height: 1350 },
+  { id: "3:4", label: "طولي", subLabel: "3:4", ratioClass: "aspect-[3/4]", width: 1080, height: 1440 },
+  { id: "4:3", label: "عرضي", subLabel: "4:3", ratioClass: "aspect-[4/3]", width: 1440, height: 1080 },
+  { id: "16:9", label: "يوتيوب", subLabel: "16:9", ratioClass: "aspect-video", width: 1920, height: 1080 },
+  { id: "9:16", label: "قصة", subLabel: "9:16", ratioClass: "aspect-[9/16]", width: 1080, height: 1920 },
+  { id: "1:1", label: "مربع", subLabel: "1:1", ratioClass: "aspect-square", width: 1080, height: 1080 },
+  { id: "4:5", label: "بورتريه", subLabel: "4:5", ratioClass: "aspect-[4/5]", width: 1080, height: 1350 },
+  { id: "custom", label: "مقاس مخصص", subLabel: "أبعاد حرة", ratioClass: "", width: 1080, height: 1350 },
 ];
 
 // Gradients Palette
@@ -864,8 +870,8 @@ export function getInitialShareStyle(theme?: string, isDark?: boolean): SavedSha
           parsed.rangeTo = 41;
           parsed.selectedPageNumber = 260;
         }
-        // Ensure default aspect ratio is adaptive auto mode
-        if (!parsed.selectedAspectRatio || parsed.selectedAspectRatio === "9:16") {
+        // Ensure default aspect ratio is adaptive auto mode if unset
+        if (!parsed.selectedAspectRatio) {
           parsed.selectedAspectRatio = "auto";
         }
         // Ensure textFontSize for verses is not stuck at tiny page font size
@@ -1192,9 +1198,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     return (initialStyle.textFontSize && initialStyle.textFontSize >= 22) ? initialStyle.textFontSize : 28;
   });
   const savedAspectRatioRef = useRef<AspectRatioType>(
-    (initialStyle.selectedAspectRatio && initialStyle.selectedAspectRatio !== "9:16")
-      ? initialStyle.selectedAspectRatio
-      : "auto"
+    initialStyle.selectedAspectRatio || "auto"
   );
 
   const [textFontSize, setTextFontSize] = useState<number>(() => {
@@ -2468,6 +2472,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   const drawCanvasRef = useRef<(() => Promise<void>) | null>(null);
 
   const cardPreviewRef = useRef<HTMLDivElement>(null);
+  const localFontDataUrlCacheRef = useRef<Map<string, string>>(new Map());
 
   // Pre-load Quran core fonts and QBSML and Hafs_01 fonts
   useEffect(() => {
@@ -2496,13 +2501,30 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     const fObj = getBismillahFontObj(activeFont);
 
     if (isQcf) {
+      const targetQcfFont = customFont || "QCF4_Hafs_01";
+      const canUseQcfBismillah = customChar
+        ? isQcf4FontLoaded(targetQcfFont)
+        : isQcfHafs01Loaded();
+      if (!canUseQcfBismillah) {
+        return (
+          <span
+            className="tracking-normal select-none pointer-events-none inline-block text-center"
+            style={{
+              fontFamily: "'UthmanTaha', 'UthmanicHafs', 'Amiri', serif",
+              direction: "rtl",
+              display: "inline-block",
+            }}
+          >
+            بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+          </span>
+        );
+      }
       const charToUse = customChar || "\uF8DD";
-      const fontToUse = customFont || "QCF4_Hafs_01";
       return (
         <span
           className="tracking-normal select-none pointer-events-none inline-block text-center"
           style={{
-            fontFamily: `'${fontToUse}', 'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanTaha', 'UthmanicHafs', serif`,
+            fontFamily: `'${targetQcfFont}', 'QCF4_Hafs_01', 'QCF4_QBSML', 'UthmanTaha', 'UthmanicHafs', serif`,
             direction: "rtl",
             display: "inline-block",
             fontSize: "0.95em",
@@ -2593,7 +2615,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             });
           });
 
-          await Promise.all(Array.from(fontNames).map((f) => loadQcf4Font(f)));
+          const pageFontsToVerify = Array.from(fontNames);
+          await Promise.all(pageFontsToVerify.map((f) => loadQcf4Font(f)));
           if (document.fonts) {
             await document.fonts.ready;
           }
@@ -2608,10 +2631,15 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             });
           });
 
+          const allPageFontsReady = pageFontsToVerify
+            .filter((f) => f !== "QCF4_QBSML")
+            .every((f) => isQcf4FontLoaded(f));
+
           setQcf4Lines(pageData.lines || []);
           setQcf4Words(words);
           setQcf4Font(pageData.font || "QCF4_Hafs_01");
-          setIsQcf4Loaded(true);
+          setIsQcf4Loaded(allPageFontsReady);
+          setQbsmlReady(isQbsmlLoaded());
           return;
         }
 
@@ -2634,7 +2662,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             });
           });
 
-          await Promise.all(Array.from(fontNames).map((f) => loadQcf4Font(f)));
+          const openFontsToVerify = Array.from(fontNames);
+          await Promise.all(openFontsToVerify.map((f) => loadQcf4Font(f)));
           if (document.fonts) {
             await document.fonts.ready;
           }
@@ -2649,10 +2678,15 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
             });
           });
 
+          const allOpenFontsReady = openFontsToVerify
+            .filter((f) => f !== "QCF4_QBSML")
+            .every((f) => isQcf4FontLoaded(f));
+
           setQcf4Lines([]);
           setQcf4Words(words);
           setQcf4Font(pageData.font || (targetPage === 1 ? "QCF4_Hafs_01" : "QCF4_Hafs_02"));
-          setIsQcf4Loaded(true);
+          setIsQcf4Loaded(allOpenFontsReady);
+          setQbsmlReady(isQbsmlLoaded());
           return;
         }
 
@@ -2678,17 +2712,21 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
           if (!isMounted) return;
           if (allWords.length > 0) {
-            await Promise.all(Array.from(fontsToLoad).map((f) => loadQcf4Font(f)));
+            const rangeFontsToVerify = Array.from(fontsToLoad);
+            await Promise.all(rangeFontsToVerify.map((f) => loadQcf4Font(f)));
             if (document.fonts) {
               await document.fonts.ready;
             }
             if (!isMounted) return;
+            const allRangeFontsReady = rangeFontsToVerify
+              .filter((f) => f !== "QCF4_QBSML")
+              .every((f) => isQcf4FontLoaded(f));
             setQcf4Lines([]);
             setQcf4Words(allWords);
-            const mainFont = Array.from(fontsToLoad).find((f) => f !== "QCF4_QBSML") || "QCF4_Hafs_01";
+            const mainFont = rangeFontsToVerify.find((f) => f !== "QCF4_QBSML") || "QCF4_Hafs_01";
             setQcf4Font(mainFont);
-            setIsQcf4Loaded(true);
-            setQbsmlReady(true);
+            setIsQcf4Loaded(allRangeFontsReady);
+            setQbsmlReady(isQbsmlLoaded());
           } else {
             setIsQcf4Loaded(false);
           }
@@ -2712,16 +2750,20 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           res.words.forEach((w) => {
             if (w.font) fontsToLoad.add(w.font);
           });
-          await Promise.all(Array.from(fontsToLoad).map((f) => loadQcf4Font(f)));
+          const singleFontsToVerify = Array.from(fontsToLoad);
+          await Promise.all(singleFontsToVerify.map((f) => loadQcf4Font(f)));
           if (document.fonts) {
             await document.fonts.ready;
           }
           if (!isMounted) return;
+          const allSingleFontsReady = singleFontsToVerify
+            .filter((f) => f !== "QCF4_QBSML")
+            .every((f) => isQcf4FontLoaded(f));
           setQcf4Lines([]);
           setQcf4Words(res.words);
           setQcf4Font(res.font || "QCF4_Hafs_01");
-          setIsQcf4Loaded(true);
-          setQbsmlReady(true);
+          setIsQcf4Loaded(allSingleFontsReady);
+          setQbsmlReady(isQbsmlLoaded());
         } else {
           setIsQcf4Loaded(false);
         }
@@ -2759,6 +2801,315 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     return `linear-gradient(${gradientAngle}deg, ${gradientColor1} 0%, ${gradientColor2} 100%)`;
   }, [bgCategory, gradientType, gradientAngle, radialSpread, gradientColor1, gradientColor2, selectedSolidColor]);
 
+  const fetchLocalFontDataUrl = useCallback(async (url: string, mime = "font/woff2"): Promise<string> => {
+    const cache = localFontDataUrlCacheRef.current;
+    if (cache.has(url)) return cache.get(url)!;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return "";
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+      if (contentType.includes("text/html") || contentType.includes("application/json")) return "";
+      const blob = await res.blob();
+      if (!blob || blob.size < 512) return "";
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = typeof reader.result === "string" ? reader.result : "";
+          if (result && mime && result.startsWith("data:application/octet-stream")) {
+            resolve(result.replace("data:application/octet-stream", `data:${mime}`));
+          } else {
+            resolve(result);
+          }
+        };
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(blob);
+      });
+      if (dataUrl) cache.set(url, dataUrl);
+      return dataUrl;
+    } catch {
+      return "";
+    }
+  }, []);
+
+  const buildCardFontEmbedCSS = useCallback(async (): Promise<string> => {
+    const qcfNames = new Set<string>();
+    if (showSurahHeaderFrame) {
+      qcfNames.add("QCF4_QBSML");
+    }
+
+    const isBismillahQcf =
+      showOpeningHeader &&
+      (openingHeaderFont === "uthman_taha" || openingHeaderFont === "qcf4" || openingHeaderFont === "uthman");
+    if (isBismillahQcf) {
+      qcfNames.add("QCF4_Hafs_01");
+    }
+
+    if (selectedQuranFont === "qcf4" && isQcf4Loaded) {
+      if (qcf4Font) qcfNames.add(qcf4Font);
+      qcf4Words.forEach((w) => {
+        if (w.font) qcfNames.add(w.font);
+      });
+      qcf4Lines.forEach((line) => {
+        line.words?.forEach((w) => {
+          if (w.font) qcfNames.add(w.font);
+        });
+      });
+    }
+
+    const localFontSpecs: Array<{ family: string; url: string; format: string; mime: string; weight?: string }> = [];
+
+    // Footer watermark uses Cairo
+    if (showWatermark !== false || selectedQuranFont === "cairo") {
+      localFontSpecs.push({
+        family: "Cairo",
+        url: "/fonts/cairo-arabic.woff2",
+        format: "woff2",
+        mime: "font/woff2",
+        weight: "100 900",
+      });
+    }
+
+    const needsUthmanFallback =
+      selectedQuranFont === "uthman" ||
+      (selectedQuranFont === "qcf4" && !isQcf4Loaded);
+
+    if (needsUthmanFallback) {
+      localFontSpecs.push(
+        { family: "UthmanicHafs", url: "/fonts/uthman-tn1-ver10.woff2", format: "woff2", mime: "font/woff2" },
+        { family: "Amiri", url: "/fonts/amiri-regular.woff2", format: "woff2", mime: "font/woff2", weight: "400" }
+      );
+    }
+
+    if (selectedQuranFont === "amiri" || openingHeaderFont === "amiri" || (showSurahHeaderFrame && !isQbsmlLoaded())) {
+      localFontSpecs.push(
+        { family: "Amiri", url: "/fonts/amiri-regular.woff2", format: "woff2", mime: "font/woff2", weight: "400" },
+        { family: "Amiri", url: "/fonts/amiri-bold.woff2", format: "woff2", mime: "font/woff2", weight: "700" }
+      );
+    }
+
+    if (showOpeningHeader) {
+      if (isBismillahQcf && !isQcfHafs01Loaded()) {
+        localFontSpecs.push(
+          { family: "UthmanTaha", url: "/fonts/uthman-taha.woff2", format: "woff2", mime: "font/woff2", weight: "400" },
+          { family: "UthmanicHafs", url: "/fonts/uthman-tn1-ver10.woff2", format: "woff2", mime: "font/woff2" }
+        );
+      } else if (openingHeaderFont === "naskh") {
+        localFontSpecs.push(
+          { family: "Noto Naskh Arabic", url: "/fonts/noto-naskh-arabic-regular.woff2", format: "woff2", mime: "font/woff2", weight: "400" },
+          { family: "Noto Naskh Arabic", url: "/fonts/noto-naskh-arabic-bold.woff2", format: "woff2", mime: "font/woff2", weight: "700" }
+        );
+      } else if (openingHeaderFont === "scheherazade") {
+        localFontSpecs.push(
+          { family: "Scheherazade New", url: "/fonts/scheherazade-new-regular.woff2", format: "woff2", mime: "font/woff2", weight: "400" },
+          { family: "Scheherazade New", url: "/fonts/scheherazade-new-bold.woff2", format: "woff2", mime: "font/woff2", weight: "700" }
+        );
+      } else if (openingHeaderFont === "ruqaa") {
+        localFontSpecs.push(
+          { family: "Aref Ruqaa", url: "/fonts/aref-ruqaa-regular.ttf", format: "truetype", mime: "font/ttf", weight: "400" },
+          { family: "Aref Ruqaa", url: "/fonts/aref-ruqaa-bold.ttf", format: "truetype", mime: "font/ttf", weight: "700" }
+        );
+      }
+    }
+
+    // Deduplicate local font specs by family+url+weight
+    const seenSpec = new Set<string>();
+    const uniqueSpecs = localFontSpecs.filter((s) => {
+      const k = `${s.family}|${s.url}|${s.weight || ""}`;
+      if (seenSpec.has(k)) return false;
+      seenSpec.add(k);
+      return true;
+    });
+
+    const qcfList = Array.from(qcfNames);
+    if (qcfList.length > 0) {
+      await Promise.all(qcfList.map((f) => loadQcf4Font(f).catch(() => {})));
+    }
+
+    const [qcfCss, localRules] = await Promise.all([
+      qcfList.length > 0 ? getQcf4FontEmbedCss(qcfList).catch(() => "") : Promise.resolve(""),
+      Promise.all(
+        uniqueSpecs.map(async (spec) => {
+          const dataUrl = await fetchLocalFontDataUrl(spec.url, spec.mime);
+          if (!dataUrl) return "";
+          const weightDecl = spec.weight ? ` font-weight: ${spec.weight};` : "";
+          return `@font-face { font-family: '${spec.family}'; src: url('${dataUrl}') format('${spec.format}');${weightDecl} font-style: normal; font-display: swap; }`;
+        })
+      ),
+    ]);
+
+    return [qcfCss, ...localRules].filter(Boolean).join("\n");
+  }, [
+    showSurahHeaderFrame,
+    showOpeningHeader,
+    openingHeaderFont,
+    selectedQuranFont,
+    isQcf4Loaded,
+    qcf4Font,
+    qcf4Words,
+    qcf4Lines,
+    showWatermark,
+    fetchLocalFontDataUrl,
+  ]);
+
+  const captureCardPreviewToExport = useCallback(async (): Promise<{ url: string; blob: Blob | null } | null> => {
+    const node = cardPreviewRef.current;
+    const missingPageQcfLines = shareMode === "page" && selectedQuranFont === "qcf4" && isQcf4Loaded && qcf4Lines.length === 0;
+    const stillWaitingForPage = shareMode === "page" && selectedQuranFont === "qcf4" && !isQcf4Loaded && qcf4Lines.length === 0 && !activeData?.ayah?.text;
+    if (!node || isLoadingVerse || missingPageQcfLines || stillWaitingForPage) return null;
+
+    await ensureQbsmlLoaded().catch(() => {});
+    await loadQcf4Font("QCF4_Hafs_01").catch(() => {});
+    if (qcf4Font) {
+      await loadQcf4Font(qcf4Font).catch(() => {});
+    }
+    if (document.fonts) {
+      try {
+        await document.fonts.ready;
+      } catch {}
+    }
+
+    // Allow React + CSS transitions + font metrics to finish settling before capture
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+
+    const domW = Math.max(1, node.offsetWidth || 360);
+    const domH = Math.max(1, node.offsetHeight || 480);
+    const activeAspectPreset = aspectRatioOptions.find((a) => a.id === selectedAspectRatio) || aspectRatioOptions[0];
+    const targetOutW = selectedAspectRatio === "auto"
+      ? 1080
+      : selectedAspectRatio === "custom"
+        ? Math.max(300, Math.min(2400, customWidth || 1080))
+        : activeAspectPreset.width;
+    const rawRatio = targetOutW / domW;
+    const maxSafeRatio = Math.min(4, 2400 / Math.max(domW, domH));
+    const exportPixelRatio = Math.max(2, Math.min(rawRatio, maxSafeRatio));
+
+    const exportFilter = (el: Node) =>
+      !(
+        el instanceof HTMLElement &&
+        (el.classList.contains("prevent-drag") ||
+          el.classList.contains("layer-controls-box") ||
+          el.hasAttribute("data-export-ignore"))
+      );
+
+    const fontEmbedCSS = await buildCardFontEmbedCSS();
+    const captureOptions = {
+      pixelRatio: exportPixelRatio,
+      cacheBust: false,
+      fontEmbedCSS,
+      filter: exportFilter,
+      onImageErrorHandler: () => true,
+    };
+
+    let blob: Blob | null = null;
+    let dataUrl = "";
+
+    // 1. Controlled SVG -> Canvas rasterization with warm-up pass so Chromium/Android WebView
+    // always finishes decoding embedded base64 WOFF2 fonts inside <foreignObject> before final draw.
+    try {
+      const svgDataUrl = await toSvg(node, captureOptions);
+      if (svgDataUrl) {
+        const svgImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.decoding = "sync";
+          img.onload = () => resolve(img);
+          img.onerror = (err) => reject(err);
+          img.src = svgDataUrl;
+        });
+
+        await svgImg.decode().catch(() => {});
+
+        const outW = Math.max(1, Math.round(domW * exportPixelRatio));
+        const outH = Math.max(1, Math.round(domH * exportPixelRatio));
+        const canvas = document.createElement("canvas");
+        canvas.width = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext("2d");
+
+        if (ctx) {
+          // Warm-up paint triggers Blink SVGImage to decode embedded base64 @font-face fonts
+          ctx.drawImage(svgImg, 0, 0, outW, outH);
+          await new Promise<void>((resolve) => setTimeout(resolve, 220));
+          await svgImg.decode().catch(() => {});
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+          );
+
+          // Final clean high-res paint after all embedded fonts have finished decoding
+          ctx.clearRect(0, 0, outW, outH);
+          ctx.drawImage(svgImg, 0, 0, outW, outH);
+
+          dataUrl = canvas.toDataURL("image/png");
+          blob = await new Promise<Blob | null>((resolve) => {
+            if (canvas.toBlob) {
+              canvas.toBlob((b) => resolve(b), "image/png", 1);
+            } else {
+              resolve(dataUrlToBlob(dataUrl));
+            }
+          });
+          if (!blob && dataUrl) {
+            blob = dataUrlToBlob(dataUrl);
+          }
+        }
+      }
+    } catch (svgRasterErr) {
+      console.warn("SVG warm-up capture failed, trying toBlob/toPng:", svgRasterErr);
+    }
+
+    // 2. Fallback to direct html-to-image toBlob / toPng if SVG warm-up capture failed
+    if (!dataUrl || !blob) {
+      try {
+        blob = await toBlob(node, captureOptions);
+      } catch (blobErr) {
+        console.warn("DOM toBlob capture skipped, trying toPng:", blobErr);
+      }
+
+      if (blob && blob.size > 0) {
+        dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(blob!);
+        });
+      }
+
+      if (!dataUrl) {
+        try {
+          dataUrl = await toPng(node, captureOptions);
+          if (dataUrl && !blob) {
+            blob = dataUrlToBlob(dataUrl);
+          }
+        } catch (pngErr) {
+          console.warn("DOM toPng capture failed:", pngErr);
+        }
+      }
+    }
+
+    if (dataUrl && blob) {
+      return { url: dataUrl, blob };
+    }
+    if (blob) {
+      return { url: URL.createObjectURL(blob), blob };
+    }
+    if (dataUrl) {
+      return { url: dataUrl, blob: dataUrlToBlob(dataUrl) };
+    }
+    return null;
+  }, [
+    shareMode,
+    selectedQuranFont,
+    isQcf4Loaded,
+    qcf4Lines.length,
+    activeData,
+    isLoadingVerse,
+    qcf4Font,
+    selectedAspectRatio,
+    customWidth,
+    buildCardFontEmbedCSS,
+  ]);
+
   // High-Resolution Canvas Rendering & Image Generation
   useEffect(() => {
     if (!shareData) {
@@ -2769,17 +3120,22 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     setShareStatus(null);
 
     const activeAspect = aspectRatioOptions.find((a) => a.id === selectedAspectRatio) || aspectRatioOptions[0];
-    const domWidth = cardPreviewRef.current?.offsetWidth || 1080;
+    const width =
+      selectedAspectRatio === "auto"
+        ? 1080
+        : selectedAspectRatio === "custom"
+        ? Math.max(300, Math.min(4000, customWidth || 1080))
+        : activeAspect.width;
+    const domWidth = cardPreviewRef.current?.offsetWidth || width;
     const domHeight = cardPreviewRef.current?.offsetHeight || cardPreviewRef.current?.scrollHeight || 0;
-    const scale = 1080 / (domWidth || 1080);
-    const width = 1080;
+    const scale = width / (domWidth || width);
     const height =
       selectedAspectRatio === "auto"
         ? (shareMode === "page"
             ? (isOpeningMushafPage ? 1400 : 1920)
             : (domHeight > 0 ? Math.max(500, Math.round(domHeight * scale)) : autoDimensions.height))
         : selectedAspectRatio === "custom"
-        ? Math.max(300, Math.min(4000, customHeight))
+        ? Math.max(300, Math.min(4000, customHeight || 1350))
         : activeAspect.height;
     const isTallRatio = (height / width) > 1.25;
 
@@ -3080,7 +3436,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           ? frameTopY + (isPageShare ? 10 : 14) * scaleRatio
           : height * (isPageShare ? 0.022 : 0.035);
         // Footer & Divider geometry with generous, comfortable breathing space:
-        const footerLogoFontSize = Math.max(18, Math.round(width * 0.024));
+        const refMinDim = Math.min(width, height);
+        const footerLogoFontSize = Math.max(18, Math.round(refMinDim * 0.024));
         const footerIconSize = Math.round(footerLogoFontSize * 2.7);
         const footerBaseY = height - Math.max(isPageShare ? 24 * scaleRatio : 28 * scaleRatio, 32);
         // Generous distance between the top of the logo/app name and the divider line
@@ -3462,7 +3819,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           const shouldDrawOpeningHeader = showOpeningHeader && isBismillah;
 
           const bannerScaleFactor = surahHeaderScale ? surahHeaderScale / 100 : 1;
-          const bannerW = Math.round(availableW * bannerScaleFactor);
+          const rawBannerW = Math.round(availableW * bannerScaleFactor);
+          const maxLandscapeBannerW = width > height ? Math.round(height * 0.85 * bannerScaleFactor) : rawBannerW;
+          const bannerW = Math.min(rawBannerW, maxLandscapeBannerW);
           const bannerH = shouldDrawSurahFrame ? bannerW * (30.23196 / 240.20621) : 0;
 
           const curHeaderFontSize = Math.round(openingHeaderSize * scaleRatio);
@@ -3815,7 +4174,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           const activeLogoColor = logoColor || textColor || "#1C1917";
           const logoScaleFactor = (watermarkScale || 100) / 100;
 
-          const fontSize = Math.max(18, Math.round(width * 0.024));
+          const fontSize = Math.max(18, Math.round(Math.min(width, height) * 0.024));
           // تكبير الشعار بنسبة 100% (مضاعفة الحجم من 1.35 إلى 2.7) بدقة عالية
           const iconSize = Math.round(fontSize * 2.7);
           const gap = Math.round(fontSize * 0.45);
@@ -3901,12 +4260,38 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
 
     drawCanvasRef.current = drawCanvas;
 
+    let cancelled = false;
     isCardDirtyRef.current = true;
-    const timer = setTimeout(async () => {
-      await drawCanvas();
-    }, 120);
+    const missingPageQcfLines = shareMode === "page" && selectedQuranFont === "qcf4" && isQcf4Loaded && qcf4Lines.length === 0;
+    if (isLoadingVerse || missingPageQcfLines) {
+      return;
+    }
 
-    return () => clearTimeout(timer);
+    const timer = setTimeout(async () => {
+      try {
+        setIsGeneratingImage(true);
+        const captured = await captureCardPreviewToExport();
+        if (cancelled) return;
+        if (captured?.url && captured?.blob) {
+          cachedExportBlobRef.current = captured.blob;
+          cachedDataUrlRef.current = captured.url;
+          isCardDirtyRef.current = false;
+          setGeneratedImageUrl(captured.url);
+          setIsGeneratingImage(false);
+          return;
+        }
+      } catch (domPreRenderErr) {
+        console.warn("Background DOM card capture failed, falling back to drawCanvas:", domPreRenderErr);
+      }
+      if (!cancelled) {
+        await drawCanvas();
+      }
+    }, 340);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [
     activeData,
     shareMode,
@@ -3972,6 +4357,9 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
     qcf4Lines,
     qcf4Font,
     isQcf4Loaded,
+    isLoadingVerse,
+    qbsmlReady,
+    captureCardPreviewToExport,
   ]);
 
   const dataUrlToBlob = (dataUrl: string): Blob | null => {
@@ -4007,14 +4395,31 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
   };
 
   const getExportedImageBlob = async (forceFresh = false): Promise<{ url: string; blob: Blob | null }> => {
-    // 0. INSTANT FAST-PATH: If pre-rendered Blob is already available and card hasn't been modified, return in 0ms!
+    // 0. INSTANT FAST-PATH: If pre-rendered Blob from the live DOM preview is ready and unmodified, return in 0ms!
     if (!forceFresh && !isCardDirtyRef.current && cachedExportBlobRef.current) {
       const url = cachedDataUrlRef.current || (generatedImageUrl ? generatedImageUrl : URL.createObjectURL(cachedExportBlobRef.current));
       return { url, blob: cachedExportBlobRef.current };
     }
 
-    // 1. PRIMARY: High-resolution direct Canvas rendering
-    // Eliminates all font skipping and foreignObject clipping, ensuring authentic Medina Mushaf vector frame & calligraphy
+    // 1. PRIMARY: Direct pixel-accurate capture of the live DOM preview card (#share-ayah-card-preview)
+    // Guarantees the exported/shared PNG matches the preview card identically (frames, QCF4 glyphs, spacing, logo, aspect ratio).
+    try {
+      setIsGeneratingImage(true);
+      const captured = await captureCardPreviewToExport();
+      if (captured?.url && captured?.blob) {
+        cachedExportBlobRef.current = captured.blob;
+        cachedDataUrlRef.current = captured.url;
+        isCardDirtyRef.current = false;
+        setGeneratedImageUrl(captured.url);
+        return { url: captured.url, blob: captured.blob };
+      }
+    } catch (err) {
+      console.warn("Direct DOM capture failed, trying drawCanvas fallback:", err);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+
+    // 2. FALLBACK ONLY: Manual HTML5 Canvas renderer if DOM capture could not complete
     if (drawCanvasRef.current) {
       try {
         setIsGeneratingImage(true);
@@ -4023,71 +4428,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           return { url: cachedDataUrlRef.current, blob: cachedExportBlobRef.current };
         }
       } catch (canvasErr) {
-        console.warn("drawCanvas primary rendering skipped, trying DOM fallback:", canvasErr);
+        console.warn("drawCanvas fallback failed:", canvasErr);
       } finally {
         setIsGeneratingImage(false);
       }
     }
 
-    // 1. PRIMARY: Fast direct capture from live DOM card (cardPreviewRef.current)
-    if (cardPreviewRef.current) {
-      try {
-        setIsGeneratingImage(true);
-
-        const exportFilter = (node: Node) =>
-          !(
-            node instanceof HTMLElement &&
-            (node.classList.contains("prevent-drag") ||
-              node.classList.contains("layer-controls-box") ||
-              node.hasAttribute("data-export-ignore"))
-          );
-
-        // Fast toBlob capture first (5-10x faster than toPng and eliminates JS string allocations)
-        let blob: Blob | null = null;
-        let dataUrl: string | null = null;
-
-        try {
-          blob = await toBlob(cardPreviewRef.current, {
-            pixelRatio: Math.max(2.5, typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2),
-            cacheBust: false,
-            skipFonts: false,
-            filter: exportFilter,
-          });
-        } catch (fastBlobErr) {
-          console.warn("Direct toBlob capture skipped, trying toPng:", fastBlobErr);
-        }
-
-        if (blob) {
-          dataUrl = URL.createObjectURL(blob);
-        } else {
-          try {
-            dataUrl = await toPng(cardPreviewRef.current, {
-              pixelRatio: Math.max(2.5, typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2),
-              cacheBust: false,
-              skipFonts: false,
-              filter: exportFilter,
-            });
-            blob = dataUrl ? dataUrlToBlob(dataUrl) : null;
-          } catch (innerErr) {
-            console.warn("toPng capture failed:", innerErr);
-          }
-        }
-
-        if (blob && dataUrl) {
-          cachedExportBlobRef.current = blob;
-          cachedDataUrlRef.current = dataUrl;
-          isCardDirtyRef.current = false;
-          setGeneratedImageUrl(dataUrl);
-          return { url: dataUrl, blob };
-        }
-      } catch (err) {
-        console.warn("Direct DOM capture failed, trying fallback:", err);
-      } finally {
-        setIsGeneratingImage(false);
-      }
-    }
-
-    // 2. FALLBACK ONLY: If DOM element was unavailable or fast capture failed
+    // 3. LAST-RESORT FALLBACK: Reuse any cached output already in memory
     if (cachedExportBlobRef.current) {
       const url = cachedDataUrlRef.current || (generatedImageUrl ? generatedImageUrl : URL.createObjectURL(cachedExportBlobRef.current));
       return { url, blob: cachedExportBlobRef.current };
@@ -4729,53 +5076,79 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                   </div>
                 </div>
 
-                <div
-                  ref={cardPreviewRef}
-                  id="share-ayah-card-preview"
-                  dir="rtl"
-                  className={`w-full max-w-full rounded-2xl overflow-hidden shadow-2xl relative border-0 flex flex-col items-center justify-between select-none transition-all duration-300 min-h-0 h-auto pt-3 sm:pt-4 pb-1 sm:pb-1.5 ${
-                    shareMode === "page" ? "px-2.5 sm:px-4" : "px-3 sm:px-5"
-                  }`}
-                  style={{
-                    direction: "rtl",
-                    touchAction: "auto",
-                    containerType: "inline-size",
-                    background: bgCategory === "none" ? "transparent" : currentBackgroundCss,
-                  }}
-                >
-                  {/* Transparent Canvas Checkerboard (Visible only in 'none' mode for visual clarity) */}
-                  {bgCategory === "none" && (
-                    <div
-                      className="absolute inset-0 pointer-events-none z-0 opacity-30"
-                      style={{
-                        backgroundImage: `linear-gradient(45deg, #71717a 25%, transparent 25%), linear-gradient(-45deg, #71717a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #71717a 75%), linear-gradient(-45deg, transparent 75%, #71717a 75%)`,
-                        backgroundSize: "20px 20px",
-                        backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
-                        backgroundColor: "#18181b",
-                      }}
-                    />
-                  )}
+                {(() => {
+                  const activeAspectPreset = aspectRatioOptions.find((a) => a.id === selectedAspectRatio) || aspectRatioOptions[0];
+                  const isAutoAspect = selectedAspectRatio === "auto";
+                  const cardTargetW = selectedAspectRatio === "custom"
+                    ? Math.max(300, Math.min(4000, customWidth || 1080))
+                    : activeAspectPreset.width;
+                  const cardTargetH = selectedAspectRatio === "custom"
+                    ? Math.max(300, Math.min(4000, customHeight || 1350))
+                    : activeAspectPreset.height;
+                  const cardRatioVal = cardTargetW / cardTargetH;
+                  const previewMaxWidth = isAutoAspect
+                    ? undefined
+                    : cardRatioVal < 0.7
+                    ? "min(100%, 340px)"
+                    : cardRatioVal < 0.95
+                    ? "min(100%, 430px)"
+                    : cardRatioVal <= 1.05
+                    ? "min(100%, 500px)"
+                    : "100%";
 
-                  {/* سطر أعلى البطاقة: إطار اسم السورة وتحته البسملة */}
-                  {(showSurahHeaderFrame || showOpeningHeader) && (
-                    renderOpeningHeader()
-                  )}
-
-                  {/* TEXT CONTAINER (Ayah text window) - Stably positioned, full width, auto-expanding vertically */}
-                  {showAyahText && (
+                  return (
                     <div
+                      ref={cardPreviewRef}
+                      id="share-ayah-card-preview"
                       dir="rtl"
-                      className={
-                        shareMode === "page" || isOpeningMushafPage
-                          ? "w-full flex-1 flex flex-col justify-around items-stretch text-center z-10 select-none relative cursor-default my-1 px-2 py-1"
-                          : "w-full flex flex-col items-center justify-center text-center z-10 select-none relative cursor-default mt-1.5 sm:mt-2.5 mb-1 px-1 sm:px-2 py-0"
-                      }
+                      className={`w-full max-w-full rounded-2xl overflow-hidden shadow-2xl relative border-0 flex flex-col items-center justify-between select-none transition-all duration-300 min-h-0 h-auto pt-3 sm:pt-4 pb-1 sm:pb-1.5 ${
+                        shareMode === "page" ? "px-2.5 sm:px-4" : "px-3 sm:px-5"
+                      }`}
                       style={{
                         direction: "rtl",
-                        backgroundColor: textShadowOpacity > 0 ? `rgba(0, 0, 0, ${textShadowOpacity})` : undefined,
                         touchAction: "auto",
+                        containerType: "inline-size",
+                        background: bgCategory === "none" ? "transparent" : currentBackgroundCss,
+                        ...(isAutoAspect ? {} : {
+                          aspectRatio: `${cardTargetW} / ${cardTargetH}`,
+                          maxWidth: previewMaxWidth,
+                        }),
                       }}
                     >
+                      {/* Transparent Canvas Checkerboard (Visible only in 'none' mode for visual clarity, excluded from exported PNG) */}
+                      {bgCategory === "none" && (
+                        <div
+                          data-export-ignore="true"
+                          className="absolute inset-0 pointer-events-none z-0 opacity-30"
+                          style={{
+                            backgroundImage: `linear-gradient(45deg, #71717a 25%, transparent 25%), linear-gradient(-45deg, #71717a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #71717a 75%), linear-gradient(-45deg, transparent 75%, #71717a 75%)`,
+                            backgroundSize: "20px 20px",
+                            backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+                            backgroundColor: "#18181b",
+                          }}
+                        />
+                      )}
+
+                      {/* سطر أعلى البطاقة: إطار اسم السورة وتحته البسملة */}
+                      {(showSurahHeaderFrame || showOpeningHeader) && (
+                        renderOpeningHeader()
+                      )}
+
+                      {/* TEXT CONTAINER (Ayah text window) - Stably positioned, full width, auto-expanding vertically */}
+                      {showAyahText && (
+                        <div
+                          dir="rtl"
+                          className={
+                            shareMode === "page" || isOpeningMushafPage
+                              ? "w-full flex-1 flex flex-col justify-around items-stretch text-center z-10 select-none relative cursor-default my-1 px-2 py-1 min-h-0"
+                              : `w-full flex flex-col items-center justify-center text-center z-10 select-none relative cursor-default ${!isAutoAspect ? "my-auto flex-1 min-h-0" : "mt-1.5 sm:mt-2.5 mb-1"} px-1 sm:px-2 py-0`
+                          }
+                          style={{
+                            direction: "rtl",
+                            backgroundColor: textShadowOpacity > 0 ? `rgba(0, 0, 0, ${textShadowOpacity})` : undefined,
+                            touchAction: "auto",
+                          }}
+                        >
                     {isLoadingVerse || (shareMode === "page" && selectedQuranFont === "qcf4" && !isDisplayingQcf4Lines) ? (
                       <div className="flex flex-col items-center justify-center gap-2.5 py-10 text-emerald-300/80">
                         <div className="w-7 h-7 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
@@ -4965,7 +5338,11 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                             key={`qcf4-w-${activeData?.surahNumber || 1}-${activeData?.ayah?.numberInSurah || 1}-${idx}`}
                             dir="rtl"
                             style={{
-                              fontFamily: w.font || qcf4Font || "'QCF4_QBSML', 'Amiri', 'UthmanicHafs', serif",
+                              fontFamily: w.font
+                                ? `"${w.font}", 'QCF4_QBSML', 'Amiri', 'UthmanicHafs', serif`
+                                : qcf4Font
+                                ? `"${qcf4Font}", 'QCF4_QBSML', 'Amiri', 'UthmanicHafs', serif`
+                                : "'QCF4_QBSML', 'Amiri', 'UthmanicHafs', serif",
                               fontSize: `${textFontSize}px`,
                               color: textColor,
                               display: "inline-block",
@@ -5146,12 +5523,117 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                     {/* على يسار السطر: مساحة خالية بعد حذف شارة معلومات السورة */}
                     <div className="w-0 shrink-0" />
                   </div>
-                </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* STUDIO CONTROL TABS */}
               <div className="w-full space-y-3 pt-1">
-                
+                {/* 📐 CARD ASPECT RATIO / SIZE SELECTOR */}
+                <div
+                  id="share-card-size-selector"
+                  className={`p-2 rounded-2xl border shadow-inner space-y-2 ${tTheme.aspectContainer}`}
+                >
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <span className={`text-[10px] font-bold flex items-center gap-1.5 ${tTheme.innerBoxHeader}`}>
+                      <Maximize2 size={12} className={tTheme.accentText} />
+                      <span>مقاس البطاقة</span>
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${tTheme.accentBadge}`} dir="ltr">
+                      {selectedAspectRatio === "auto"
+                        ? "تلقائي"
+                        : selectedAspectRatio === "custom"
+                        ? `${customWidth} × ${customHeight} px`
+                        : `${(aspectRatioOptions.find((a) => a.id === selectedAspectRatio)?.width || 1080)} × ${(aspectRatioOptions.find((a) => a.id === selectedAspectRatio)?.height || 1350)}`}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1">
+                    {aspectRatioOptions.map((opt) => {
+                      const isActive = selectedAspectRatio === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAspectRatio(opt.id);
+                            savedAspectRatioRef.current = opt.id;
+                          }}
+                          className={`py-1.5 px-1 rounded-xl text-[10px] transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 leading-tight ${
+                            isActive ? tTheme.aspectActive : tTheme.aspectInactive
+                          }`}
+                          title={`${opt.label} (${opt.subLabel})`}
+                        >
+                          <span className="font-bold truncate max-w-full">{opt.label}</span>
+                          <span className="text-[8.5px] opacity-75 font-medium" dir="ltr">
+                            {opt.subLabel}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedAspectRatio === "custom" && (
+                    <div className={`flex flex-wrap items-center justify-center gap-2 pt-1.5 border-t ${tTheme.innerBox} rounded-xl p-2`}>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[10px] font-bold opacity-80">العرض:</label>
+                        <input
+                          type="number"
+                          min={300}
+                          max={4000}
+                          step={10}
+                          value={customWidth}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!Number.isNaN(val)) {
+                              setCustomWidth(Math.min(4000, Math.max(0, val)));
+                            }
+                          }}
+                          onBlur={() => setCustomWidth((prev) => Math.max(300, Math.min(4000, prev || 1080)))}
+                          className={`w-20 py-1 px-2 rounded-lg border text-[10px] font-bold text-center outline-none ${tTheme.innerBox}`}
+                          dir="ltr"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const prevW = customWidth;
+                          setCustomWidth(customHeight);
+                          setCustomHeight(prevW);
+                        }}
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer ${tTheme.quickBtn}`}
+                        title="تبديل الطول والعرض"
+                      >
+                        <ArrowLeftRight size={13} />
+                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[10px] font-bold opacity-80">الارتفاع:</label>
+                        <input
+                          type="number"
+                          min={300}
+                          max={4000}
+                          step={10}
+                          value={customHeight}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!Number.isNaN(val)) {
+                              setCustomHeight(Math.min(4000, Math.max(0, val)));
+                            }
+                          }}
+                          onBlur={() => setCustomHeight((prev) => Math.max(300, Math.min(4000, prev || 1350)))}
+                          className={`w-20 py-1 px-2 rounded-lg border text-[10px] font-bold text-center outline-none ${tTheme.innerBox}`}
+                          dir="ltr"
+                        />
+                      </div>
+
+                      <span className="text-[10px] font-bold opacity-60" dir="ltr">px</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* 🌟 SHARE SCOPE SELECTOR: الآيات / صفحة كاملة */}
                 <div className={`p-0.5 sm:p-1 rounded-2xl border shadow-inner grid grid-cols-2 gap-1 ${tTheme.tabContainer}`}>
                   <button
@@ -5161,10 +5643,8 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                       setQcf4Lines([]);
                       const restoredSize = Math.max(26, savedAyahFontSizeRef.current || savedAyahFontSize || 28);
                       setTextFontSize(restoredSize);
-                      if (savedAspectRatioRef.current && savedAspectRatioRef.current !== "9:16") {
+                      if (savedAspectRatioRef.current) {
                         setSelectedAspectRatio(savedAspectRatioRef.current);
-                      } else {
-                        setSelectedAspectRatio("auto");
                       }
                       handleChangeRange(activeData.surahNumber, rangeFrom, rangeTo);
                     }}
@@ -5182,9 +5662,7 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
                         savedAyahFontSizeRef.current = textFontSize;
                         setSavedAyahFontSize(textFontSize);
                       }
-                      if (selectedAspectRatio !== "9:16") {
-                        savedAspectRatioRef.current = selectedAspectRatio;
-                      }
+                      savedAspectRatioRef.current = selectedAspectRatio;
                       setShareMode("page");
                       handleChangePage(selectedPageNumber || activeData.ayah?.page || 1, false);
                     }}

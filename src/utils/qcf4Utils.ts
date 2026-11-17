@@ -105,57 +105,169 @@ async function savePageData(pageNum: number, data: Qcf4PageData): Promise<void> 
 }
 
 const loadedFonts = new Set<string>();
+const fontDataUrlCache = new Map<string, string>();
+const inFlightFontLoads = new Map<string, Promise<void>>();
+
+function isValidFontBuffer(buffer: ArrayBuffer | null | undefined): buffer is ArrayBuffer {
+  if (!buffer || buffer.byteLength < 512) return false;
+  const bytes = new Uint8Array(buffer, 0, 4);
+  const isWoff2 = bytes[0] === 0x77 && bytes[1] === 0x4f && bytes[2] === 0x46 && bytes[3] === 0x32; // wOF2
+  const isWoff = bytes[0] === 0x77 && bytes[1] === 0x4f && bytes[2] === 0x46 && bytes[3] === 0x46; // wOFF
+  const isOtf = bytes[0] === 0x4f && bytes[1] === 0x54 && bytes[2] === 0x54 && bytes[3] === 0x4f; // OTTO
+  const isTtf = bytes[0] === 0x00 && bytes[1] === 0x01 && bytes[2] === 0x00 && bytes[3] === 0x00;
+  const isTrue = bytes[0] === 0x74 && bytes[1] === 0x72 && bytes[2] === 0x75 && bytes[3] === 0x65; // true
+  return isWoff2 || isWoff || isOtf || isTtf || isTrue;
+}
+
+function arrayBufferToDataUrl(buffer: ArrayBuffer, mimeType = "font/woff2"): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return `data:${mimeType};base64,${btoa(binary)}`;
+}
+
+function getQcf4FontUrls(fontName: string) {
+  const fileName =
+    fontName === "QCF4_QBSML" || fontName.endsWith("_W")
+      ? `${fontName}.woff2`
+      : `${fontName}_W.woff2`;
+  return {
+    fileName,
+    primaryUrl: `/api/qcf4/font/${fontName}`,
+    staticLocalUrl: `/fonts/${fileName}`,
+    cdnUrl: `https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2/${fileName}`,
+  };
+}
+
+async function fetchValidFontBuffer(fontName: string): Promise<ArrayBuffer | null> {
+  const { primaryUrl, staticLocalUrl, cdnUrl } = getQcf4FontUrls(fontName);
+  const isBundledStatic = fontName === "QCF4_QBSML" || fontName === "QCF4_Hafs_01" || fontName === "QCF4_Hafs_01_W";
+  const candidates = isBundledStatic
+    ? [staticLocalUrl, primaryUrl, cdnUrl]
+    : [primaryUrl, cdnUrl, staticLocalUrl];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+      if (contentType.includes("text/html") || contentType.includes("application/json")) {
+        continue;
+      }
+      const buf = await res.arrayBuffer();
+      if (isValidFontBuffer(buf)) {
+        return buf;
+      }
+    } catch {
+      // Try next URL candidate
+    }
+  }
+  return null;
+}
 
 /**
  * Dynamically loads a QCF4 font into document.fonts with IndexedDB offline persistence
  */
 export async function loadQcf4Font(fontName: string): Promise<void> {
-  if (!fontName || loadedFonts.has(fontName) || typeof window === "undefined") return;
+  if (!fontName || typeof window === "undefined") return;
+  if (loadedFonts.has(fontName)) return;
 
-  // 1. Check local IndexedDB offline storage first
-  const cachedBuffer = await getCachedFontBuffer(fontName);
-  if (cachedBuffer) {
+  const existingPromise = inFlightFontLoads.get(fontName);
+  if (existingPromise) return existingPromise;
+
+  const loadPromise = (async () => {
     try {
-      const ff = new FontFace(fontName, cachedBuffer);
-      await ff.load();
-      document.fonts.add(ff);
-      loadedFonts.add(fontName);
-      return;
-    } catch (e) {
-      console.warn(`[QCF4] Failed to load cached font ${fontName}, fetching fresh:`, e);
+      // 1. Check local IndexedDB offline storage first (must pass binary header validation)
+      const cachedBuffer = await getCachedFontBuffer(fontName);
+      if (isValidFontBuffer(cachedBuffer)) {
+        try {
+          if (!fontDataUrlCache.has(fontName)) {
+            fontDataUrlCache.set(fontName, arrayBufferToDataUrl(cachedBuffer));
+          }
+          const ff = new FontFace(fontName, cachedBuffer);
+          await ff.load();
+          document.fonts.add(ff);
+          loadedFonts.add(fontName);
+          return;
+        } catch (e) {
+          console.warn(`[QCF4] Failed to load cached font ${fontName}, fetching fresh:`, e);
+        }
+      }
+
+      // 2. Fetch verified binary from API / static local / CDN
+      const arrayBuf = await fetchValidFontBuffer(fontName);
+      if (arrayBuf) {
+        if (!fontDataUrlCache.has(fontName)) {
+          fontDataUrlCache.set(fontName, arrayBufferToDataUrl(arrayBuf));
+        }
+        const ff = new FontFace(fontName, arrayBuf);
+        await ff.load();
+        document.fonts.add(ff);
+        loadedFonts.add(fontName);
+        saveFontBuffer(fontName, arrayBuf);
+        return;
+      }
+
+      // 3. Fallback to CSS url FontFace via CDN
+      const { cdnUrl } = getQcf4FontUrls(fontName);
+      try {
+        const ffFallback = new FontFace(fontName, `url(${cdnUrl})`);
+        await ffFallback.load();
+        document.fonts.add(ffFallback);
+        loadedFonts.add(fontName);
+      } catch (cdnErr) {
+        console.error(`[QCF4] Failed to load font ${fontName}:`, cdnErr);
+      }
+    } finally {
+      inFlightFontLoads.delete(fontName);
     }
-  }
+  })();
 
-  const fileName = fontName === "QCF4_QBSML" || fontName.endsWith("_W") ? `${fontName}.woff2` : `${fontName}_W.woff2`;
-  const primaryUrl = `/api/qcf4/font/${fontName}`;
-  const staticLocalUrl = `/fonts/${fileName}`;
-  const cdnUrl = `https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main/fonts-woff2/${fileName}`;
+  inFlightFontLoads.set(fontName, loadPromise);
+  return loadPromise;
+}
 
-  try {
-    const res = await fetch(staticLocalUrl).catch(() => fetch(primaryUrl)).catch(() => fetch(cdnUrl));
-    if (res && res.ok) {
-      const arrayBuf = await res.arrayBuffer();
-      const ff = new FontFace(fontName, arrayBuf);
-      await ff.load();
-      document.fonts.add(ff);
-      loadedFonts.add(fontName);
-      // Save for instant offline access
-      saveFontBuffer(fontName, arrayBuf);
-      return;
-    }
-  } catch (err) {
-    console.warn(`[QCF4] Font binary fetch failed for ${fontName}, trying url fallback:`, err);
-  }
+/**
+ * Builds embedded base64 @font-face CSS rules for a list of QCF4 font names so SVG/DOM image capture
+ * renders QCF4 glyphs identically on both web and Android WebView (even offline).
+ */
+export async function getQcf4FontEmbedCss(fontNames: string[]): Promise<string> {
+  if (typeof window === "undefined") return "";
+  const uniqueNames = Array.from(new Set(fontNames.map((n) => (n || "").trim()).filter(Boolean)));
+  if (uniqueNames.length === 0) return "";
 
-  // Fallback to CSS url FontFace
-  try {
-    const ffFallback = new FontFace(fontName, `url(${cdnUrl})`);
-    await ffFallback.load();
-    document.fonts.add(ffFallback);
-    loadedFonts.add(fontName);
-  } catch (cdnErr) {
-    console.error(`[QCF4] Failed to load font ${fontName}:`, cdnErr);
-  }
+  const rules = await Promise.all(
+    uniqueNames.map(async (fontName) => {
+      try {
+        let dataUrl = fontDataUrlCache.get(fontName);
+        if (!dataUrl) {
+          const cachedBuffer = await getCachedFontBuffer(fontName);
+          if (isValidFontBuffer(cachedBuffer)) {
+            dataUrl = arrayBufferToDataUrl(cachedBuffer);
+            fontDataUrlCache.set(fontName, dataUrl);
+          }
+        }
+        if (!dataUrl) {
+          const arrayBuf = await fetchValidFontBuffer(fontName);
+          if (arrayBuf) {
+            dataUrl = arrayBufferToDataUrl(arrayBuf);
+            fontDataUrlCache.set(fontName, dataUrl);
+            saveFontBuffer(fontName, arrayBuf);
+          }
+        }
+        if (!dataUrl) return "";
+        return `@font-face { font-family: '${fontName}'; src: url('${dataUrl}') format('woff2'); font-display: swap; }`;
+      } catch {
+        return "";
+      }
+    })
+  );
+
+  return rules.filter(Boolean).join("\n");
 }
 
 /**
@@ -166,19 +278,26 @@ export async function ensureQbsmlLoaded(): Promise<void> {
 }
 
 /**
- * Checks if the QCF4_QBSML font is actively loaded in document.fonts
+ * Checks if any specific QCF4 font is actively loaded and ready in document.fonts
  */
-export function isQbsmlLoaded(): boolean {
-  if (typeof window === "undefined") return false;
-  if (loadedFonts.has("QCF4_QBSML")) return true;
+export function isQcf4FontLoaded(fontName: string): boolean {
+  if (!fontName || typeof window === "undefined") return false;
+  if (loadedFonts.has(fontName)) return true;
   if (typeof document !== "undefined" && "fonts" in document) {
     try {
-      return document.fonts.check("16px QCF4_QBSML");
+      return document.fonts.check(`16px "${fontName}"`);
     } catch {
       return false;
     }
   }
   return false;
+}
+
+/**
+ * Checks if the QCF4_QBSML font is actively loaded in document.fonts
+ */
+export function isQbsmlLoaded(): boolean {
+  return isQcf4FontLoaded("QCF4_QBSML");
 }
 
 /**
@@ -231,6 +350,18 @@ export function getJuzHeaderGlyph(juzNumber: number, fallbackText?: string): str
   }
   return fallbackText || `الجزء ${juzNumber}`;
 }
+
+/**
+ * QCF4_QBSML PUA word glyphs for Isti'adhah:
+ * \uFADB (أَعُوذُ), \uFADC (بِاللَّهِ), \uFADD (مِنَ), \uFADE (الشَّيْطَانِ), \uFADF (الرَّجِيمِ)
+ */
+export const QCF4_QBSML_ISTIADHAH_GLYPHS = [
+  "\uFADB",
+  "\uFADC",
+  "\uFADD",
+  "\uFADE",
+  "\uFADF",
+] as const;
 
 const pageCache = new Map<number, Qcf4PageData>();
 
