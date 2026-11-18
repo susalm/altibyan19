@@ -339,6 +339,21 @@ export async function fetchArabicAyas(page = 1, language = "ar"): Promise<any> {
  * High-level translation resolver for any Surah and Ayah in the reader.
  * Returns formatted translation text with footnotes, and falls back to offline bundle.
  */
+function cleanTranslationHtml(raw: string): string {
+  if (!raw) return "";
+  return raw
+    .replace(/<sup[^>]*>[\s\S]*?<\/sup>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+\n/g, "\n")
+    .trim();
+}
+
 export async function getAyahTranslationText(
   surahNumber: number,
   ayahNumberInSurah: number,
@@ -349,35 +364,62 @@ export async function getAyahTranslationText(
   const lang = languageCode || getLanguageCodeFromBookKey(normBook);
   const isRtl = ["ar", "ur", "fa", "ku", "ps", "ug"].includes(lang);
 
-  const ayaId = getAbsoluteAyahNumber(surahNumber, ayahNumberInSurah);
-
-  // Attempt API lookup
-  const apiRes = await fetchAyaTranslation(ayaId, normBook, lang);
-  if (apiRes && apiRes.translated_meaning) {
-    return {
-      text: apiRes.translated_meaning,
-      footnotes: apiRes.footnotes,
-      isRtl
-    };
-  }
-
-  // Direct QuranEnc fallback for high-reliability translations
+  // Fast-path: Direct QuranEnc HTTPS endpoint (supports english_hilali_khan, english_saheeh, english_rwwad, french_rashid, urdu_junagarhi, etc.)
   try {
     const encCandidate = normBook.replace(/^translation_/, "");
     const encRes = await fetch(`https://quranenc.com/api/v1/translation/aya/${encodeURIComponent(encCandidate)}/${surahNumber}/${ayahNumberInSurah}`, {
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(5500)
     });
     if (encRes.ok) {
       const encData = await encRes.json();
       if (encData?.result?.translation) {
         return {
-          text: encData.result.translation,
-          footnotes: encData.result.footnotes || "",
+          text: cleanTranslationHtml(encData.result.translation),
+          footnotes: encData.result.footnotes ? cleanTranslationHtml(encData.result.footnotes) : "",
           isRtl
         };
       }
     }
   } catch {}
+
+  // Fast-path for Hilali & Khan via AlQuran Cloud and Quran.com
+  if (normBook === "english_hilali_khan") {
+    try {
+      const acRes = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumberInSurah}/en.hilali`, {
+        signal: AbortSignal.timeout(5500)
+      });
+      if (acRes.ok) {
+        const acData = await acRes.json();
+        if (acData?.data?.text) {
+          return { text: cleanTranslationHtml(acData.data.text), isRtl: false };
+        }
+      }
+    } catch {}
+    try {
+      const qcRes = await fetch(`https://api.quran.com/api/v4/verses/by_key/${surahNumber}:${ayahNumberInSurah}?translations=203`, {
+        signal: AbortSignal.timeout(5500)
+      });
+      if (qcRes.ok) {
+        const qcData = await qcRes.json();
+        const txt = qcData?.verse?.translations?.[0]?.text;
+        if (txt) {
+          return { text: cleanTranslationHtml(txt), isRtl: false };
+        }
+      }
+    } catch {}
+  }
+
+  const ayaId = getAbsoluteAyahNumber(surahNumber, ayahNumberInSurah);
+
+  // Attempt Quran Content API lookup
+  const apiRes = await fetchAyaTranslation(ayaId, normBook, lang);
+  if (apiRes && apiRes.translated_meaning) {
+    return {
+      text: cleanTranslationHtml(apiRes.translated_meaning),
+      footnotes: apiRes.footnotes ? cleanTranslationHtml(apiRes.footnotes) : "",
+      isRtl
+    };
+  }
 
   // Graceful offline fallback for English translations
   if (lang === "en" || normBook.includes("english") || normBook.includes("hilali")) {

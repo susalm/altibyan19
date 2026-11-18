@@ -291,38 +291,25 @@ export async function fetchTafsirData(surahNumber: number, ayahNumber: number, m
         status: "success",
         text: offlineMukhtasar,
         result: offlineMukhtasar,
-        source: "المختصر في تفسير القرآن الكريم - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
+        source: "المختصر في تفسير القرآن الكريم (مركز تفسير للدراسات القرآنية)"
       };
     }
 
-    // Direct GitHub fetch attempt from susalm/mushaf-altibyan- repository (tafsir-mcp-main)
-    const altibyanUrls = [
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir/mukhtasar/${surahNumber}/${ayahNumber}.json`,
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir/${mode}/${surahNumber}/${ayahNumber}.json`,
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/mcp/mukhtasar/${surahNumber}/${ayahNumber}.json`,
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/data/${surahNumber}/${ayahNumber}.json`,
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir_mukhtasar/${surahNumber}/${ayahNumber}.json`
-    ];
-
-    for (const url of altibyanUrls) {
-      try {
-        const ghRes = await fetch(url);
-        if (ghRes.ok) {
-          const data = await ghRes.json();
-          const textVal = data.text || data.result || data.tafsir || data.content;
-          if (textVal) {
-            return {
-              status: "success",
-              text: textVal,
-              result: textVal,
-              source: "المختصر في تفسير القرآن الكريم - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
-            };
-          }
+    try {
+      const ghRes = await fetch(`https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/ar-tafsir-al-mukhtasar/${surahNumber}/${ayahNumber}.json`);
+      if (ghRes.ok) {
+        const data = await ghRes.json();
+        const textVal = data.text || data.result || data.tafsir || data.content;
+        if (textVal) {
+          return {
+            status: "success",
+            text: textVal,
+            result: textVal,
+            source: "المختصر في تفسير القرآن الكريم (مركز تفسير للدراسات القرآنية)"
+          };
         }
-      } catch (e) {
-        // ignore & try next
       }
-    }
+    } catch (_) {}
   }
 
   if (mode === "tafsir_aysar" || mode === "tafsir-aysar") {
@@ -332,32 +319,8 @@ export async function fetchTafsirData(surahNumber: number, ayahNumber: number, m
         status: "success",
         text: offlineAysar,
         result: offlineAysar,
-        source: "أيسر التفاسير لكلام العلي الكبير - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
+        source: "أيسر التفاسير لكلام العلي الكبير (الشيخ أبو بكر الجزائري)"
       };
-    }
-
-    const aysarUrls = [
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir/aysar/${surahNumber}/${ayahNumber}.json`,
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/tafsir_aysar/${surahNumber}/${ayahNumber}.json`,
-      `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/data/aysar/${surahNumber}/${ayahNumber}.json`
-    ];
-
-    for (const url of aysarUrls) {
-      try {
-        const ghRes = await fetch(url);
-        if (ghRes.ok) {
-          const data = await ghRes.json();
-          const textVal = data.text || data.result || data.tafsir || data.content;
-          if (textVal) {
-            return {
-              status: "success",
-              text: textVal,
-              result: textVal,
-              source: "أيسر التفاسير لكلام العلي الكبير - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
-            };
-          }
-        }
-      } catch (_) {}
     }
   }
 
@@ -407,14 +370,14 @@ export async function fetchTafsirData(surahNumber: number, ayahNumber: number, m
 
   if (mode === "tafsir_waseet" || mode === "tafsir_waseet_tantawi") {
     try {
-      const qtsRes = await fetch(`http://api.quran-tafseer.com/tafseer/5/${surahNumber}/${ayahNumber}`);
-      if (qtsRes.ok) {
-        const qtsData = await qtsRes.json();
-        if (qtsData?.text) {
+      const ghRes = await fetch(`https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/ar-tafsir-al-wasit-tantawi/${surahNumber}/${ayahNumber}.json`);
+      if (ghRes.ok) {
+        const ghData = await ghRes.json();
+        if (ghData?.text) {
           return {
             status: "success",
-            text: qtsData.text,
-            result: qtsData.text,
+            text: ghData.text,
+            result: ghData.text,
             source: "التفسير الوسيط للقرآن الكريم (د. محمد سيد طنطاوي)"
           };
         }

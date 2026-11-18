@@ -398,8 +398,57 @@ function generateSmartOfflineBalagha(
 }
 
 /**
- * Primary offline interface for Sarf, Eerab, and Balagha.
- * Always guarantees 100% offline functionality without needing internet network calls!
+ * Cleans and formats authentic I'rab HTML/text from external scholarly sources
+ * into crisp "(word): meaning" lines that render properly in parseLinguisticItems.
+ */
+export function normalizeAuthenticIrabText(rawText: string): string {
+  if (!rawText) return "";
+  let text = rawText
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\*/g, "")
+    .trim();
+
+  // Remove header like "الإعراب:" if alone on first line
+  text = text.replace(/^الإعراب\s*[:：]?\s*\n+/i, "").trim();
+
+  // Convert Quranic word markers like ﴿word﴾: ... into (word): ... or ensure newline per phrase
+  if (!text.includes("\n") && /\([^()]+\)\s+/.test(text)) {
+    // e.g. earab.json single-paragraph format: "(قُلْ) أمر فاعله مستتر (هُوَ) ضمير..."
+    text = text.replace(/\s+(?=\([^\(\)]{1,45}\)\s+[^\(\)])/g, "\n");
+  }
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line) => {
+      // Match ﴿word﴾: explanation
+      const mQuran = line.match(/^﴿([^﴿﴾]+)﴾\s*[:：\-–—]?\s*(.+)$/);
+      if (mQuran) {
+        return `(${mQuran[1].trim()}): ${mQuran[2].trim()}`;
+      }
+      // Match (word) explanation (without colon, as in earab.json / al-jadwal)
+      const mParen = line.match(/^\(([^()]+)\)\s*(?:[:：\-–—]\s*)?(.+)$/);
+      if (mParen && !mParen[2].startsWith(")")) {
+        return `(${mParen[1].trim()}): ${mParen[2].trim()}`;
+      }
+      return line;
+    });
+
+  return lines.join("\n").trim();
+}
+
+/**
+ * Primary offline interface for authentic Eerab.
+ * Only uses authentic local records unless allowHeuristicFallback is explicitly true.
  */
 export function getOfflineSarf(
   surahNumber: number,

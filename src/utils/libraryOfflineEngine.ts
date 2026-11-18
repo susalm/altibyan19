@@ -246,12 +246,20 @@ export function isCorruptAyahOnlyText(text: string | null | undefined, ayahText?
   const t = text.trim();
   if (t.length === 0) return true;
 
-  // Stale fallback or error messages should be treated as corrupt so they get purged and re-fetched
+  // Stale fallback or synthetic messages should be treated as corrupt so they get purged and re-fetched
   if (
     t.includes("لم يَرِد نص مسند خاص لهذه الآية في كتاب") ||
     t.includes("ضمن المصادر الرقمية المعتمدة حالياً") ||
     t.includes("صيانةً للأمانة العلمية وتجنباً لإيراد") ||
-    t.includes("تعذر جلب النص الأصلي لكتاب")
+    t.includes("تعذر جلب النص الأصلي لكتاب") ||
+    t.includes("مفردة قرآنية كريمة، معربة بحسب موقعها") ||
+    t.includes("تحليل نحوي هيكلي") ||
+    t.includes("العنوان: هدايات الآية الكريمة") ||
+    t.includes("تتضمن هذه الآية الكريمة من سورة") ||
+    t.includes("لم يرد نص تدبري مسجل") ||
+    t.includes("لا توجد تقييدات شخصية مسجلة") ||
+    t.includes("لا يوجد إعراب مسجل") ||
+    t.includes("تعذر الاتصال اللحظي بمزود الخدمة")
   ) {
     return true;
   }
@@ -281,11 +289,13 @@ export function isCorruptAyahOnlyText(text: string | null | undefined, ayahText?
 export async function cleanupCorruptTafsirPacks(): Promise<void> {
   try {
     // Clear localStorage download flags for invalid packs
+    let needsV2Purge = false;
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem("tibyan_book_downloaded_tafsir_tabari");
       localStorage.removeItem("tibyan_book_downloaded_tafsir_baghawi");
       localStorage.removeItem("tibyan_book_downloaded_ar.tabari");
       localStorage.removeItem("tibyan_book_downloaded_ar.baghawy");
+      needsV2Purge = localStorage.getItem("tibyan_services_cache_v2_cleaned") !== "true";
     }
 
     const db = await getLibraryDB();
@@ -309,7 +319,24 @@ export async function cleanupCorruptTafsirPacks(): Promise<void> {
             val.includes("تبيين مراد الله تعالى في الآية الكريمة بالجمع") ||
             val.includes("بيان المعنى الإجمالي للآية الكريمة بما يبرز كمال حكمة الله") ||
             val.includes("استنبط علماء الأحكام والفقه من هذه الآية الكريمة") ||
-            val.includes("تنبيه توثيقي: النص المرقمن المكتمل لهذا المجلد قيد التحقيق");
+            val.includes("تنبيه توثيقي: النص المرقمن المكتمل لهذا المجلد قيد التحقيق") ||
+            val.includes("مفردة قرآنية كريمة، معربة بحسب موقعها") ||
+            val.includes("تحليل نحوي هيكلي") ||
+            val.includes("العنوان: هدايات الآية الكريمة") ||
+            val.includes("لم يرد نص تدبري مسجل") ||
+            val.includes("لا توجد تقييدات شخصية مسجلة") ||
+            val.includes("لا يوجد إعراب مسجل") ||
+            val.includes("تعذر الاتصال اللحظي بمزود الخدمة");
+
+          const isStaleV2ServiceCache =
+            needsV2Purge &&
+            (
+              ((key.endsWith(":suraj_garib_quran") || key.endsWith(":gharib")) &&
+                (val.includes("لم يُدوّن غريب") || val.includes("لم يدون غريب"))) ||
+              key.endsWith(":translation_hilali_khan") ||
+              key.endsWith(":book_tadabbur") ||
+              key.endsWith(":book_irab")
+            );
 
           const isCorruptPack =
             (key.endsWith(":tafsir_tabari") ||
@@ -326,12 +353,14 @@ export async function cleanupCorruptTafsirPacks(): Promise<void> {
             (key.endsWith(":tafsir_sadi") || key.endsWith(":ar.saadi")) &&
             isCorruptAyahOnlyText(val);
 
-          if (isSynthetic || isCorruptPack || isCorruptSaadi) {
+          if (isSynthetic || isStaleV2ServiceCache || isCorruptPack || isCorruptSaadi) {
             cursor.delete();
             memoryBookCache.delete(key);
           }
         }
         cursor.continue();
+      } else if (needsV2Purge && typeof localStorage !== "undefined") {
+        localStorage.setItem("tibyan_services_cache_v2_cleaned", "true");
       }
     };
   } catch (_) {}
@@ -515,20 +544,22 @@ export async function getOfflineLibraryContent(
     bookId === "book_sarf" ||
     bookId === "book_balagha" ||
     bookId === "eerab" ||
+    bookId === "irab" ||
     bookId === "sarf" ||
     bookId === "balagha"
   ) {
-    result = getOfflineSarf(surahNumber, ayahNumber, surahName, ayahText, bookId, true);
+    result = getOfflineSarf(surahNumber, ayahNumber, surahName, ayahText, bookId, false) || "";
   } else if (
     bookId === "suraj_garib_quran" ||
+    bookId === "siraj_garib_quran" ||
     bookId === "gharib"
   ) {
-    result = getOfflineGharib(surahNumber, ayahNumber, surahName, ayahText);
+    result = getOfflineGharib(surahNumber, ayahNumber, surahName, ayahText, false) || "";
   }
 
   // D. Sciences of Quran (أسباب النزول وأحكام القرآن)
-  else if (bookId === "asbab_nuzul_wahidi" || bookId === "muharrar_asbab" || bookId === "asbab_nuzool") {
-    result = getOfflineAsbab(surahNumber, ayahNumber, surahName, ayahText);
+  else if (bookId === "asbab_nuzul_wahidi" || bookId === "muharrar_asbab" || bookId === "asbab_nuzool" || bookId === "asbab") {
+    result = getOfflineAsbab(surahNumber, ayahNumber, surahName, ayahText, false) || "";
   } else if (bookId === "ahkam_quran_jassas") {
     result = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
   } else if (bookId === "ahkam_quran_arabi") {
@@ -544,7 +575,7 @@ export async function getOfflineLibraryContent(
     bookId === "book_lubab" ||
     bookId === "hidaya"
   ) {
-    result = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText, bookId, true);
+    result = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText, bookId, false);
   }
 
   // F. Mutashabihat (كتب المتشابهات اللفظية)
@@ -556,16 +587,18 @@ export async function getOfflineLibraryContent(
   }
 
   // G. User Notes
-  else if (bookId === "user_notes_books" || bookId === "user_notes_ayah") {
-    const storageKey = bookId === "user_notes_ayah"
-      ? `tebyan_ayah_note_${surahNumber}_${ayahNumber}`
-      : `tebyan_books_note_${surahNumber}_${ayahNumber}`;
-    const userNote = typeof localStorage !== "undefined" ? localStorage.getItem(storageKey) : "";
-    result = userNote || "لا توجد تقييدات شخصية مسجلة لهذه الآية بعد. يمكنك كتابة تعليقاتك وتقييداتك وحفظها محلياً في جهازك.";
+  else if (bookId === "user_notes_books" || bookId === "user_notes_ayah" || bookId === "notes") {
+    const userNote = typeof localStorage !== "undefined"
+      ? (bookId === "user_notes_books"
+          ? localStorage.getItem(`tebyan_books_note_${surahNumber}_${ayahNumber}`)
+          : (localStorage.getItem(`tebyan_user_ayah_notes_${surahNumber}_${ayahNumber}`) ||
+             localStorage.getItem(`tebyan_ayah_note_${surahNumber}_${ayahNumber}`)))
+      : "";
+    return userNote || "لا توجد تقييدات شخصية مسجلة لهذه الآية بعد. يمكنك كتابة تعليقاتك وتقييداتك وحفظها محلياً في جهازك.";
   }
 
-  // Persist result into IndexedDB cache for instant future loads if authentic and non-empty
-  if (result && result.trim().length > 0) {
+  // Do not persist generic fallback Sahih Intl under Hilali cache key
+  if (result && result.trim().length > 0 && bookId !== "translation_hilali_khan" && bookId !== "english_hilali_khan") {
     saveToLibraryCache(cacheKey, result);
   }
 
@@ -615,31 +648,34 @@ export function getOfflineLibraryContentSync(
     res = "";
   } else if (bookId.startsWith("translation_") || bookId === "english") {
     res = getOfflineEnglishTranslation(surahNumber, ayahNumber) || "";
-  } else if (bookId === "book_irab" || bookId === "book_jadwal_safi" || bookId === "book_sarf" || bookId === "book_balagha" || bookId === "eerab" || bookId === "sarf" || bookId === "balagha") {
-    res = getOfflineSarf(surahNumber, ayahNumber, surahName, ayahText, bookId, true);
-  } else if (bookId === "suraj_garib_quran" || bookId === "gharib") {
-    res = getOfflineGharib(surahNumber, ayahNumber, surahName, ayahText);
-  } else if (bookId === "asbab_nuzul_wahidi" || bookId === "muharrar_asbab" || bookId === "asbab_nuzool") {
-    res = getOfflineAsbab(surahNumber, ayahNumber, surahName, ayahText);
+  } else if (bookId === "book_irab" || bookId === "book_jadwal_safi" || bookId === "book_sarf" || bookId === "book_balagha" || bookId === "eerab" || bookId === "irab" || bookId === "sarf" || bookId === "balagha") {
+    res = getOfflineSarf(surahNumber, ayahNumber, surahName, ayahText, bookId, false) || "";
+  } else if (bookId === "suraj_garib_quran" || bookId === "siraj_garib_quran" || bookId === "gharib") {
+    res = getOfflineGharib(surahNumber, ayahNumber, surahName, ayahText, false) || "";
+  } else if (bookId === "asbab_nuzul_wahidi" || bookId === "muharrar_asbab" || bookId === "asbab_nuzool" || bookId === "asbab") {
+    res = getOfflineAsbab(surahNumber, ayahNumber, surahName, ayahText, false) || "";
   } else if (bookId === "ahkam_quran_jassas") {
     res = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
   } else if (bookId === "ahkam_quran_arabi") {
     const jassasAhkam = getOfflineAhkamJassas(surahNumber, ayahNumber, surahName, ayahText);
     res = jassasAhkam.replace("للإمام أبي بكر الرازي الجصاص", "للإمام القاضي ابن العربي المالكي");
   } else if (bookId.includes("tadabbur") || bookId === "hidaya" || bookId === "book_lubab" || bookId === "book_fawaid_tadabbur") {
-    res = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText, bookId, true);
+    res = getOfflineTdabr(surahNumber, ayahNumber, surahName, ayahText, bookId, false);
   } else if (bookId.includes("mutashabihat") || bookId.includes("taqeeda") || bookId.includes("durrat") || bookId.includes("malak")) {
     res = getOfflineMutashabihat(surahNumber, ayahNumber, surahName, ayahText, bookId);
-  } else if (bookId === "user_notes_books" || bookId === "user_notes_ayah") {
-    const storageKey = bookId === "user_notes_ayah"
-      ? `tebyan_ayah_note_${surahNumber}_${ayahNumber}`
-      : `tebyan_books_note_${surahNumber}_${ayahNumber}`;
-    res = (typeof localStorage !== "undefined" ? localStorage.getItem(storageKey) : "") || "لا توجد تقييدات شخصية مسجلة لهذه الآية بعد. يمكنك كتابة تعليقاتك وتقييداتك وحفظها محلياً في جهازك.";
+  } else if (bookId === "user_notes_books" || bookId === "user_notes_ayah" || bookId === "notes") {
+    const userNote = typeof localStorage !== "undefined"
+      ? (bookId === "user_notes_books"
+          ? localStorage.getItem(`tebyan_books_note_${surahNumber}_${ayahNumber}`)
+          : (localStorage.getItem(`tebyan_user_ayah_notes_${surahNumber}_${ayahNumber}`) ||
+             localStorage.getItem(`tebyan_ayah_note_${surahNumber}_${ayahNumber}`)))
+      : "";
+    return userNote || "لا توجد تقييدات شخصية مسجلة لهذه الآية بعد. يمكنك كتابة تعليقاتك وتقييداتك وحفظها محلياً في جهازك.";
   } else {
     res = "";
   }
 
-  if (res && res.trim().length > 0) {
+  if (res && res.trim().length > 0 && bookId !== "translation_hilali_khan" && bookId !== "english_hilali_khan") {
     memoryBookCache.set(cacheKey, res);
     saveToLibraryCache(cacheKey, res);
   }

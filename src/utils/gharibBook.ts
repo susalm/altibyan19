@@ -1,12 +1,14 @@
 import { surahsList } from "../data/surahList";
 import { sirajGharibRaw } from "../data/sirajGharibData";
+import sirajGharibFullJson from "../data/siraj_gharib_full.json";
 
 interface GharibEntry {
-  ayahNumber: number | string; // number or '*'
+  ayahNumber: number;
   word: string;
   meaning: string;
 }
 
+const sirajFullMap = sirajGharibFullJson as Record<string, string>;
 let parsedSurahsCache: Map<number, GharibEntry[]> | null = null;
 
 function getSirajGharibText(): string {
@@ -22,8 +24,8 @@ function getSirajGharibText(): string {
         return fs.readFileSync(filePath, "utf-8");
       }
     }
-  } catch (e) {
-    // fallback
+  } catch {
+    // ignore node fs error in browser
   }
   return "";
 }
@@ -33,9 +35,11 @@ function parseSirajGharibFile(): Map<number, GharibEntry[]> {
 
   const sirajGharibText = getSirajGharibText();
   const surahMap = new Map<number, GharibEntry[]>();
-  if (!sirajGharibText) return surahMap;
+  if (!sirajGharibText) {
+    parsedSurahsCache = surahMap;
+    return surahMap;
+  }
 
-  // Split by surah header line: e.g. "ترتيبها 1 ... سُورَةُ الفَاتِحَةِ ..." or "ترتيبها 2 ..."
   const surahBlocks = sirajGharibText.split(/(?=ترتيبها\s+\d+)/g);
 
   for (const block of surahBlocks) {
@@ -45,13 +49,9 @@ function parseSirajGharibFile(): Map<number, GharibEntry[]> {
     const surahNum = parseInt(surahHeaderMatch[1], 10);
     const entries: GharibEntry[] = [];
 
-    // Match lines like:
-    // (1) ... {بِسْمِ اللهِ} ... أَيْ: أَبْتَدِئُ قِرَاءَتِي...
-    // * ... {أَعُوذُ} ... أَلْتَجِئُ وَأَعْتَصِمُ.
-    // Filter out preamble lines with '*' (like Istiadha) and match true ayah numbers
     const lineMatches = block.matchAll(/(?:\((\d+)\)|\*)\s*\.\.\.\s*\{([^\}]+)\}\s*\.\.\.\s*([^\n\r]+)/g);
     for (const match of lineMatches) {
-      if (!match[1]) continue; // Skip lines marked with '*' (preamble/non-ayah)
+      if (!match[1]) continue;
       entries.push({
         ayahNumber: parseInt(match[1], 10),
         word: match[2].replace(/\*/g, "").trim(),
@@ -68,34 +68,66 @@ function parseSirajGharibFile(): Map<number, GharibEntry[]> {
   return surahMap;
 }
 
+/**
+ * Formats Al-Muyassar / CDN Gharib response lines into consistent (word): meaning lines
+ */
+export function normalizeGharibLines(rawText: string): string {
+  if (!rawText) return "";
+  const lines = rawText
+    .replace(/\*/g, "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  return lines
+    .map((line) => {
+      const m = line.match(/^(?:﴿([^﴿﴾]+)﴾|\{([^{}]+)\}|\(([^()]+)\))\s*[:：\-–—]\s*(.+)$/);
+      if (m) {
+        const w = (m[1] || m[2] || m[3] || "").trim();
+        const meaning = (m[4] || "").trim();
+        return `(${w}): ${meaning}`;
+      }
+      return line;
+    })
+    .join("\n")
+    .trim();
+}
+
+/**
+ * Looks up authentic Gharib Al-Quran vocabulary for all 114 surahs from:
+ * 1. Complete "السراج في بيان غريب القرآن" dataset (3,654 ayahs across 114 surahs)
+ * 2. Local "al_siraj_gharib.txt" fallback
+ *
+ * When returnEmptyNotice=false, returns null if the ayah isn't in السراج so async callers
+ * can also check "الميسر في غريب القرآن" before concluding no gharib entry exists.
+ */
 export function getOfflineGharib(
   surahNumber: number,
   ayahNumber: number,
-  surahNameInput?: string,
-  _ayahText?: string
+  _surahNameInput?: string,
+  _ayahText?: string,
+  returnEmptyNotice: boolean = false
 ): string | null {
-  const surahMeta = surahsList.find((s) => s.number === surahNumber);
-  const surahName = surahNameInput || (surahMeta ? surahMeta.name : `سورة رقم ${surahNumber}`);
+  const key = `${surahNumber}:${ayahNumber}`;
 
+  // 1. Primary: Complete 114-surah السراج في بيان غريب القرآن JSON
+  if (sirajFullMap && sirajFullMap[key] && sirajFullMap[key].trim()) {
+    return sirajFullMap[key].trim();
+  }
+
+  // 2. Secondary: Local al_siraj_gharib.txt (Surahs 1-5)
   const surahMap = parseSirajGharibFile();
-
-  if (!surahMap.has(surahNumber)) {
-    // If surah is not in local al_siraj_gharib.txt, return null to fallback to API/Gemini
-    return null;
+  if (surahMap.has(surahNumber)) {
+    const surahEntries = surahMap.get(surahNumber) || [];
+    const matchedEntries = surahEntries.filter((e) => e.ayahNumber === ayahNumber);
+    if (matchedEntries.length > 0) {
+      return matchedEntries.map((e) => `(${e.word}): ${e.meaning}`).join("\n");
+    }
   }
 
-  const surahEntries = surahMap.get(surahNumber) || [];
+  // Verify surah exists in metadata
+  const surahExists = surahsList.some((s) => s.number === surahNumber);
+  if (!surahExists) return null;
 
-  // Filter entries strictly for this specific ayah
-  const matchedEntries = surahEntries.filter((e) => {
-    return e.ayahNumber === ayahNumber;
-  });
-
-  if (matchedEntries.length === 0) {
-    return "لم يُدوّن غريب مفردات خاص لهذه الآية الكريمة";
-  }
-
-  return matchedEntries
-    .map((e) => `(${e.word}): ${e.meaning}`)
-    .join("\n");
+  return returnEmptyNotice ? "لم يُدوّن غريب مفردات خاص لهذه الآية الكريمة" : null;
 }

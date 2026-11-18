@@ -5,10 +5,11 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import { Readable } from "stream";
-import { quranEerabData } from "./src/data/quran_eerab";
 import { getOfflineMutashabihat } from "./src/utils/mutashabihatBook";
-import { getOfflineTdabr } from "./src/utils/tdabrBook";
-import { getOfflineSarf } from "./src/utils/sarfBook";
+import { getOfflineTdabr, parseTadabburWaAmalForAyah } from "./src/utils/tdabrBook";
+import { getOfflineSarf, normalizeAuthenticIrabText } from "./src/utils/sarfBook";
+import { getOfflineGharib, normalizeGharibLines } from "./src/utils/gharibBook";
+import { getOfflineAsbabStrict, NO_ASBAB_NOTICE } from "./src/utils/asbabBook";
 import { 
   getOfflineSaadiTafsir,
   getOfflineMuyassarTafsir,
@@ -274,238 +275,93 @@ async function runWithModelFallback<T>(
   throw lastError || new Error("All fallback models failed.");
 }
 
-// Helper to look up Gharib Al-Quran from Al-Siraj book locally
-function getAlSirajGharib(surahNumber: number, ayahNumber: number): string | null {
-  try {
-    const filePath = path.join(process.cwd(), "src", "data", "al_siraj_gharib.txt");
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
-    const content = fs.readFileSync(filePath, "utf-8");
-    const surahBlocks = content.split(/(?=ترتيبها\s+\d+)/g);
-    
-    for (const block of surahBlocks) {
-      const matchHeader = block.match(/ترتيبها\s+(\d+)/i);
-      if (!matchHeader) continue;
-      const sNum = parseInt(matchHeader[1], 10);
-      if (sNum !== surahNumber) continue;
-
-      const matches: string[] = [];
-      const lineMatches = block.matchAll(/(?:\((\d+)\)|\*)\s*\.\.\.\s*\{([^\}]+)\}\s*\.\.\.\s*([^\n\r]+)/g);
-      for (const m of lineMatches) {
-        const itemAyah = m[1] ? parseInt(m[1], 10) : "*";
-        if (itemAyah === ayahNumber || (itemAyah === "*" && ayahNumber === 1)) {
-          matches.push(`{ ${m[2].trim()} }: ${m[3].trim()}`);
-        }
-      }
-
-      if (matches.length > 0) {
-        return matches.join("\n");
-      }
-    }
-    return null;
-  } catch (error) {
-    console.error("Error parsing Al-Siraj Gharib file:", error);
-    return null;
-  }
-}
-
-// Helper to look up Asbab Al-Nuzool from Al-Muharar book locally
-function getAlMuhararAsbab(surahNumber: number, ayahNumber: number): string | null {
-  try {
-    const filePath = path.join(process.cwd(), "src", "data", "al_muharar_asbab.txt");
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
-    const content = fs.readFileSync(filePath, "utf-8");
-    
-    // Normalization helper
-    const normalize = (text: string) => {
-      return text
-        .replace(/[\u064B-\u065F]/g, "") // Remove diacritics
-        .replace(/[أإآء]/g, "ا")        // Normalize alef/hamza
-        .replace(/ة\b/g, "ه");          // Normalize ta marbuta
-    };
-    
-    const cleanContent = normalize(content);
-    
-    // Map of surah numbers to names in the text
-    const surahKeys: { [key: number]: string } = {
-      2: "سورة البقرة",
-      3: "سورة ال عمران",
-      4: "سورة النساء",
-      5: "سورة المائدة",
-      6: "سورة الانعام",
-      7: "سورة الاعراف",
-      8: "سورة الانفال",
-      9: "سورة التوبة",
-      11: "سورة هود",
-      13: "سورة الرعد",
-      14: "سورة ابراهيم",
-      15: "سورة الحجر",
-      16: "سورة النحل",
-      18: "سورة الكهف",
-      19: "سورة مريم",
-      22: "سورة الحج",
-      23: "سورة المؤمنون",
-      24: "سورة النور",
-      25: "سورة الفرقان",
-      28: "سورة القصص",
-      29: "سورة العنكبوت",
-      30: "سورة الروم",
-      31: "سورة لقمان",
-      33: "سورة الاحزاب",
-      36: "سورة يس",
-      38: "سورة ص",
-      39: "سورة الزمر",
-      41: "سورة فصلت",
-      42: "سورة الشورى",
-      43: "سورة الزخرف",
-      44: "سورة الدخان",
-      46: "سورة الاحقاف",
-      48: "سورة الفتح",
-      61: "سورة الصف",
-      62: "سورة الجمعة",
-      63: "سورة المنافقون",
-      64: "سورة التغابن",
-      66: "سورة التحريم",
-      93: "سورة الضحى",
-      96: "سورة العلق",
-      97: "سورة القدر",
-      108: "سورة الكوثر",
-      111: "سورة المسد",
-      112: "سورة الاخلاص"
-    };
-    
-    const key = surahKeys[surahNumber];
-    if (!key) return null;
-    
-    const normalizedKey = normalize(key);
-    const surahIndex = cleanContent.indexOf(normalizedKey);
-    if (surahIndex === -1) return null;
-    
-    // Find where the next surah starts to bound our search
-    let nextSurahIndex = cleanContent.length;
-    for (const k of Object.values(surahKeys)) {
-      const normK = normalize(k);
-      const idx = cleanContent.indexOf(normK, surahIndex + normalizedKey.length);
-      if (idx !== -1 && idx < nextSurahIndex) {
-        nextSurahIndex = idx;
-      }
-    }
-    
-    // Extract the section for this surah from the original content
-    const surahSection = content.substring(surahIndex, nextSurahIndex);
-    
-    // Now within this surah section, look for the ayah number inside parentheses e.g. (97)
-    const itemRegex = /(?:\r?\n|^)(\d+\s*-\s*قال\s+الله\s+تعالى:[\s\S]*?)(?=(?:\r?\n\d+\s*-\s*قال\s+الله\s+تعالى:)|$)/g;
-    let match;
-    while ((match = itemRegex.exec(surahSection)) !== null) {
-      const itemText = match[1];
-      // Check if this item mentions the ayah number in parentheses
-      const parenRegex = new RegExp(`\\(\\s*${ayahNumber}\\s*\\)`);
-      if (parenRegex.test(itemText)) {
-        return itemText.trim();
-      }
-    }
-    
-    // Fallback: If no exact item matched, let's search for any text containing the ayah number in parentheses
-    const paragraphs = surahSection.split(/\r?\n\r?\n/);
-    for (const para of paragraphs) {
-      if (para.includes(`(${ayahNumber})`)) {
-        return para.trim();
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error parsing Al-Muharar Asbab file:", error);
-    return null;
-  }
-}
-
-// Helper to look up pre-compiled Quranic Grammar (إعراب) locally
-function getQuranEerab(surahNumber: number, ayahNumber: number, ayahText: string): string | null {
-  const key = `${surahNumber}:${ayahNumber}`;
-  const localEerab = quranEerabData[key];
-  if (localEerab) {
-    return localEerab;
-  }
-  return null;
-}
-
-// Heuristic-based parsing for any verse when offline
-function getHeuristicEerab(surahNumber: number, ayahNumber: number, ayahText: string): string {
-  // Clean up Quranic small high signs and diacritics
-  const words = ayahText.split(/\s+/).filter(Boolean);
-  
-  let output = `*الآية الكريمة: "${ayahText}"*\n\n`;
-  output += `تم جلب هذا التحليل النحوي الهيكلي المبسط للكلمات أوفلاين:\n\n`;
-  
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    // Clean word for matching
-    const cleanWord = word
-      .replace(/[\u064B-\u065F]/g, "") // strip diacritics
-      .replace(/[()\{\}\[\]]/g, "")   // strip brackets
-      .replace(/[«»""'':;.,،؟!]/g, ""); // strip punctuation
-      
-    if (!cleanWord) continue;
-    
-    let analysis = "";
-    
-    // Heuristics
-    if (cleanWord === "الله" || cleanWord === "اللم") {
-      analysis = "لفظ الجلالة العظيم (اسم كريم مرفوع للتعظيم أو بحسب موقعه في الجملة).";
-    } else if (cleanWord === "لله") {
-      analysis = "اللام حرف جر للتعظيم، ولفظ الجلالة العظيم اسم مجرور باللام وعلامة جره الكسرة.";
-    } else if (cleanWord === "بالله" || cleanWord === "تالله" || cleanWord === "والله") {
-      analysis = "حرف جر وقسم، ولفظ الجلالة العظيم اسم مجرور وعلامة جره الكسرة للتعظيم.";
-    } else if (cleanWord === "قل") {
-      analysis = "فعل أمر مبني على السكون، والفاعل ضمير مستتر وجوباً تقديره (أنت).";
-    } else if (cleanWord === "امنوا") {
-      analysis = "فعل ماضٍ مبني على الضم لاتصاله بواو الجماعة، والواو ضمير متصل مبني في محل رفع فاعل.";
-    } else if (cleanWord === "قال" || cleanWord === "قالوا" || cleanWord === "قالت") {
-      analysis = "فعل قول ماضٍ مبني على الفتح (أو الضم للجمع)، والفاعل بحسب السياق.";
-    } else if (cleanWord === "انا" || cleanWord === "ان") {
-      analysis = "حرف توكيد ونصب ناسخ (من الأخوات إنّ) ينصب المبتدأ ويرفع الخبر.";
-    } else if (cleanWord === "يا" || cleanWord === "ايا") {
-      analysis = "حرف نداء مبني على السكون لا محل له من الإعراب.";
-    } else if (cleanWord === "الذين") {
-      analysis = "اسم موصول مبني على الفتح في محل جر أو نصب أو رفع بحسب موقعه.";
-    } else if (cleanWord === "في" || cleanWord === "من" || cleanWord === "الى" || cleanWord === "على" || cleanWord === "عن" || cleanWord === "حتى") {
-      analysis = `حرف جر مبني لا محل له من الإعراب، والاسم بعده مجرور.`;
-    } else if (cleanWord === "ما" || cleanWord === "من") {
-      analysis = "اسم موصول أو اسم شرط أو اسم استفهام مبني على السكون بحسب موقعه في الجملة.";
-    } else if (cleanWord === "لا") {
-      analysis = "حرف نفي أو نهي جازم مبني على السكون لا محل له من الإعراب.";
-    } else if (cleanWord === "الرحمن" || cleanWord === "الرحيم") {
-      analysis = "نعت أو صفة مجرورة بالكسرة الظاهرة (أو مرفوعة/منصوبة بحسب موضع المتبوع).";
-    } else if (cleanWord.startsWith("ال")) {
-      analysis = `اسم معرف بـ (أل) التعريف، يعرب بحسب موقعه في الآية (مبتدأ، خبر، فاعل، نعت، مفعول به، إلخ).`;
-    } else if (cleanWord.startsWith("ب") && cleanWord.length > 3) {
-      analysis = `الباء حرف جر، والاسم بعدها مجرور وعلامة جره الكسرة (أو علامة تناسب نوعه).`;
-    } else if (cleanWord.startsWith("ل") && cleanWord.length > 3) {
-      analysis = `اللام حرف جر (أو لام التوكيد/الأمر)، والاسم بعدها مجرور وعلامة جره الكسرة.`;
-    } else if (cleanWord.startsWith("و") && cleanWord.length > 3) {
-      analysis = `الواو حرف عطف (أو واو القسم أو واو الحال بحسب ما قبلها) تعطف ما بعدها على ما قبلها.`;
-    } else if (cleanWord.startsWith("ف") && cleanWord.length > 3) {
-      analysis = `الفاء حرف عطف تفيد الترتيب والتعقيب (أو الفاء السببية/الرابطة للجواب).`;
-    } else if (cleanWord.startsWith("ي") || cleanWord.startsWith("ت") || cleanWord.startsWith("ن") || cleanWord.startsWith("ا") && cleanWord.length > 4) {
-      analysis = `فعل مضارع مرفوع بالضمة (أو مجزوم/منصوب بحسب ما يسبقه)، والفاعل ضمير مستتر أو اسم ظاهر.`;
-    } else {
-      analysis = "اسم أو فعل مبني/معرب يعرب بحسب موقعه الإعرابي في سياق الجملة الشريفة.";
-    }
-    
-    output += `* **${word}**: ${analysis}\n`;
-  }
-  
-  output += `\n*ملاحظة: التحليلات النحوية مستفادة ومحررة من مراجع إعراب القرآن وصرفه وبيانه المعتمدة (الجدول في إعراب القرآن للصافي، وإعراب القرآن لدرويش).*`;
-  return output;
-}
-
 // Global in-memory cache for instant responses
 const tafsirMemoryCache = new Map<string, { result: string; source?: string }>();
+
+// Server lazy-loaded caches for complete classical JSON datasets (I'rab & Asbab al-Nuzul)
+let earabMapPromise: Promise<Map<string, string>> | null = null;
+let nozoolMapPromise: Promise<Map<string, string>> | null = null;
+
+function cleanDatasetHtml(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<sup[^>]*>[\s\S]*?<\/sup>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n\s*\n+/g, "\n\n")
+    .trim();
+}
+
+async function getEarabFullMap(): Promise<Map<string, string>> {
+  if (!earabMapPromise) {
+    earabMapPromise = (async () => {
+      const map = new Map<string, string>();
+      try {
+        const res = await fetch(
+          "https://raw.githubusercontent.com/abdalrhmanreda/islamic-data-assets/main/tafser/earab.json",
+          { signal: AbortSignal.timeout(15000) }
+        );
+        if (res.ok) {
+          const arr = await res.json();
+          if (Array.isArray(arr)) {
+            for (const item of arr) {
+              if (item?.sura && item?.aya && item?.text) {
+                const formatted = normalizeAuthenticIrabText(item.text);
+                if (formatted) {
+                  map.set(`${item.sura}:${item.aya}`, formatted);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[earab.json] Lazy fetch failed:", err);
+        earabMapPromise = null;
+      }
+      return map;
+    })();
+  }
+  return earabMapPromise;
+}
+
+async function getNozoolWahidyMap(): Promise<Map<string, string>> {
+  if (!nozoolMapPromise) {
+    nozoolMapPromise = (async () => {
+      const map = new Map<string, string>();
+      try {
+        const res = await fetch(
+          "https://raw.githubusercontent.com/abdalrhmanreda/islamic-data-assets/main/tafser/nozool-wahidy.json",
+          { signal: AbortSignal.timeout(15000) }
+        );
+        if (res.ok) {
+          const arr = await res.json();
+          if (Array.isArray(arr)) {
+            for (const item of arr) {
+              if (item?.sura && item?.aya && item?.text) {
+                const clean = cleanDatasetHtml(item.text);
+                if (clean) {
+                  map.set(`${item.sura}:${item.aya}`, clean);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[nozool-wahidy.json] Lazy fetch failed:", err);
+        nozoolMapPromise = null;
+      }
+      return map;
+    })();
+  }
+  return nozoolMapPromise;
+}
 
 // Endpoint: Update app icon image (saves custom uploaded icon to public/app-icon-2.png)
 app.post("/api/update-app-icon", (req: express.Request, res: express.Response) => {
@@ -888,35 +744,7 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
         }
       }
 
-      // 2. Primary GitHub repository fetch attempt from susalm/mushaf-altibyan- (tafsir-mcp-main)
-      const githubTranslationUrls = [
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translations/${type}/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translation/${type}/${surahNumber}/${ayahNumber}.json`,
-        transCfg.alquranCloudEdition ? `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translations/${transCfg.alquranCloudEdition}/${surahNumber}/${ayahNumber}.json` : "",
-        transCfg.alquranCloudEdition ? `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/translation/${transCfg.alquranCloudEdition}/${surahNumber}/${ayahNumber}.json` : "",
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/data/translations/${type}/${surahNumber}/${ayahNumber}.json`,
-        `https://raw.githubusercontent.com/susalm/mushaf-altibyan-/main/tafsir-mcp-main/${type}/${surahNumber}/${ayahNumber}.json`
-      ].filter(Boolean);
-
-      for (const ghUrl of githubTranslationUrls) {
-        try {
-          const ghRes = await fetch(ghUrl, { signal: AbortSignal.timeout(4000) });
-          if (ghRes.ok) {
-            const data = await ghRes.json();
-            const textVal = data.text || data.result || data.translation || data.content;
-            if (textVal) {
-              const cleanText = cleanHtml(textVal);
-              tafsirMemoryCache.set(cacheKey, { result: cleanText, source: transCfg.name });
-              return res.json({
-                result: cleanText,
-                source: "ترجمة معاني القرآن الكريم - مستودع التبيان (https://github.com/susalm/mushaf-altibyan-/tree/main/tafsir-mcp-main)"
-              });
-            }
-          }
-        } catch (_) {}
-      }
-
-      // 3. AlQuran Cloud API
+      // 2. AlQuran Cloud API
       if (transCfg.alquranCloudEdition) {
         try {
           const url = `https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/${transCfg.alquranCloudEdition}`;
@@ -1103,36 +931,112 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       console.warn(`[Tafsir API] External APIs for ${type} unreachable or returned empty. Falling back to scholarly extraction.`);
     }
 
-    // 2. Offline Datasets (Only for their exact matched books)
+    // 2. Authentic Verified Datasets & HTTPS APIs (Strict scholarly sources, never fall through to AI)
     if (type === "suraj_garib_quran" || type === "siraj_garib_quran" || type === "garib_quran_dinawari" || type === "mujam_alfaz" || type === "gharib") {
-      const localGharib = getAlSirajGharib(Number(surahNumber), Number(ayahNumber));
+      const localGharib = getOfflineGharib(Number(surahNumber), Number(ayahNumber), surahName, ayahText, false);
       if (localGharib) {
         tafsirMemoryCache.set(cacheKey, {
           result: localGharib,
           source: "السراج في بيان غريب القرآن - د. محمد بن عبد العزيز الخضيري"
         });
-        return res.json({ 
+        return res.json({
           result: localGharib,
           source: "السراج في بيان غريب القرآن - د. محمد بن عبد العزيز الخضيري"
         });
       }
+
+      try {
+        const ghRes = await fetch(
+          `https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/al-muyassar-fi-al-gharib/${surahNumber}/${ayahNumber}.json`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (ghRes.ok) {
+          const data = await ghRes.json();
+          if (data?.text) {
+            const normalized = normalizeGharibLines(cleanDatasetHtml(data.text));
+            if (normalized) {
+              tafsirMemoryCache.set(cacheKey, {
+                result: normalized,
+                source: "الميسر في غريب القرآن الكريم (مجمع الملك فهد)"
+              });
+              return res.json({
+                result: normalized,
+                source: "الميسر في غريب القرآن الكريم (مجمع الملك فهد)"
+              });
+            }
+          }
+        }
+      } catch (_) {}
+
+      return res.json({
+        result: "لم يُدوّن غريب مفردات خاص لهذه الآية الكريمة",
+        source: "السراج في بيان غريب القرآن / الميسر في غريب القرآن"
+      });
     }
 
     if (type === "muharrar_asbab" || type === "asbab_nuzul_wahidi" || type === "asbab_nuzool" || type === "asbab") {
-      const localAsbab = getAlMuhararAsbab(Number(surahNumber), Number(ayahNumber));
+      const localAsbab = getOfflineAsbabStrict(Number(surahNumber), Number(ayahNumber));
       if (localAsbab) {
-        return res.json({ 
-          result: localAsbab 
-        });
+        tafsirMemoryCache.set(cacheKey, { result: localAsbab, source: "المحرر في أسباب النزول / قاعدة أسباب النزول" });
+        return res.json({ result: localAsbab, source: "المحرر في أسباب النزول / قاعدة أسباب النزول" });
       }
+
+      const wahidiMap = await getNozoolWahidyMap();
+      const wahidiText = wahidiMap.get(`${surahNumber}:${ayahNumber}`);
+      if (wahidiText) {
+        tafsirMemoryCache.set(cacheKey, { result: wahidiText, source: "أسباب النزول للإمام الواحدي" });
+        return res.json({ result: wahidiText, source: "أسباب النزول للإمام الواحدي" });
+      }
+
+      return res.json({
+        result: NO_ASBAB_NOTICE,
+        source: "المحرر في أسباب النزول"
+      });
     }
 
-    if (type === "book_jadwal_safi" || type === "book_irab" || type === "book_sarf" || type === "book_balagha" || type === "eerab" || type === "sarf" || type === "balagha") {
+    if (type === "book_jadwal_safi" || type === "book_irab" || type === "book_sarf" || type === "book_balagha" || type === "eerab" || type === "irab" || type === "sarf" || type === "balagha") {
       const localSarf = getOfflineSarf(Number(surahNumber), Number(ayahNumber), surahName, ayahText, type, false);
       if (localSarf) {
-        tafsirMemoryCache.set(cacheKey, { result: localSarf });
-        return res.json({ result: localSarf });
+        tafsirMemoryCache.set(cacheKey, { result: localSarf, source: "إعراب القرآن الكريم" });
+        return res.json({ result: localSarf, source: "إعراب القرآن الكريم" });
       }
+
+      const irabSlugs = [
+        { slug: "al-i-rab-al-muyassar", source: "الإعراب الميسر للقرآن الكريم" },
+        { slug: "alrab-al-quran-li-da-as", source: "إعراب القرآن الكريم للدعاس" },
+        { slug: "al-jadwal-fi-i-rab-al-quran", source: "الجدول في إعراب القرآن (محمود الصافي)" }
+      ];
+
+      for (const item of irabSlugs) {
+        try {
+          const irRes = await fetch(
+            `https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/${item.slug}/${surahNumber}/${ayahNumber}.json`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          if (irRes.ok) {
+            const irData = await irRes.json();
+            if (irData?.text) {
+              const formatted = normalizeAuthenticIrabText(irData.text);
+              if (formatted && formatted.length > 10) {
+                tafsirMemoryCache.set(cacheKey, { result: formatted, source: item.source });
+                return res.json({ result: formatted, source: item.source });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      const earabMap = await getEarabFullMap();
+      const earabText = earabMap.get(`${surahNumber}:${ayahNumber}`);
+      if (earabText) {
+        tafsirMemoryCache.set(cacheKey, { result: earabText, source: "إعراب القرآن الكريم" });
+        return res.json({ result: earabText, source: "إعراب القرآن الكريم" });
+      }
+
+      return res.json({
+        result: "تعذر جلب الإعراب من المصدر المعتمد حالياً.",
+        source: "إعراب القرآن الكريم"
+      });
     }
 
     if (
@@ -1147,10 +1051,14 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
         tafsirMemoryCache.set(cacheKey, { result: localMutashabihat });
         return res.json({ result: localMutashabihat });
       }
+      return res.json({ result: "( لا يوجد متشابه لفظي لهذه الاية )" });
     }
 
     if (
       type === "book_tadabbur" ||
+      String(type).startsWith("book_tadabbur_") ||
+      type === "tadabbur" ||
+      type === "hidaya" ||
       type === "book_tdabur1" ||
       type === "book_tdabur2" ||
       type === "book_tdabur3" ||
@@ -1162,10 +1070,36 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       type === "book_fawaid_tadabbur" ||
       type === "book_lubab"
     ) {
-      const localTdabr = getOfflineTdabr(Number(surahNumber), Number(ayahNumber), surahName, ayahText, type, false);
-      const safeTdabr = localTdabr || `العنوان: توثيق مصادر التدبر\nالتدبر: لم يرد نص تدبري مسجل لهذه الآية الكريمة في مصادر وكتب التدبر المعتمدة المتوفرة حالياً (مركز تدبر - ليدبروا آياته).\nالقائل: مركز تدبر للدراسات والبحوث القرآنية\nالمصدر: كتاب «ليدبروا آياته»`;
-      tafsirMemoryCache.set(cacheKey, { result: safeTdabr });
-      return res.json({ result: safeTdabr });
+      const isSpecificGroup = /^book_tadabbur_[1-5]$/.test(type) || /_[1-5]$/.test(type);
+      const localTdabr = getOfflineTdabr(Number(surahNumber), Number(ayahNumber), surahName, ayahText, type, isSpecificGroup);
+      if (isSpecificGroup && localTdabr) {
+        return res.json({ result: localTdabr, source: "كتاب ليدبروا آياته" });
+      }
+
+      let remoteParsed: string | null = null;
+      try {
+        const tdRes = await fetch(
+          `https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/tadabbur-wa-amal/${surahNumber}/${ayahNumber}.json`,
+          { signal: AbortSignal.timeout(5500) }
+        );
+        if (tdRes.ok) {
+          const tdData = await tdRes.json();
+          if (tdData?.text) {
+            remoteParsed = parseTadabburWaAmalForAyah(tdData.text, Number(surahNumber), Number(ayahNumber), ayahText);
+          }
+        }
+      } catch (_) {}
+
+      const parts = [localTdabr, remoteParsed].filter((p): p is string => Boolean(p && p.trim()));
+      if (parts.length > 0) {
+        const combined = parts.join("\n\n---\n\n");
+        tafsirMemoryCache.set(cacheKey, { result: combined, source: "كتاب التفسير والتدبر والعمل / ليدبروا آياته" });
+        return res.json({ result: combined, source: "كتاب التفسير والتدبر والعمل / ليدبروا آياته" });
+      }
+
+      return res.json({
+        result: "[التفسير والتدبر والعمل]\nالعنوان: توثيق مصادر التدبر\nالتدبر: لم تتوفر وقفة تدبرية مسجلة حالياً لهذه الآية الكريمة.\nالقائل: مركز تدبر للدراسات والبحوث القرآنية\nالمصدر: كتاب «ليدبروا آياته»"
+      });
     }
 
     // 3. Classical scholarly knowledge extraction using verified Gemini AI

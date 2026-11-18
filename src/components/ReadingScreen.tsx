@@ -31,6 +31,7 @@ import { getOfflineAysarTafsir, getOfflineAysarTafsirFallback } from "../utils/a
 import { getOfflineAhkamJassas } from "../utils/ahkamJassasBook";
 import { getOfflineEnglishTranslation } from "../utils/englishTranslation";
 import { getAyahTranslationText } from "../utils/quranContentApi";
+import { fetchAuthenticServiceContent, isSyntheticOrStaleText } from "../utils/authenticServicesApi";
 import TranslationsCatalogModal from "./TranslationsCatalogModal";
 import { 
   getOfflineLibraryContent, 
@@ -596,7 +597,8 @@ const isTadabburMode = (mode: string): boolean => {
   return b?.mainCategory === "tadabbur" || b?.subCategory === "fawaid" || false;
 };
 
-const checkIsBalaghaTitle = (wStr: string): boolean => {
+const checkIsBalaghaTitle = (wStr: string, isBalaghaMode: boolean = false): boolean => {
+  if (!isBalaghaMode) return false;
   const cleanW = wStr.replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim();
   return (
     /^(?:سلامة\s+النظم|براعة\s+الربط|الإسناد\s+الخبري|أسلوب\s+|التوكيد\s+|الاستفهام\s+|الاستعارة\s+|الكناية\s+|التمثيل\s+|التصوير\s+|التدرج\s+|التقديم\s+|تقديم\s+|القصر\s+|الحصر\s+|الالتفات|الجناس|الطباق|المقابلة|الإيجاز|الإطناب|حسن\s+التعليل|رد\s+العجز|التضمين|المجاز|البيان|المعاني|البديع|السر\s+|دلالة\s+|التعبير\s+|حذف\s+|ذكر\s+|إيثار\s+|فائدة\s+|وقفة\s+|لطيفة\s+|تناسب\s+|الجمع\s+|موقع\s+|تكرار\s+|إفراد\s+)/.test(cleanW) ||
@@ -612,7 +614,7 @@ const checkIsBalaghaTitle = (wStr: string): boolean => {
   );
 };
 
-const parseLinguisticItems = (text: string): LinguisticParsedItem[] => {
+const parseLinguisticItems = (text: string, isBalaghaMode: boolean = false): LinguisticParsedItem[] => {
   if (!text) return [];
 
   // If there are no mutashabihat in the ayah, suffice strictly with: ( لا يوجد متشابه لفظي لهذه الاية )
@@ -758,7 +760,7 @@ const parseLinguisticItems = (text: string): LinguisticParsedItem[] => {
             ayahText: m.replace(/^[\s\{«\(\[]+|[\s\}»\)\]]+$/g, ""),
           });
         } else {
-          items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w) });
+          items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w, isBalaghaMode) });
         }
         continue;
       }
@@ -770,7 +772,7 @@ const parseLinguisticItems = (text: string): LinguisticParsedItem[] => {
       const w = braceMatch[1].replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").replace(/[*_]/g, "").trim();
       const m = braceMatch[2].replace(/^[\s:：\-–—\)\]\}»\(\[\{«"'\*\#]+/, "").replace(/^[:：\-–—\s]+/, "").replace(/[*_]/g, "").trim();
       if (w && m) {
-        items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w) });
+        items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w, isBalaghaMode) });
         continue;
       }
     }
@@ -781,7 +783,7 @@ const parseLinguisticItems = (text: string): LinguisticParsedItem[] => {
       const w = quranBraceMatch[1].replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").replace(/[*_]/g, "").trim();
       const m = quranBraceMatch[2].replace(/^[\s:：\-–—\)\]\}»\(\[\{«"'\*\#]+/, "").replace(/^[:：\-–—\s]+/, "").replace(/[*_]/g, "").trim();
       if (w && m) {
-        items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w) });
+        items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w, isBalaghaMode) });
         continue;
       }
     }
@@ -792,7 +794,7 @@ const parseLinguisticItems = (text: string): LinguisticParsedItem[] => {
       const w = parenMatch[1].replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").replace(/[*_]/g, "").trim();
       const m = parenMatch[2].replace(/^[\s:：\-–—\)\]\}»\(\[\{«"'\*\#]+/, "").replace(/^[:：\-–—\s]+/, "").replace(/[*_]/g, "").trim();
       if (w && m) {
-        items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w) });
+        items.push({ word: w, meaning: m, isBalaghaTitle: checkIsBalaghaTitle(w, isBalaghaMode) });
         continue;
       }
     }
@@ -839,7 +841,7 @@ const parseLinguisticItems = (text: string): LinguisticParsedItem[] => {
           items.push({ 
             word: rawW, 
             meaning: m,
-            isBalaghaTitle: checkIsBalaghaTitle(rawW)
+            isBalaghaTitle: checkIsBalaghaTitle(rawW, isBalaghaMode)
           });
         }
         continue;
@@ -1114,14 +1116,18 @@ const AyahWithTafsirCard = ({
 
   useEffect(() => {
     if (!hasBeenVisible) return;
-    if (dataCache[activeMode]) return; // already loaded
+    if (dataCache[activeMode] && !isSyntheticOrStaleText(dataCache[activeMode], activeMode)) return;
 
     let isMounted = true;
     const fetchData = async () => {
       setLoading(true);
       try {
-        if (activeMode === "notes") {
-          const savedNote = localStorage.getItem(`tebyan_user_ayah_notes_${surahNumber}_${ayah.numberInSurah}`) || "";
+        if (activeMode === "notes" || activeMode === "user_notes_ayah" || activeMode === "user_notes_books" || activeMode === "taqeeda") {
+          const savedNote =
+            (activeMode === "user_notes_books"
+              ? localStorage.getItem(`tebyan_books_note_${surahNumber}_${ayah.numberInSurah}`)
+              : (localStorage.getItem(`tebyan_user_ayah_notes_${surahNumber}_${ayah.numberInSurah}`) ||
+                 localStorage.getItem(`tebyan_ayah_note_${surahNumber}_${ayah.numberInSurah}`))) || "";
           if (isMounted) {
             setDataCache(prev => ({
               ...prev,
@@ -1132,179 +1138,22 @@ const AyahWithTafsirCard = ({
           return;
         }
 
-        let directOfflineResult: string | null = null;
-        if (activeMode === "tafsir_muyassar") {
-          directOfflineResult = getOfflineMuyassarTafsir(surahNumber, ayah.numberInSurah) || generateOfflineMuyassar(surahNumber, ayah.numberInSurah, surahName, ayah.text);
-        } else if (activeMode === "tafsir_sadi") {
-          directOfflineResult = getOfflineSaadiTafsir(surahNumber, ayah.numberInSurah) || generateOfflineSaadi(surahNumber, ayah.numberInSurah, surahName, ayah.text);
-        } else if (activeMode === "tafsir_mukhtasar") {
-          directOfflineResult = getOfflineMukhtasarTafsir(surahNumber, ayah.numberInSurah) || getOfflineMukhtasarTafsirFallback(surahNumber, ayah.numberInSurah, surahName, ayah.text);
-        } else if (activeMode === "tafsir_aysar") {
-          directOfflineResult = getOfflineAysarTafsir(surahNumber, ayah.numberInSurah);
-        } else if (activeMode === "gharib" || activeMode === "suraj_garib_quran") {
-          directOfflineResult = getOfflineGharib(surahNumber, ayah.numberInSurah, surahName, ayah.text);
-        } else if (
-          activeMode === "book_irab" ||
-          activeMode === "book_sarf" ||
-          activeMode === "book_balagha" ||
-          activeMode === "eerab" ||
-          activeMode === "sarf" ||
-          activeMode === "balagha" ||
-          activeMode === "book_jadwal_safi"
-        ) {
-          directOfflineResult = getOfflineSarf(surahNumber, ayah.numberInSurah, surahName, ayah.text, activeMode, true);
-        } else if (
-          activeMode === "muharrar_asbab" ||
-          activeMode === "asbab_nuzool" ||
-          activeMode === "asbab_nuzul_wahidi" ||
-          activeMode === "asbab"
-        ) {
-          directOfflineResult = getOfflineAsbab(surahNumber, ayah.numberInSurah, surahName, ayah.text);
-        } else if (
-          activeMode === "book_tadabbur" ||
-          activeMode.startsWith("book_tadabbur_") ||
-          activeMode === "tadabbur"
-        ) {
-          directOfflineResult = getOfflineTdabr(surahNumber, ayah.numberInSurah, surahName, ayah.text, activeMode, true);
-        } else if (
-          activeMode === "user_notes_books" ||
-          activeMode === "user_notes_ayah" ||
-          activeMode === "notes" ||
-          activeMode === "taqeeda"
-        ) {
-          const savedNote = localStorage.getItem(`tebyan_ayah_note_${surahNumber}_${ayah.numberInSurah}`) || "";
-          directOfflineResult = savedNote || "لم تدون تقييداً أو فائدة لهذه الآية بعد. اضغط هنا لكتابة وحفظ تقييداتك الشخصية.";
-        } else if (
-          activeMode === "mutashabihat" ||
-          activeMode === "book_mutashabihat_saghir" ||
-          activeMode === "book_taqeeda_saghir" ||
-          activeMode === "book_durrat_tanzil" ||
-          activeMode === "book_malak_tawil"
-        ) {
-          directOfflineResult = getOfflineMutashabihat(surahNumber, ayah.numberInSurah, surahName, ayah.text, activeMode);
-        } else if (
-          activeMode === "translation" ||
-          activeMode === "translation_mukhtasar_en" ||
-          activeMode === "translation_hilali_khan" ||
-          activeMode === "translation_sahih_intl" ||
-          activeMode === "translation_clear_quran" ||
-          activeMode === "english" ||
-          activeMode.startsWith("english_") ||
-          activeMode.startsWith("french_") ||
-          activeMode.startsWith("spanish_") ||
-          activeMode.startsWith("german_") ||
-          activeMode.startsWith("urdu_") ||
-          activeMode.startsWith("turkish_") ||
-          activeMode.startsWith("indonesian_") ||
-          activeMode.startsWith("russian_") ||
-          activeMode.startsWith("translation_")
-        ) {
-          const offlineEn = getOfflineEnglishTranslation(surahNumber, ayah.numberInSurah);
-          if (offlineEn) {
-            directOfflineResult = offlineEn;
-          }
-          if (typeof navigator !== "undefined" && navigator.onLine) {
-            try {
-              const transResult = await getAyahTranslationText(surahNumber, ayah.numberInSurah, activeMode);
-              if (transResult && transResult.text) {
-                let formatted = transResult.text;
-                if (transResult.footnotes && transResult.footnotes.trim()) {
-                  formatted += `\n\n📌 **Footnotes / الحواشي:**\n${transResult.footnotes.trim()}`;
-                }
-                directOfflineResult = formatted;
-              }
-            } catch (e) {
-              console.warn("Translation API error in card:", e);
-            }
-          }
-        } else {
-          directOfflineResult = await getOfflineLibraryContent(surahNumber, ayah.numberInSurah, activeMode, surahName, ayah.text);
-        }
+        const resolved = await fetchAuthenticServiceContent(
+          surahNumber,
+          ayah.numberInSurah,
+          activeMode,
+          surahName,
+          ayah.text
+        );
 
-        if (directOfflineResult && !isCorruptAyahOnlyText(directOfflineResult, ayah.text) && isMounted) {
+        if (isMounted && resolved) {
           setDataCache(prev => ({
             ...prev,
-            [activeMode]: directOfflineResult!
+            [activeMode]: resolved
           }));
-          setLoading(false);
-          return;
-        }
-
-        // 1. Check local IndexedDB offline storage first
-        const cacheKey = `${surahNumber}:${ayah.numberInSurah}:${activeMode}`;
-        const dbCached = (await getFromLibraryCache(cacheKey));
-        if (dbCached && !isCorruptAyahOnlyText(dbCached, ayah.text) && isMounted) {
-          let resolvedCached = dbCached;
-          if (
-            (activeMode.includes("mutashabihat") || activeMode === "book_mutashabihat_saghir") &&
-            (resolvedCached.includes("لا يوجد موضع متشابه") || resolvedCached.includes("لا يوجد متشابه")) &&
-            !resolvedCached.includes("الموضع المتشابه")
-          ) {
-            resolvedCached = "( لا يوجد متشابه لفظي لهذه الاية )";
-            saveToLibraryCache(cacheKey, resolvedCached).catch(() => {});
-          }
-          if (
-            (activeMode === "gharib" || activeMode === "suraj_garib_quran") &&
-            (resolvedCached.includes("لم يُدوّن غريب") || resolvedCached.includes("لم يدون غريب") || resolvedCached.includes("فالكلمات فيها")) &&
-            !resolvedCached.includes("):")
-          ) {
-            resolvedCached = "لم يُدوّن غريب مفردات خاص لهذه الآية الكريمة";
-            saveToLibraryCache(cacheKey, resolvedCached).catch(() => {});
-          }
-          setDataCache(prev => ({
-            ...prev,
-            [activeMode]: resolvedCached
-          }));
-          setLoading(false);
-          return;
-        } else if (dbCached && isCorruptAyahOnlyText(dbCached, ayah.text)) {
-          deleteFromLibraryCache(cacheKey).catch(() => {});
-        }
-
-        // 2. If completely offline, use authentic offline library content immediately without waiting
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
-          const fallbackText = await getOfflineLibraryContent(surahNumber, ayah.numberInSurah, activeMode, surahName, ayah.text);
-          if (fallbackText && isMounted) {
-            setDataCache(prev => ({ ...prev, [activeMode]: fallbackText }));
-            setLoading(false);
-            return;
-          }
-        }
-
-        // 3. Fallback to API if online
-        const currentBook = DEFAULT_BOOKS.find(b => b.id === activeMode || b.apiType === activeMode);
-        const response = await fetch("/api/tafsir", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            surahName,
-            surahNumber,
-            ayahNumber: ayah.numberInSurah,
-            ayahText: ayah.text,
-            type: activeMode,
-            bookTitle: currentBook?.title,
-            bookAuthor: currentBook?.author,
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (isMounted && data && data.result) {
-            setDataCache(prev => ({
-              ...prev,
-              [activeMode]: data.result
-            }));
-            saveToLibraryCache(cacheKey, data.result).catch(() => {});
-          }
         }
       } catch (err) {
-        console.warn(`Fetch ${activeMode} error, using offline fallback:`, err);
-        if (isMounted) {
-          const fallbackText = await getOfflineLibraryContent(surahNumber, ayah.numberInSurah, activeMode, surahName, ayah.text);
-          if (fallbackText) {
-            setDataCache(prev => ({ ...prev, [activeMode]: fallbackText }));
-          }
-        }
+        console.warn(`Fetch ${activeMode} error:`, err);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -1378,11 +1227,13 @@ const AyahWithTafsirCard = ({
 
   const rawText = dataCache[activeMode] || (
     activeMode === "notes"
-      ? (localStorage.getItem(`tebyan_user_ayah_notes_${surahNumber}_${ayah.numberInSurah}`) || "لم تدون تقييداً أو خاطرة لهذه الآية بعد. يمكنك تدوين وحفظ فوائدك وتدبراتك الشخصية هنا.")
-      : isLinguisticsOrIrabMode(activeMode) 
-      ? "لم يرد لهذه الآية الكريمة بيان لغوي أو إعرابي." 
+      ? (localStorage.getItem(`tebyan_user_ayah_notes_${surahNumber}_${ayah.numberInSurah}`) ||
+         localStorage.getItem(`tebyan_ayah_note_${surahNumber}_${ayah.numberInSurah}`) ||
+         "لم تدون تقييداً أو خاطرة لهذه الآية بعد. يمكنك تدوين وحفظ فوائدك وتدبراتك الشخصية هنا.")
+      : isLinguisticsOrIrabMode(activeMode)
+      ? "جاري التحميل..."
       : isTranslationMode
-      ? (ayah.translationEn || getOfflineEnglishTranslation(surahNumber, ayah.numberInSurah) || "جاري جلب الترجمة من الخادم...")
+      ? (activeMode === "translation_hilali_khan" ? "جاري جلب الترجمة المعتمدة..." : (ayah.translationEn || getOfflineEnglishTranslation(surahNumber, ayah.numberInSurah) || "جاري جلب الترجمة من الخادم..."))
       : "جاري تحميل محتوى الكتاب..."
   );
 
@@ -1485,7 +1336,12 @@ const AyahWithTafsirCard = ({
 
     // 9. Normalize spacing and formatting
     if (isLinguisticsOrIrabMode(mode)) {
-      const items = parseLinguisticItems(cleaned);
+      const isBalaghaMode =
+        mode === "balagha" ||
+        mode === "book_balagha" ||
+        mode === "book_lubab" ||
+        DEFAULT_BOOKS.find(b => b.id === mode)?.subCategory === "balagha";
+      const items = parseLinguisticItems(cleaned, isBalaghaMode);
       if (items.length > 0) {
         return items
           .map(item => {
@@ -1500,7 +1356,7 @@ const AyahWithTafsirCard = ({
               return `${item.refLabel}: ( ${cleanAyah} ) ${item.meaning || ""}`.trim();
             }
             const cleanW = item.word.replace(/^[\s\(\[\{«"']+|[\s\)\]\}»"']+$/g, "").trim();
-            if (item.isBalaghaTitle || mode === "balagha" || mode === "book_balagha") {
+            if (isBalaghaMode && item.isBalaghaTitle) {
               return `${cleanW}: ${item.meaning}`;
             }
             return `( ${cleanW} ): ${item.meaning}`;
@@ -1934,13 +1790,15 @@ const AyahWithTafsirCard = ({
                 <div className="h-4 bg-current opacity-20 rounded-full w-5/6 mr-auto"></div>
               </div>
             ) : isLinguisticsOrIrabMode(activeMode) ? (
+              (() => {
+                const isBalaghaCard =
+                  (activeMode as string) === "balagha" ||
+                  (activeMode as string) === "book_balagha" ||
+                  (activeMode as string) === "book_lubab" ||
+                  DEFAULT_BOOKS.find(b => b.id === activeMode)?.subCategory === "balagha";
+                return (
               <div className="flex flex-col gap-3 py-1 font-amiri font-amiri-naskh" dir="rtl" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
-                {parseLinguisticItems(rawText).map((item, idx) => {
-                  const isBalaghaCard = 
-                    (activeMode as string) === "balagha" || 
-                    (activeMode as string) === "book_balagha" ||
-                    (activeMode as string) === "book_lubab" ||
-                    DEFAULT_BOOKS.find(b => b.id === activeMode)?.subCategory === "balagha";
+                {parseLinguisticItems(rawText, isBalaghaCard).map((item, idx) => {
                   if (item.isHeader) {
                     return (
                       <div 
@@ -1963,7 +1821,7 @@ const AyahWithTafsirCard = ({
                     );
                   }
 
-                  const isBalaghaItem = isBalaghaCard || item.isBalaghaTitle || checkIsBalaghaTitle(item.word);
+                  const isBalaghaItem = isBalaghaCard && (item.isBalaghaTitle || checkIsBalaghaTitle(item.word, true));
                   const itemColorClass = isBalaghaItem 
                     ? getBalaghaTitleColorClass(theme, isDark) 
                     : getLinguisticWordColorClass(theme, isDark);
@@ -2099,6 +1957,8 @@ const AyahWithTafsirCard = ({
                   );
                 })}
               </div>
+                );
+              })()
             ) : isTadabburMode(activeMode) ? (
               (() => {
                 const sections = parseTadabburSections(cleanTafsirCardText(rawText, activeMode));
@@ -3301,62 +3161,14 @@ export default function ReadingScreen({
       }
     }
 
-    // 1. Instant authentic local offline resolution (100% offline & instant 0ms)
-    let offlineResult: string | null = null;
-    if (targetBook === "tafsir_muyassar") {
-      offlineResult = getOfflineMuyassarTafsir(sNum, aNum) || generateOfflineMuyassar(sNum, aNum, sName, realAyahText);
-    } else if (targetBook === "translation_hilali_khan") {
-      offlineResult = getOfflineEnglishTranslation(sNum, aNum);
-    } else if (targetBook === "suraj_garib_quran") {
-      offlineResult = getOfflineGharib(sNum, aNum, sName, realAyahText);
-    } else if (targetBook === "tafsir_mukhtasar") {
-      offlineResult = getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, realAyahText);
-    } else if (targetBook === "tafsir_sadi") {
-      offlineResult = getOfflineSaadiTafsir(sNum, aNum) || generateOfflineSaadi(sNum, aNum, sName, realAyahText);
-    }
-
-    if (offlineResult) {
-      setTafsirModalText(offlineResult);
-      setTafsirModalLoading(false);
-      const cacheKey = `${sNum}:${aNum}:${targetBook}`;
-      saveToLibraryCache(cacheKey, offlineResult).catch(() => {});
-      return;
-    }
-
-    // 2. Direct check in IndexedDB offline cache
-    const cacheKey = `${sNum}:${aNum}:${targetBook}`;
     try {
-      const dbCached = await getFromLibraryCache(cacheKey);
-      if (dbCached) {
-        setTafsirModalText(dbCached);
-        setTafsirModalLoading(false);
-        return;
-      }
-    } catch (_) {}
-
-    // 3. Fallback to universal offline content engine
-    const offlineUniversal = await getOfflineLibraryContent(sNum, aNum, targetBook, sName, realAyahText);
-    if (offlineUniversal) {
-      setTafsirModalText(offlineUniversal);
-      setTafsirModalLoading(false);
-      return;
-    }
-
-    if (targetBook === "tafsir_muyassar") {
-      setTafsirModalText(
-        getOfflineMuyassarTafsir(sNum, aNum) ||
-        getOfflineMukhtasarTafsir(sNum, aNum) ||
-        getOfflineSaadiTafsir(sNum, aNum) ||
-        "التفسير الميسر غير متوفر لهذه الآية حالياً"
-      );
-    } else if (targetBook === "translation_hilali_khan") {
-      setTafsirModalText(getOfflineEnglishTranslation(sNum, aNum) || "Translation currently unavailable");
-    } else if (targetBook === "suraj_garib_quran") {
-      setTafsirModalText(getOfflineGharib(sNum, aNum, sName, realAyahText) || "لا توجد كلمات غريبة مشروحة في هذه الآية الكريمة");
-    } else {
+      const resolved = await fetchAuthenticServiceContent(sNum, aNum, targetBook, sName, realAyahText);
+      setTafsirModalText(resolved || "");
+    } catch {
       setTafsirModalText("");
+    } finally {
+      setTafsirModalLoading(false);
     }
-    setTafsirModalLoading(false);
   };
 
   useEffect(() => {
@@ -5760,7 +5572,7 @@ export default function ReadingScreen({
     onSyncPlaybackStates
   ]);
 
-  // Perform clean AI Tafsir fetching from Express backend
+  // Perform clean authentic Tafsir & Service fetching via verified sources
   const fetchAITafsir = async (ayah: Ayah, mode: TafsirMode) => {
     setTafsirLoading(true);
     setTafsirError(null);
@@ -5769,550 +5581,32 @@ export default function ReadingScreen({
     const sNum = (ayah as any).surah?.number || surahNumber;
     const aNum = ayah.numberInSurah;
     const sName = (ayah as any).surah?.name || currentSurahMeta?.name;
-    const cacheKey = `${sNum}:${aNum}:${mode}`;
 
-    // Handle Mutashabihat directly from local offline book "دليل المتشابهات اللفظية في القرآن الكريم"
-    if (
-      mode === "mutashabihat" ||
-      (mode as string) === "book_mutashabihat_saghir"
-    ) {
-      const localMut = getOfflineMutashabihat(sNum, aNum, sName, ayah.text, mode as string);
-      if (localMut) {
-        setTafsirResponse(localMut);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle Tadabbur directly from local offline multi-book engine
-    if (isTadabburMode(mode as string)) {
-      const localTdabr = getOfflineTdabr(sNum, aNum, sName, ayah.text, mode as string, true);
-      if (localTdabr) {
-        setTafsirResponse(localTdabr);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle English Translation & Quran Content API translations
-    if (
-      mode === "english" ||
-      (mode as string) === "translation" ||
-      (mode as string) === "en" ||
-      (mode as string).startsWith("english_") ||
-      (mode as string).startsWith("translation_") ||
-      (mode as string).startsWith("french_") ||
-      (mode as string).startsWith("spanish_") ||
-      (mode as string).startsWith("german_") ||
-      (mode as string).startsWith("urdu_") ||
-      (mode as string).startsWith("turkish_") ||
-      (mode as string).startsWith("indonesian_") ||
-      (mode as string).startsWith("russian_")
-    ) {
-      try {
-        const trans = await getAyahTranslationText(sNum, aNum, mode as string);
-        if (trans && trans.text) {
-          let combined = trans.text;
-          if (trans.footnotes && trans.footnotes.trim()) {
-            combined += `\n\n📌 **Footnotes / الحواشي:**\n${trans.footnotes.trim()}`;
-          }
-          setTafsirResponse(combined);
-          setTafsirLoading(false);
-          saveToLibraryCache(cacheKey, combined).catch(() => {});
-          return;
-        }
-      } catch (err) {
-        console.warn("Translation API error in fetchAITafsir:", err);
-      }
-      const localEnglish = getOfflineEnglishTranslation(sNum, aNum);
-      if (localEnglish) {
-        setTafsirResponse(localEnglish);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle Tafsir Muyassar directly from local offline dataset (100% offline)
-    if (mode === "tafsir_muyassar") {
-      const localTafsir = getOfflineMuyassarTafsir(sNum, aNum) || generateOfflineMuyassar(sNum, aNum, sName, ayah.text) || getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineAysarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, ayah.text);
-      if (localTafsir) {
-        setTafsirResponse(localTafsir);
-        setTafsirLoading(false);
-        saveToLibraryCache(cacheKey, localTafsir).catch(() => {});
-        return;
-      }
-    }
-
-    // Handle Tafsir Saadi directly from local offline dataset (100% offline)
-    if (mode === "tafsir_sadi") {
-      const localTafsir = getOfflineSaadiTafsir(sNum, aNum) || generateOfflineSaadi(sNum, aNum, sName, ayah.text);
-      if (localTafsir && !isCorruptAyahOnlyText(localTafsir, ayah.text)) {
-        setTafsirResponse(localTafsir);
-        setTafsirLoading(false);
-        saveToLibraryCache(cacheKey, localTafsir).catch(() => {});
-        return;
-      }
-    }
-
-    // Handle Sarf/Eerab/Balagha directly from local offline book (الجدول في إعراب القرآن وصرفه)
-    if (
-      mode === "sarf" || 
-      (mode as string) === "eerab" || 
-      (mode as string) === "irab" || 
-      (mode as string) === "balagha" || 
-      (mode as string) === "book_sarf" || 
-      (mode as string) === "book_balagha" || 
-      (mode as string) === "book_irab" || 
-      (mode as string) === "book_jadwal_safi"
-    ) {
-      const localSarf = getOfflineSarf(sNum, aNum, sName, ayah.text, mode as string, false);
-      if (localSarf) {
-        setTafsirResponse(localSarf);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle Gharib directly from local offline book "al_siraj_gharib.txt"
-    if (mode === "suraj_garib_quran" || (mode as string) === "gharib" || (mode as string) === "siraj_garib_quran") {
-      const localGharib = getOfflineGharib(sNum, aNum, sName, ayah.text);
-      if (localGharib) {
-        setTafsirResponse(localGharib);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle Mukhtasar directly from local offline dataset
-    if (mode === "tafsir_mukhtasar" || (mode as string) === "tafsir-mukhtasar") {
-      const localMukhtasar = getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, ayah.text);
-      if (localMukhtasar) {
-        setTafsirResponse(localMukhtasar);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle Aysar Al-Tafasir directly from local offline dataset
-    if (mode === "tafsir_aysar" || (mode as string) === "tafsir-aysar") {
-      const localAysar = getOfflineAysarTafsir(sNum, aNum);
-      if (localAysar) {
-        setTafsirResponse(localAysar);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle Asbab directly from local offline book "al_muharar_asbab.txt" (المحرر في أسباب النزول)
-    if (mode === "asbab_nuzool" || (mode as string) === "asbab" || (mode as string) === "muharrar_asbab" || (mode as string) === "asbab_nuzul_wahidi") {
-      const localAsbab = getOfflineAsbab(sNum, aNum, sName, ayah.text);
-      if (localAsbab) {
-        setTafsirResponse(localAsbab);
-        setTafsirLoading(false);
-        return;
-      }
-    }
-
-    // Handle Ahkam directly from local offline book "أحكام القرآن للجصاص" وابن العربي
-    if ((mode as string) === "ahkam_quran_jassas" || (mode as string) === "ahkam" || (mode as string) === "ahkam_jassas") {
-      const localAhkam = getOfflineAhkamJassas(sNum, aNum, sName, ayah.text);
-      if (localAhkam) {
-        setTafsirResponse(localAhkam);
-        setTafsirLoading(false);
-        saveToLibraryCache(cacheKey, localAhkam).catch(() => {});
-        return;
-      }
-    }
-    if ((mode as string) === "ahkam_quran_arabi" || (mode as string) === "ahkam_arabi") {
-      const localAhkam = getOfflineAhkamJassas(sNum, aNum, sName, ayah.text);
-      if (localAhkam) {
-        const arabiAhkam = localAhkam.replace("للإمام أبي بكر الرازي الجصاص", "للإمام القاضي ابن العربي المالكي");
-        setTafsirResponse(arabiAhkam);
-        setTafsirLoading(false);
-        saveToLibraryCache(cacheKey, arabiAhkam).catch(() => {});
-        return;
-      }
-    }
-
-    // 1. Direct check in IndexedDB offline storage
     try {
-      const dbCached = (await getFromLibraryCache(cacheKey)) || (await getFromLibraryCache(`${sNum}:${aNum}:tafsir_${mode}`));
-      if (dbCached && !isCorruptAyahOnlyText(dbCached, ayah.text)) {
-        setTafsirResponse(dbCached);
-        setTafsirLoading(false);
-        return;
-      } else if (dbCached && isCorruptAyahOnlyText(dbCached, ayah.text)) {
-        deleteFromLibraryCache(cacheKey).catch(() => {});
-        deleteFromLibraryCache(`${sNum}:${aNum}:tafsir_${mode}`).catch(() => {});
-      }
-    } catch (_) {}
-
-    // 2. Direct offline engine fallback if offline
-    const isDeviceOffline = typeof navigator !== "undefined" && !navigator.onLine;
-    if (isDeviceOffline) {
-      let offlineResult: string | null = null;
-      if (mode === "tafsir_muyassar") {
-        offlineResult = generateOfflineMuyassar(sNum, aNum, sName, ayah.text);
-      } else if (mode === "tafsir_sadi") {
-        offlineResult = generateOfflineSaadi(sNum, aNum, sName, ayah.text);
-      } else if (mode === "tafsir_kathir" || (mode as string) === "tafsir_ibnkathir") {
-        offlineResult = generateOfflineIbnKathir(sNum, aNum, sName, ayah.text);
-      } else if (mode === "tafsir_tabari") {
-        offlineResult = generateOfflineTabari(sNum, aNum, sName, ayah.text);
-      } else if (mode === "tafsir_qurtubi") {
-        offlineResult = generateOfflineQurtubi(sNum, aNum, sName, ayah.text);
-      } else if (mode === "tafsir_waseet" || (mode as string) === "tafsir_waseet_tantawi") {
-        offlineResult = generateOfflineWaseet(sNum, aNum, sName, ayah.text);
-      } else if (mode === "tafsir_mukhtasar" || (mode as string) === "tafsir-mukhtasar") {
-        offlineResult = getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, ayah.text);
-      } else if (mode === "tafsir_aysar" || (mode as string) === "tafsir-aysar") {
-        offlineResult = getOfflineAysarTafsir(sNum, aNum) || getOfflineAysarTafsirFallback(sNum, aNum, sName, ayah.text);
-      } else if (
-        mode === "mutashabihat" ||
-        (mode as string) === "book_mutashabihat_saghir"
-      ) {
-        offlineResult = getOfflineMutashabihat(sNum, aNum, sName, ayah.text, mode as string);
-      } else if (mode === "sarf" || (mode as string) === "eerab" || (mode as string) === "balagha") {
-        offlineResult = getOfflineSarf(sNum, aNum, sName, ayah.text, mode, false);
-      } else if (mode === "asbab_nuzool" || (mode as string) === "asbab") {
-        offlineResult = getOfflineAsbab(sNum, aNum, sName, ayah.text);
-      } else if (mode === "suraj_garib_quran" || (mode as string) === "gharib" || (mode as string) === "siraj_garib_quran") {
-        offlineResult = getOfflineGharib(sNum, aNum, sName, ayah.text);
-      } else if (isTadabburMode(mode as string)) {
-        offlineResult = getOfflineTdabr(sNum, aNum, sName, ayah.text, mode as string, true);
-      } else if (mode === "english" || (mode as string).startsWith("translation")) {
-        offlineResult = getOfflineEnglishTranslation(sNum, aNum) || generateOfflineTranslation(sNum, aNum, mode as string);
-      }
-
-      if (!offlineResult) {
-        offlineResult = getOfflineLibraryContentSync(sNum, aNum, mode as string, sName, ayah.text) ||
-                        (await getOfflineLibraryContent(sNum, aNum, mode as string, sName, ayah.text));
-      }
-
-      if (offlineResult) {
-        setTafsirResponse(offlineResult);
+      const resolved = await fetchAuthenticServiceContent(
+        sNum,
+        aNum,
+        mode as string,
+        sName,
+        ayah.text
+      );
+      if (resolved && !isCorruptAyahOnlyText(resolved, ayah.text)) {
+        setTafsirResponse(resolved);
         setTafsirError(null);
-        setTafsirLoading(false);
-        saveToLibraryCache(cacheKey, offlineResult).catch(() => {});
-        return;
+      } else {
+        setTafsirError("عذراً، تعذّر تحميل النص المعتمد لهذه الآية حالياً.");
       }
-    }
-
-    try {
-      const currentBook = DEFAULT_BOOKS.find(b => b.id === mode || b.apiType === mode);
-      const apiUrl = typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null"
-        ? `${window.location.origin}/api/tafsir`
-        : "/api/tafsir";
-
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          surahName: (ayah as any).surah?.name || currentSurahMeta?.name,
-          surahNumber: sNum,
-          ayahNumber: aNum,
-          ayahText: ayah.text,
-          type: mode,
-          bookTitle: currentBook?.title,
-          bookAuthor: currentBook?.author,
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
-
-      if (!response.ok) {
-        let errMsg = "خطأ من خادم التفسير الفوري.";
-        try {
-          const errData = await response.json();
-          errMsg = errData.error || errMsg;
-        } catch (e) {
-          try {
-            const rawText = await response.text();
-            if (rawText && rawText.length < 200) errMsg = rawText;
-          } catch (e2) {}
-        }
-        throw new Error(errMsg);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonErr) {
-        throw new Error("فشل في تحليل الاستجابة من خادم التفسير.");
-      }
-      if (data && data.result && !isCorruptAyahOnlyText(data.result, ayah.text)) {
-        setTafsirResponse(data.result);
-        saveToLibraryCache(cacheKey, data.result).catch(() => {});
-        return;
-      }
-      throw new Error("لم تتضمّن الاستجابة نص التفسير.");
     } catch (err: any) {
-      console.warn("AI Tafsir endpoint failed, attempting client-side fallback:", err);
-
-      // Dedicated handling for Tafsir Al-Tabari (Quran.com ID: 15)
-      if (mode === "tafsir_tabari") {
-        try {
-          const qTabariRes = await fetch(`https://api.quran.com/api/v4/tafsirs/15/by_ayah/${sNum}:${aNum}`, {
-            signal: AbortSignal.timeout(4000),
-          });
-          if (qTabariRes.ok) {
-            const qData = await qTabariRes.json();
-            const raw = qData?.tafsir?.text || qData?.tafsirs?.[0]?.text;
-            if (raw) {
-              const clean = raw.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
-              if (clean.length > 20 && !isCorruptAyahOnlyText(clean, ayah.text)) {
-                setTafsirResponse(clean);
-                setTafsirError(null);
-                saveToLibraryCache(cacheKey, clean).catch(() => {});
-                return;
-              }
-            }
-          }
-        } catch (e) {}
-
-        const tabariOffline = generateOfflineTabari(sNum, aNum, sName, ayah.text) || (await getOfflineLibraryContent(sNum, aNum, "tafsir_tabari", sName, ayah.text));
-        if (tabariOffline) {
-          setTafsirResponse(tabariOffline);
-          setTafsirError(null);
-          saveToLibraryCache(cacheKey, tabariOffline).catch(() => {});
-          return;
-        }
-      }
-
-      // Dedicated handling for Tafsir Al-Baghawi (Quran.com ID: 94)
-      if (mode === "tafsir_baghawi") {
-        try {
-          const qBaghawiRes = await fetch(`https://api.quran.com/api/v4/tafsirs/94/by_ayah/${sNum}:${aNum}`, {
-            signal: AbortSignal.timeout(4000),
-          });
-          if (qBaghawiRes.ok) {
-            const qData = await qBaghawiRes.json();
-            const raw = qData?.tafsir?.text || qData?.tafsirs?.[0]?.text;
-            if (raw) {
-              const clean = raw.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
-              if (clean.length > 20 && !isCorruptAyahOnlyText(clean, ayah.text)) {
-                setTafsirResponse(clean);
-                setTafsirError(null);
-                saveToLibraryCache(cacheKey, clean).catch(() => {});
-                return;
-              }
-            }
-          }
-        } catch (e) {}
-
-        const baghawiOffline = generateOfflineBaghawi(sNum, aNum, sName, ayah.text) || (await getOfflineLibraryContent(sNum, aNum, "tafsir_baghawi", sName, ayah.text));
-        if (baghawiOffline) {
-          setTafsirResponse(baghawiOffline);
-          setTafsirError(null);
-          saveToLibraryCache(cacheKey, baghawiOffline).catch(() => {});
-          return;
-        }
-      }
-
-      // Dedicated handling for Tafsir Al-Suyuti (Quran-Tafseer ID: 2 / ar.jalalayn)
-      if (mode === "tafsir_suyuti") {
-        try {
-          const qSuyutiRes = await fetch(`http://api.quran-tafseer.com/tafseer/2/${sNum}/${aNum}`, {
-            signal: AbortSignal.timeout(4000),
-          });
-          if (qSuyutiRes.ok) {
-            const qData = await qSuyutiRes.json();
-            if (qData?.text) {
-              const clean = qData.text.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
-              if (clean && !isCorruptAyahOnlyText(clean, ayah.text)) {
-                setTafsirResponse(clean);
-                setTafsirError(null);
-                saveToLibraryCache(cacheKey, clean).catch(() => {});
-                return;
-              }
-            }
-          }
-        } catch (e) {}
-      }
-
-      if (mode === "tafsir_waseet" || mode === "tafsir_waseet_tantawi") {
-        try {
-          const qtsRes = await fetch(`https://api.quran.com/api/v4/tafsirs/93/by_ayah/${sNum}:${aNum}`, {
-            signal: AbortSignal.timeout(4000),
-          });
-          if (qtsRes.ok) {
-            const qtsData = await qtsRes.json();
-            const raw = qtsData?.tafsir?.text || qtsData?.tafsirs?.[0]?.text;
-            if (raw) {
-              const clean = raw.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
-              if (clean) {
-                setTafsirResponse(clean);
-                setTafsirError(null);
-                saveToLibraryCache(cacheKey, clean).catch(() => {});
-                return;
-              }
-            }
-          }
-        } catch (e) {}
-      }
-
-      // Client-side fallback to authentic AlQuran Cloud editions (excluding ayah-only editions)
-      const staticEditionMap: Record<string, string> = {
-        tafsir_muyassar: "ar.muyassar",
-        tafsir_sadi: "ar.saadi",
-        tafsir_kathir: "ar.ibnkathir",
-        tafsir_ibnkathir: "ar.ibnkathir",
-        tafsir_qurtubi: "ar.qurtubi",
-        tafsir_suyuti: "ar.jalalayn",
-        tafsir_waseet: "ar.waseet",
-        tafsir_waseet_tantawi: "ar.waseet",
-      };
-
-      if (staticEditionMap[mode]) {
-        const ed = staticEditionMap[mode];
-        try {
-          const fallbackRes = await fetch(`https://api.alquran.cloud/v1/ayah/${sNum}:${aNum}/${ed}`, {
-            signal: AbortSignal.timeout(4000),
-          });
-          if (fallbackRes.ok) {
-            const fbData = await fallbackRes.json();
-            if (fbData?.data?.text) {
-              const text = fbData.data.text.trim();
-              const pureAyah = ayah.text.replace(/[\u064B-\u0652\u0670\u06D6-\u06ED\s]/g, "");
-              const pureText = text.replace(/[\u064B-\u0652\u0670\u06D6-\u06ED\s]/g, "");
-              // Guard: Only accept if it is actual tafsir, not just repeating the verse
-              if (text.length > 10 && pureText !== pureAyah) {
-                setTafsirResponse(text);
-                setTafsirError(null);
-                saveToLibraryCache(cacheKey, text).catch(() => {});
-                return;
-              }
-            }
-          }
-        } catch (fbErr) {
-          // Fallback fetch failed
-        }
-      }
-
-      if (mode === "tafsir_sadi") {
-        const fallbackSaadi = generateOfflineSaadi(sNum, aNum, sName, ayah.text) || (await getOfflineLibraryContent(sNum, aNum, "tafsir_sadi", sName, ayah.text));
-        if (fallbackSaadi) {
-          setTafsirResponse(fallbackSaadi);
-          setTafsirError(null);
-          saveToLibraryCache(cacheKey, fallbackSaadi).catch(() => {});
-          return;
-        }
-      }
-
-      if (mode === "tafsir_kathir" || (mode as string) === "tafsir_ibnkathir") {
-        const fallbackIbnKathir = generateOfflineIbnKathir(sNum, aNum, sName, ayah.text) || (await getOfflineLibraryContent(sNum, aNum, "tafsir_kathir", sName, ayah.text));
-        if (fallbackIbnKathir) {
-          setTafsirResponse(fallbackIbnKathir);
-          setTafsirError(null);
-          saveToLibraryCache(cacheKey, fallbackIbnKathir).catch(() => {});
-          return;
-        }
-      }
-
-      if (mode === "tafsir_qurtubi") {
-        const fallbackQurtubi = generateOfflineQurtubi(sNum, aNum, sName, ayah.text) || (await getOfflineLibraryContent(sNum, aNum, "tafsir_qurtubi", sName, ayah.text));
-        if (fallbackQurtubi) {
-          setTafsirResponse(fallbackQurtubi);
-          setTafsirError(null);
-          saveToLibraryCache(cacheKey, fallbackQurtubi).catch(() => {});
-          return;
-        }
-      }
-
-      if (mode === "tafsir_waseet" || (mode as string) === "tafsir_waseet_tantawi") {
-        const fallbackWaseet = generateOfflineWaseet(sNum, aNum, sName, ayah.text) || (await getOfflineLibraryContent(sNum, aNum, "tafsir_waseet", sName, ayah.text));
-        if (fallbackWaseet) {
-          setTafsirResponse(fallbackWaseet);
-          setTafsirError(null);
-          saveToLibraryCache(cacheKey, fallbackWaseet).catch(() => {});
-          return;
-        }
-      }
-
-      if (mode === "tafsir_aysar" || (mode as string) === "tafsir-aysar") {
-        const fallbackAysar = getOfflineAysarTafsir(sNum, aNum) || getOfflineAysarTafsirFallback(sNum, aNum, sName, ayah.text);
-        if (fallbackAysar) {
-          setTafsirResponse(fallbackAysar);
-          setTafsirError(null);
-          return;
-        }
-      }
-
-      if (mode === "tafsir_mukhtasar" || (mode as string) === "tafsir-mukhtasar") {
-        const fallbackMukhtasar = getOfflineMukhtasarTafsir(sNum, aNum) || getOfflineMukhtasarTafsirFallback(sNum, aNum, sName, ayah.text);
-        if (fallbackMukhtasar) {
-          setTafsirResponse(fallbackMukhtasar);
-          setTafsirError(null);
-          return;
-        }
-      }
-
-      if (
-        mode === "mutashabihat" ||
-        (mode as string) === "book_mutashabihat_saghir"
-      ) {
-        const fallbackLocal = getOfflineMutashabihat(sNum, aNum, sName, ayah.text, mode as string);
-        if (fallbackLocal) {
-          setTafsirResponse(fallbackLocal);
-          setTafsirError(null);
-          return;
-        }
-      }
-
-      if (mode === "sarf" || (mode as string) === "eerab" || (mode as string) === "balagha") {
-        const fallbackSarf = getOfflineSarf(sNum, aNum, sName, ayah.text, mode, false);
-        if (fallbackSarf) {
-          setTafsirResponse(fallbackSarf);
-          setTafsirError(null);
-          return;
-        }
-      }
-
-      if (mode === "asbab_nuzool" || (mode as string) === "asbab") {
-        const fallbackAsbab = getOfflineAsbab(sNum, aNum, sName, ayah.text);
-        if (fallbackAsbab) {
-          setTafsirResponse(fallbackAsbab);
-          setTafsirError(null);
-          return;
-        }
-      }
-
-      if (mode === "suraj_garib_quran" || (mode as string) === "gharib" || (mode as string) === "siraj_garib_quran") {
-        const fallbackGharib = getOfflineGharib(sNum, aNum, sName, ayah.text);
-        if (fallbackGharib) {
-          setTafsirResponse(fallbackGharib);
-          setTafsirError(null);
-          return;
-        }
-      }
-
-      if (isTadabburMode(mode as string)) {
-        const fallbackTdabr = getOfflineTdabr(sNum, aNum, sName, ayah.text, mode as string, true);
-        if (fallbackTdabr) {
-          setTafsirResponse(fallbackTdabr);
-          setTafsirError(null);
-          return;
-        }
-      }
-
-      // Universal offline library engine fallback for any mode or book (100% guaranteed offline)
-      const offlineUniversal = (mode === "tafsir_muyassar" ? generateOfflineMuyassar(sNum, aNum, sName, ayah.text) : null) ||
-                               (mode === "english" || (mode as string).startsWith("translation") ? (getOfflineEnglishTranslation(sNum, aNum) || generateOfflineTranslation(sNum, aNum, mode as string)) : null) ||
-                               getOfflineLibraryContentSync(sNum, aNum, mode as string, sName, ayah.text) ||
-                               (await getOfflineLibraryContent(sNum, aNum, mode as string, sName, ayah.text));
-      if (offlineUniversal) {
-        setTafsirResponse(offlineUniversal);
-        setTafsirError(null);
-        saveToLibraryCache(cacheKey, offlineUniversal).catch(() => {});
-        return;
-      }
-
       const rawMsg = String(err?.message || err || "");
-      const isNetworkErr = rawMsg.toLowerCase().includes("failed to fetch") || rawMsg.toLowerCase().includes("load failed") || rawMsg.toLowerCase().includes("networkerror");
-      const userFriendlyMsg = isNetworkErr 
-        ? "عذراً، تعذّر الاتصال بخادم التفسير الفوري حالياً. يرجى التثبت من شبكة الإتصال أو اختيار أحد التفاسير المعتمدة." 
-        : (err.message || "عذراً، تعذّر تحميل نص التفسير المعتمد حالياً. يرجى إعادة المحاولة أو اختيار تفسير آخر.");
-      
-      setTafsirError(userFriendlyMsg);
+      const isNetworkErr =
+        rawMsg.toLowerCase().includes("failed to fetch") ||
+        rawMsg.toLowerCase().includes("load failed") ||
+        rawMsg.toLowerCase().includes("networkerror");
+      setTafsirError(
+        isNetworkErr
+          ? "عذراً، تعذّر الاتصال بخادم التفسير الفوري حالياً. يرجى التثبت من شبكة الإتصال أو اختيار أحد التفاسير المعتمدة."
+          : err?.message || "عذراً، تعذّر تحميل نص التفسير المعتمد حالياً."
+      );
     } finally {
       setTafsirLoading(false);
     }
