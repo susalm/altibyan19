@@ -8979,7 +8979,7 @@ export default function ReadingScreen({
                           <div 
                             id="mushaf-svg-header-frame"
                             dir="rtl"
-                            style={{ marginTop: '-4px', height: '35.25px' }}
+                            style={{ marginTop: '-4px', height: '35.25px', width: '540px', maxWidth: '100%' }}
                             className={`w-full border rounded-2xl p-1 sm:p-1.5 flex justify-between items-center text-xs sm:text-sm select-none transition-all duration-300 shadow-xs ${
                               theme === "gold-velvet"
                                 ? "border-[#c5a85c] bg-[#FFFEFA]/90 text-[#c5a85c]"
@@ -9019,11 +9019,11 @@ export default function ReadingScreen({
                                 title="فتح فهرس الأجزاء والأحزاب"
                                 className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer hover:opacity-80 active:scale-95 transition-all h-full"
                               >
-                                <span className="text-2xl sm:text-4xl md:text-5xl font-normal leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif", fontSize: "20px", marginLeft: "0px", marginTop: "0px" }}>
+                                <span className="text-2xl sm:text-4xl md:text-5xl font-normal leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', serif", fontSize: "24px", marginLeft: "0px", marginTop: "0px" }}>
                                   {getJuzHeaderGlyph(pageMeta.juzNum, `الجزء ${toArabicNumerals(pageMeta.juzNum)}`)}
                                 </span>
                                 <span className={`font-light opacity-40 text-base sm:text-xl md:text-2xl ${isDark ? "text-slate-400" : "text-slate-500"}`}>|</span>
-                                <span className="quarter-name-text text-xs sm:text-sm font-normal leading-none text-center flex items-center justify-center tracking-normal select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "10px", marginTop: "5px", marginLeft: "0px" }}>
+                                <span className="quarter-name-text text-xs sm:text-sm font-normal leading-none text-center flex items-center justify-center tracking-normal select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "14px", marginTop: "5px", marginLeft: "0px" }}>
                                   {quarterDisplayName}
                                 </span>
                                 <span className="hizb-number-text font-normal text-sm sm:text-base leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "'UthmanTaha', 'UthmanTahaNaskh', serif", fontSize: "14px", marginTop: "8px" }}>
@@ -9701,7 +9701,7 @@ export default function ReadingScreen({
                             padding: 2px 12px !important;
                             margin-bottom: 12px !important;
                             font-size: 10px !important;
-                            width: 100% !important;
+                            width: 540px !important;
                             max-width: 100% !important;
                           }
                           #mushaf-svg-header-frame > div {
@@ -9710,11 +9710,11 @@ export default function ReadingScreen({
                             align-items: center !important;
                           }
                           #mushaf-svg-header-frame > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) {
-                            font-size: 20px !important;
+                            font-size: 24px !important;
                           }
                           #mushaf-svg-header-frame .quarter-name-text {
                             font-family: QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif !important;
-                            font-size: 10px !important;
+                            font-size: 14px !important;
                             font-weight: normal !important;
                           }
                           #mushaf-svg-header-frame .hizb-number-text {
@@ -9808,7 +9808,7 @@ export default function ReadingScreen({
                             padding-right: 12px !important;
                             font-size: 13.75px !important;
                             height: 35px !important;
-                            width: 100% !important;
+                            width: 540px !important;
                             max-width: 100% !important;
                             box-sizing: border-box !important;
                             display: grid !important;
@@ -10202,7 +10202,7 @@ export default function ReadingScreen({
                             id="mushaf-svg-footer-frame"
                             style={{
                               height: "35px",
-                              width: "100%",
+                              width: "540px",
                               maxWidth: "100%",
                               marginTop: "18px",
                               marginBottom: "max(18px, env(safe-area-inset-bottom, 18px))",
