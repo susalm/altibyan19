@@ -8317,7 +8317,7 @@ export default function ReadingScreen({
                                   {getJuzHeaderGlyph(pageMeta.juzNum, `الجزء ${toArabicNumerals(pageMeta.juzNum)}`)}
                                 </span>
                                 <span className={`font-light opacity-40 text-base sm:text-xl md:text-2xl ${isDark ? "text-slate-400" : "text-slate-500"}`}>|</span>
-                                <span className="quarter-name-text text-xs sm:text-sm font-normal leading-none text-center flex items-center justify-center tracking-normal select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "14px", marginTop: "5px", marginLeft: "0px" }}>
+                                <span className="quarter-name-text text-xs sm:text-sm font-normal leading-none text-center flex items-center justify-center tracking-normal select-none h-full" style={{ fontFamily: "QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif", fontSize: "9px", marginTop: "5px", marginLeft: "0px" }}>
                                   {quarterDisplayName}
                                 </span>
                                 <span className="hizb-number-text font-normal text-sm sm:text-base leading-none text-center flex items-center justify-center select-none h-full" style={{ fontFamily: "'UthmanTaha', 'UthmanTahaNaskh', serif", fontSize: "14px", marginTop: "8px" }}>
@@ -9008,7 +9008,7 @@ export default function ReadingScreen({
                           }
                           #mushaf-svg-header-frame .quarter-name-text {
                             font-family: QCF4_QBSML, 'Amiri', 'Traditional Arabic', serif !important;
-                            font-size: 14px !important;
+                            font-size: 9px !important;
                             font-weight: normal !important;
                           }
                           #mushaf-svg-header-frame .hizb-number-text {
