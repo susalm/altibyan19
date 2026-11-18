@@ -425,23 +425,56 @@ export function normalizeAuthenticIrabText(rawText: string): string {
     text = text.replace(/\s+(?=\([^\(\)]{1,45}\)\s+[^\(\)])/g, "\n");
   }
 
-  const lines = text
+  const rawLines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      // Match ﴿word﴾: explanation
-      const mQuran = line.match(/^﴿([^﴿﴾]+)﴾\s*[:：\-–—]?\s*(.+)$/);
-      if (mQuran) {
-        return `(${mQuran[1].trim()}): ${mQuran[2].trim()}`;
+    .filter(Boolean);
+
+  const lines: string[] = [];
+  for (const line of rawLines) {
+    // Detect clause wrappers like "﴿إذ نادى...﴾: ﴿إذ﴾ ظرف...، و﴿نادى﴾ فعل..." or "(إنك لمن المرسلين): إنك: ..."
+    const clauseMatch = line.match(/^(?:﴿([^﴿﴾]+)﴾|\(([^()]+)\))\s*[:：]\s*(.+)$/);
+    const clauseWord = (clauseMatch?.[1] || clauseMatch?.[2] || "").trim();
+    const clauseBody = (clauseMatch?.[3] || "").trim();
+    const clauseWordCount = clauseWord.split(/\s+/).filter(Boolean).length;
+
+    if (clauseMatch && clauseWordCount >= 2 && /^(?:﴿[^﴿﴾]{1,40}﴾|[^\s:：]{1,35}\s*[:：]\s)/.test(clauseBody)) {
+      if (clauseBody.startsWith("﴿")) {
+        const subSegments = clauseBody.split(/[،.]\s*(?=(?:و\s*)?﴿[^﴿﴾]{1,40}﴾)/);
+        for (const seg of subSegments) {
+          const cleanSeg = seg.trim();
+          const mSub = cleanSeg.match(/^(?:و\s*)?﴿([^﴿﴾]+)﴾\s*[:：\-–—]?\s*(.+)$/);
+          if (mSub) {
+            lines.push(`(${mSub[1].trim()}): ${mSub[2].trim()}`);
+          } else if (cleanSeg) {
+            lines.push(cleanSeg);
+          }
+        }
+        continue;
+      } else {
+        const subSegments = clauseBody.split(/،\s*(?=[^\s،:：]{1,30}(?:\s+[^\s،:：]{1,30}){0,2}\s*[:：]\s)/);
+        for (const seg of subSegments) {
+          const cleanSeg = seg.trim();
+          if (cleanSeg) lines.push(cleanSeg);
+        }
+        continue;
       }
-      // Match (word) explanation (without colon, as in earab.json / al-jadwal)
-      const mParen = line.match(/^\(([^()]+)\)\s*(?:[:：\-–—]\s*)?(.+)$/);
-      if (mParen && !mParen[2].startsWith(")")) {
-        return `(${mParen[1].trim()}): ${mParen[2].trim()}`;
-      }
-      return line;
-    });
+    }
+
+    // Match ﴿word﴾: explanation
+    const mQuran = line.match(/^﴿([^﴿﴾]+)﴾\s*[:：\-–—]?\s*(.+)$/);
+    if (mQuran) {
+      lines.push(`(${mQuran[1].trim()}): ${mQuran[2].trim()}`);
+      continue;
+    }
+    // Match (word) explanation (without colon, as in earab.json / al-jadwal)
+    const mParen = line.match(/^\(([^()]+)\)\s*(?:[:：\-–—]\s*)?(.+)$/);
+    if (mParen && !mParen[2].startsWith(")")) {
+      lines.push(`(${mParen[1].trim()}): ${mParen[2].trim()}`);
+      continue;
+    }
+    lines.push(line);
+  }
 
   return lines.join("\n").trim();
 }

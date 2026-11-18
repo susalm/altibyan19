@@ -15,7 +15,7 @@
 import { surahsList } from "../data/surahList";
 import { getOfflineMukhtasarTafsir, getOfflineMukhtasarTafsirFallback } from "./mukhtasarBook";
 import { getOfflineAysarTafsir, getOfflineAysarTafsirFallback } from "./aysarBook";
-import { getOfflineEnglishTranslation } from "./englishTranslation";
+import { getOfflineEnglishTranslation, getOfflineHilaliKhanTranslation } from "./englishTranslation";
 import { getOfflineGharib } from "./gharibBook";
 import { getOfflineAsbab } from "./asbabBook";
 import { getOfflineSarf } from "./sarfBook";
@@ -520,10 +520,15 @@ export async function getOfflineLibraryContent(
 
   // B. Translations
   else if (
+    bookId === "translation_hilali_khan" ||
+    bookId === "english_hilali_khan" ||
+    bookId === "hilali_khan"
+  ) {
+    result = getOfflineHilaliKhanTranslation(surahNumber, ayahNumber) || getOfflineEnglishTranslation(surahNumber, ayahNumber) || "";
+  } else if (
     bookId === "translation_mukhtasar_en" ||
     bookId === "translation_clear_quran" ||
     bookId === "translation_sahih_intl" ||
-    bookId === "translation_hilali_khan" ||
     bookId === "english" ||
     bookId === "translation"
   ) {
@@ -646,6 +651,8 @@ export function getOfflineLibraryContentSync(
     res = "";
   } else if (bookId === "tafsir_waseet" || bookId === "tafsir_waseet_tantawi") {
     res = "";
+  } else if (bookId === "translation_hilali_khan" || bookId === "english_hilali_khan" || bookId === "hilali_khan") {
+    res = getOfflineHilaliKhanTranslation(surahNumber, ayahNumber) || getOfflineEnglishTranslation(surahNumber, ayahNumber) || "";
   } else if (bookId.startsWith("translation_") || bookId === "english") {
     res = getOfflineEnglishTranslation(surahNumber, ayahNumber) || "";
   } else if (bookId === "book_irab" || bookId === "book_jadwal_safi" || bookId === "book_sarf" || bookId === "book_balagha" || bookId === "eerab" || bookId === "irab" || bookId === "sarf" || bookId === "balagha") {

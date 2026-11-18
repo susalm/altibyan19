@@ -18,7 +18,7 @@ import {
   isCorruptAyahOnlyText
 } from "./src/utils/libraryOfflineEngine";
 import { getOfflineMukhtasarTafsir } from "./src/utils/mukhtasarBook";
-import { getOfflineEnglishTranslation } from "./src/utils/englishTranslation";
+import { getOfflineEnglishTranslation, getOfflineHilaliKhanTranslation } from "./src/utils/englishTranslation";
 
 dotenv.config();
 
@@ -691,6 +691,15 @@ app.post("/api/tafsir", async (req: express.Request, res: express.Response) => {
       (currentTitle && (currentTitle.includes("ترجمة") || currentTitle.includes("الترجمة") || currentTitle.toLowerCase().includes("translation")));
 
     if (isTranslation) {
+      if (type === "translation_hilali_khan" || type === "english_hilali_khan" || type === "hilali_khan") {
+        const offlineHilali = getOfflineHilaliKhanTranslation(Number(surahNumber), Number(ayahNumber));
+        if (offlineHilali) {
+          const hilaliName = translationApis[type]?.name || "ترجمة د. تقي الدين الهلالي ومحسن خان";
+          tafsirMemoryCache.set(cacheKey, { result: offlineHilali, source: hilaliName });
+          return res.json({ result: offlineHilali, source: hilaliName });
+        }
+      }
+
       const transCfg = translationApis[type] || {
         name: currentTitle || "ترجمة معاني القرآن الكريم",
         quranEncKey: type.replace(/^translation_/, ""),

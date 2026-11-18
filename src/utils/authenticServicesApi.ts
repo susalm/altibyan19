@@ -6,7 +6,7 @@
 import { surahsList } from "../data/surahList";
 import { getOfflineMukhtasarTafsir, getOfflineMukhtasarTafsirFallback } from "./mukhtasarBook";
 import { getOfflineAysarTafsir } from "./aysarBook";
-import { getOfflineEnglishTranslation } from "./englishTranslation";
+import { getOfflineEnglishTranslation, getOfflineHilaliKhanTranslation } from "./englishTranslation";
 import { getOfflineGharib, normalizeGharibLines } from "./gharibBook";
 import { getOfflineAsbabStrict, NO_ASBAB_NOTICE } from "./asbabBook";
 import { getOfflineSarf, normalizeAuthenticIrabText } from "./sarfBook";
@@ -359,6 +359,24 @@ export async function fetchAuthenticTranslation(
     mode === "english_hilali_khan" ||
     mode === "hilali_khan";
 
+  if (isHilali) {
+    const offlineHilali = getOfflineHilaliKhanTranslation(surahNumber, ayahNumber);
+    if (offlineHilali) {
+      return offlineHilali;
+    }
+  } else if (
+    mode === "translation" ||
+    mode === "english" ||
+    mode === "en" ||
+    mode === "translation_sahih_intl" ||
+    mode === "english_saheeh"
+  ) {
+    const offlineEn = getOfflineEnglishTranslation(surahNumber, ayahNumber);
+    if (offlineEn) {
+      return offlineEn;
+    }
+  }
+
   const cacheKey = `${surahNumber}:${ayahNumber}:${mode}`;
   return dedupeInFlight(`trans:${surahNumber}:${ayahNumber}:${mode}`, async () => {
     const cached = await getFromLibraryCache(cacheKey);
@@ -452,8 +470,10 @@ export async function fetchAuthenticTranslation(
       }
     }
 
-    // Offline fallback only (never overwrite Hilali cache key with Sahih International)
-    const offlineEn = getOfflineEnglishTranslation(surahNumber, ayahNumber);
+    // Offline fallback only
+    const offlineEn = isHilali
+      ? (getOfflineHilaliKhanTranslation(surahNumber, ayahNumber) || getOfflineEnglishTranslation(surahNumber, ayahNumber))
+      : getOfflineEnglishTranslation(surahNumber, ayahNumber);
     return offlineEn || "Translation currently unavailable offline.";
   });
 }

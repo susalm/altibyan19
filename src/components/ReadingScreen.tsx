@@ -23,13 +23,13 @@ import { ensureQbsmlLoaded, loadQcf4Font, getSurahHeaderGlyph, getJuzHeaderGlyph
 import { fetchAlquranCloud, fetchQuranSvg, fetchTafsirData } from "../utils/quranApi";
 import { getOfflineMutashabihat } from "../utils/mutashabihatBook";
 import { getOfflineTdabr, parseTadabburSections } from "../utils/tdabrBook";
-import { getOfflineSarf } from "../utils/sarfBook";
+import { getOfflineSarf, normalizeAuthenticIrabText } from "../utils/sarfBook";
 import { getOfflineGharib } from "../utils/gharibBook";
 import { getOfflineAsbab } from "../utils/asbabBook";
 import { getOfflineMukhtasarTafsir, getOfflineMukhtasarTafsirFallback } from "../utils/mukhtasarBook";
 import { getOfflineAysarTafsir, getOfflineAysarTafsirFallback } from "../utils/aysarBook";
 import { getOfflineAhkamJassas } from "../utils/ahkamJassasBook";
-import { getOfflineEnglishTranslation } from "../utils/englishTranslation";
+import { getOfflineEnglishTranslation, getOfflineHilaliKhanTranslation } from "../utils/englishTranslation";
 import { getAyahTranslationText } from "../utils/quranContentApi";
 import { fetchAuthenticServiceContent, isSyntheticOrStaleText } from "../utils/authenticServicesApi";
 import TranslationsCatalogModal from "./TranslationsCatalogModal";
@@ -894,7 +894,8 @@ const renderFormattedMeaningText = (
   text: string,
   theme: string,
   isDark: boolean,
-  colorClass?: string
+  colorClass?: string,
+  omitParentheses: boolean = false
 ) => {
   if (!text) return null;
   // 1. Remove all asterisks and collapse duplicate parentheses e.g. ((...)) or (...))
@@ -925,6 +926,17 @@ const renderFormattedMeaningText = (
         .replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "")
         .trim();
       if (/[\u0621-\u064A]/.test(inner) && !/^(\d+|tdabur\d|ليدبروا|\d+\/\d+)$/.test(inner) && !inner.startsWith("لا يوجد") && !inner.startsWith("لم")) {
+        if (omitParentheses) {
+          return (
+            <span
+              key={pIdx}
+              className={`font-bold select-text ${redClass}`}
+              style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}
+            >
+              {inner}
+            </span>
+          );
+        }
         return (
           <span 
             key={pIdx} 
@@ -937,10 +949,17 @@ const renderFormattedMeaningText = (
           </span>
         );
       }
+      if (omitParentheses && inner) {
+        return (
+          <span key={pIdx} className="select-text">
+            {inner}
+          </span>
+        );
+      }
     }
 
     // Strip any accidental lone closing parentheses immediately following a parenthesized word
-    const sanitizedPart = part.replace(/^\)+/, "");
+    const sanitizedPart = omitParentheses ? part.replace(/[()﴿﴾{}]/g, "") : part.replace(/^\)+/, "");
     if (!sanitizedPart) return null;
 
     return (
@@ -1068,13 +1087,18 @@ const AyahWithTafsirCard = ({
   hasNote?: boolean;
   onSelectMode?: (newMode: string) => void;
 }) => {
-  const currentAyahFontSize = globalAyahFontSize !== undefined && globalAyahFontSize >= 14 ? globalAyahFontSize : 14;
+  const currentAyahFontSize = globalAyahFontSize !== undefined && globalAyahFontSize >= 9 ? globalAyahFontSize : 9;
   const currentTafsirFontSize = globalTafsirFontSize !== undefined ? globalTafsirFontSize : 10;
   const [dataCache, setDataCache] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = { translation: ayah.translationEn };
     if (surahNumber === 1 && FATIHA_TAFSIR[ayah.numberInSurah]) {
-      return { tafsir: FATIHA_TAFSIR[ayah.numberInSurah], translation: ayah.translationEn };
+      initial.tafsir = FATIHA_TAFSIR[ayah.numberInSurah];
     }
-    return { translation: ayah.translationEn };
+    const hilaliOffline = getOfflineHilaliKhanTranslation(surahNumber, ayah.numberInSurah);
+    if (hilaliOffline) {
+      initial.translation_hilali_khan = hilaliOffline;
+    }
+    return initial;
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [copiedTafsir, setCopiedTafsir] = useState<boolean>(false);
@@ -1233,7 +1257,9 @@ const AyahWithTafsirCard = ({
       : isLinguisticsOrIrabMode(activeMode)
       ? "جاري التحميل..."
       : isTranslationMode
-      ? (activeMode === "translation_hilali_khan" ? "جاري جلب الترجمة المعتمدة..." : (ayah.translationEn || getOfflineEnglishTranslation(surahNumber, ayah.numberInSurah) || "جاري جلب الترجمة من الخادم..."))
+      ? (activeMode === "translation_hilali_khan"
+          ? (getOfflineHilaliKhanTranslation(surahNumber, ayah.numberInSurah) || "جاري جلب الترجمة المعتمدة...")
+          : (ayah.translationEn || getOfflineEnglishTranslation(surahNumber, ayah.numberInSurah) || "جاري جلب الترجمة من الخادم..."))
       : "جاري تحميل محتوى الكتاب..."
   );
 
@@ -1341,9 +1367,16 @@ const AyahWithTafsirCard = ({
         mode === "book_balagha" ||
         mode === "book_lubab" ||
         DEFAULT_BOOKS.find(b => b.id === mode)?.subCategory === "balagha";
-      const items = parseLinguisticItems(cleaned, isBalaghaMode);
+      const isIrabOnlyMode =
+        mode === "book_irab" ||
+        mode === "eerab" ||
+        mode === "irab" ||
+        mode === "book_jadwal_safi";
+      const inputForParse = isIrabOnlyMode ? normalizeAuthenticIrabText(cleaned) : cleaned;
+      const items = parseLinguisticItems(inputForParse, isBalaghaMode);
       if (items.length > 0) {
         return items
+          .filter(item => !(isIrabOnlyMode && item.isAyahQuote))
           .map(item => {
             if (item.isHeader) return `\n[ ${item.meaning} ]\n`;
             if (item.isNote) return item.meaning;
@@ -1528,9 +1561,9 @@ const AyahWithTafsirCard = ({
               id={`btn-decrease-ayah-font-${ayah.numberInSurah}`}
               onClick={(e) => {
                 e.stopPropagation();
-                onUpdateAyahFontSize?.(Math.max(14, currentAyahFontSize - 2));
+                onUpdateAyahFontSize?.(Math.max(9, currentAyahFontSize - 2));
               }}
-              disabled={currentAyahFontSize <= 14}
+              disabled={currentAyahFontSize <= 9}
               className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shadow-2xs disabled:opacity-30 disabled:pointer-events-none ${
                 theme === "navy-velvet" ? "bg-white text-[#3F63C6] border-[#3F63C6]/30 hover:bg-blue-50" :
                 theme === "gold-velvet" ? "bg-[#FAF5E6] text-[#8c6b23] border-[#c5a85c]/40 hover:bg-[#f5eedc]" :
@@ -1641,8 +1674,12 @@ const AyahWithTafsirCard = ({
             }}
           >
             <p 
-              className={`font-serif font-medium leading-loose text-center selection:bg-emerald-200 selection:text-slate-900 w-full ${fontColorClass} ${activeFontClass}`}
-              style={{ fontFamily: "'UthmanicHafs', 'Amiri', serif", fontSize: `${currentAyahFontSize}px` }}
+              className={`font-serif ${ayah.numberInSurah === 1 ? "font-normal" : "font-medium"} leading-loose text-center selection:bg-emerald-200 selection:text-slate-900 w-full ${fontColorClass} ${activeFontClass}`}
+              style={{
+                fontFamily: "'UthmanicHafs', 'Amiri', serif",
+                fontSize: `${currentAyahFontSize}px`,
+                ...(ayah.numberInSurah === 1 ? { fontWeight: "normal" } : {}),
+              }}
             >
               <Qcf4VerseText
                 surah={surahNumber}
@@ -1796,9 +1833,18 @@ const AyahWithTafsirCard = ({
                   (activeMode as string) === "book_balagha" ||
                   (activeMode as string) === "book_lubab" ||
                   DEFAULT_BOOKS.find(b => b.id === activeMode)?.subCategory === "balagha";
+                const isIrabCard =
+                  (activeMode as string) === "book_irab" ||
+                  (activeMode as string) === "eerab" ||
+                  (activeMode as string) === "irab" ||
+                  (activeMode as string) === "book_jadwal_safi";
+                const parsedInput = isIrabCard ? normalizeAuthenticIrabText(rawText) : rawText;
+                const parsedItems = parseLinguisticItems(parsedInput, isBalaghaCard).filter(
+                  item => !(isIrabCard && item.isAyahQuote)
+                );
                 return (
               <div className="flex flex-col gap-3 py-1 font-amiri font-amiri-naskh" dir="rtl" style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
-                {parseLinguisticItems(rawText, isBalaghaCard).map((item, idx) => {
+                {parsedItems.map((item, idx) => {
                   if (item.isHeader) {
                     return (
                       <div 
@@ -1825,6 +1871,10 @@ const AyahWithTafsirCard = ({
                   const itemColorClass = isBalaghaItem 
                     ? getBalaghaTitleColorClass(theme, isDark) 
                     : getLinguisticWordColorClass(theme, isDark);
+                  const cleanWord = item.word
+                    .replace(/\*/g, "")
+                    .replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "")
+                    .trim();
 
                   return (
                     <div 
@@ -1918,7 +1968,7 @@ const AyahWithTafsirCard = ({
                             }}
                           >
                             <span style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
-                              {item.word.replace(/\*/g, "").replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim()}
+                              {cleanWord}
                             </span>
                           </div>
                           {/* المعنى أو الشرح في سطر مستقل تحته */}
@@ -1943,7 +1993,7 @@ const AyahWithTafsirCard = ({
                           >
                             <span className="font-bold select-none">(</span>
                             <span style={{ fontFamily: "'Amiri', 'Amiri Naskh', 'Traditional Arabic', serif" }}>
-                              {item.word.replace(/\*/g, "").replace(/^[\s\(\[\{«"'\u0660-\u0669\d\.\-]+|[\s\)\]\}»"'\-]+$/g, "").trim()}
+                              {cleanWord}
                             </span>
                             <span className="font-bold select-none">)</span>
                           </span>
@@ -2446,15 +2496,15 @@ export default function ReadingScreen({
   // Active highlighted Ayah for option tray and Tafsir
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
 
-  // Global Ayah font size (persisted for continuous reading mode and ayah cards) - defaults to minimum pixel (14px)
+  // Global Ayah font size (persisted for continuous reading mode and ayah cards) - minimum & default 9px
   const [globalCardAyahFontSize, setGlobalCardAyahFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_ayah_font_size");
-      if (!saved || saved === "26") return 14;
+      if (!saved || saved === "26" || saved === "14") return 9;
       const parsed = Number(saved);
-      return parsed >= 14 ? parsed : 14;
+      return parsed >= 9 ? parsed : 9;
     } catch {
-      return 14;
+      return 9;
     }
   });
 
@@ -2473,19 +2523,20 @@ export default function ReadingScreen({
   const [selectedAyahFontSize, setSelectedAyahFontSize] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("quran_ayah_font_size");
-      if (!saved || saved === "26") return 14;
+      if (!saved || saved === "26" || saved === "14") return 9;
       const parsed = Number(saved);
-      return parsed >= 14 ? parsed : 14;
+      return parsed >= 9 ? parsed : 9;
     } catch {
-      return 14;
+      return 9;
     }
   });
 
   const handleUpdateGlobalAyahFontSize = (newSize: number) => {
-    setGlobalCardAyahFontSize(newSize);
-    setSelectedAyahFontSize(newSize);
+    const clamped = Math.max(9, Math.min(50, newSize));
+    setGlobalCardAyahFontSize(clamped);
+    setSelectedAyahFontSize(clamped);
     try {
-      localStorage.setItem("quran_ayah_font_size", String(newSize));
+      localStorage.setItem("quran_ayah_font_size", String(clamped));
     } catch {}
   };
 
@@ -2510,7 +2561,7 @@ export default function ReadingScreen({
 
   const handleDecreaseSelectedAyahFontSize = () => {
     setSelectedAyahFontSize(prev => {
-      const next = Math.max(8, prev - 2);
+      const next = Math.max(9, prev - 2);
       setGlobalCardAyahFontSize(next);
       try {
         localStorage.setItem("quran_ayah_font_size", String(next));
