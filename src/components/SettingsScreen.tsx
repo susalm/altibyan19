@@ -3,13 +3,9 @@ import { QuranSettings } from "../types";
 import { 
   Moon, 
   Sun, 
-  Type, 
-  BookOpen, 
-  Sparkles, 
   Sliders, 
   Check, 
   Palette,
-  Volume2,
   X,
   Languages,
   ArrowUpDown,
@@ -17,16 +13,8 @@ import {
   Star,
   Share2,
   MessageSquarePlus,
-  Smartphone,
-  HeartHandshake,
-  ChevronDown,
-  ChevronUp,
-  BookMarked,
-  Layers,
-  Send,
-  ExternalLink
+  Send
 } from "lucide-react";
-import { recitersData } from "../data/recitersData";
 import { shareTextOnCapacitor, copyTextWithFallback } from "../utils/nativeShare";
 
 interface SettingsScreenProps {
@@ -51,8 +39,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onClose,
 }) => {
   const [saveToast, setSaveToast] = useState<boolean>(false);
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
-  const [modalType, setModalType] = useState<"rate" | "share" | "feedback" | "app_mufarridoon" | "app_fadail" | null>(null);
+  const [modalType, setModalType] = useState<"rate" | "share" | "feedback" | null>(null);
   const [ratingScore, setRatingScore] = useState<number>(5);
   const [feedbackText, setFeedbackText] = useState<string>("");
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -200,21 +187,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       setTimeout(() => setActionNotice(null), 2500);
     }
   };
-
-  const fontSizes = [
-    { id: "sm", label: "صغير" },
-    { id: "md", label: "متوسط" },
-    { id: "lg", label: "كبير" },
-    { id: "xl", label: "كبير جداً" },
-    { id: "2xl", label: "ضخم" },
-  ] as const;
-
-  const fontOptions = [
-    { id: "qcf4", label: "مصحف المدينة (QCF4)", desc: "رسم عثماني أصيل فائق الدقة" },
-    { id: "uthmanic", label: "الرسم العثماني (Hafs)", desc: "خط عثماني كلاسيكي" },
-    { id: "amiri", label: "الخط الأميري", desc: "خط نسخي جميل وواضح" },
-    { id: "traditional", label: "النسخ التقليدي", desc: "خط قراءة مريح" },
-  ] as const;
 
   return (
     <div
@@ -444,127 +416,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </button>
         </div>
 
-        {/* 6. تطبيقاتنا */}
-        <div className={`p-4 sm:p-5 rounded-3xl border shadow-xs transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
-          <div className="flex items-center justify-end gap-2 text-xs sm:text-sm font-semibold opacity-75 mb-3">
-            <span>تطبيقاتنا</span>
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${styleTokens.badgeBg}`}>
-              <Smartphone size={15} className={styleTokens.iconColor} />
-            </div>
-          </div>
-          <div className={`w-full h-[1px] ${styleTokens.divider} mb-4`} />
-          
-          <div className="flex flex-col gap-3">
-            {/* تطبيق المفردون */}
-            <div
-              onClick={() => setModalType("app_mufarridoon")}
-              className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between gap-3 ${styleTokens.subCardBg} ${styleTokens.subCardBorder}`}
-            >
-              <div className="flex flex-col text-right flex-1">
-                <span className="text-sm sm:text-base font-bold">المفردون</span>
-                <span className="text-xs opacity-70 mt-0.5">تطبيق الأذكار والورد القرآني المحاسب للنفس</span>
-              </div>
-              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${styleTokens.badgeBg}`}>
-                <BookMarked size={20} className={styleTokens.iconColor} />
-              </div>
-            </div>
-
-            {/* تطبيق فضائل */}
-            <div
-              onClick={() => setModalType("app_fadail")}
-              className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between gap-3 ${styleTokens.subCardBg} ${styleTokens.subCardBorder}`}
-            >
-              <div className="flex flex-col text-right flex-1">
-                <span className="text-sm sm:text-base font-bold">فضائل</span>
-                <span className="text-xs opacity-70 mt-0.5">تطبيق فضائل الأعمال والسنن والآداب النبوية</span>
-              </div>
-              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${styleTokens.badgeBg}`}>
-                <Sparkles size={20} className={styleTokens.iconColor} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* خيارات إضافية للمصحف والتلاوة (قابلة للتوسيع) */}
-        <div className={`rounded-3xl border overflow-hidden transition-all ${styleTokens.cardBg} ${styleTokens.cardBorder}`}>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full p-4 flex items-center justify-between cursor-pointer hover:opacity-90 text-right"
-          >
-            <div className="flex items-center gap-2">
-              {showAdvanced ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-              <span className="text-xs opacity-70">خط المصحف، حجم الخط، القارئ</span>
-            </div>
-            <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
-              <span>خيارات إضافية للمصحف والتلاوة</span>
-              <Sliders size={16} className={styleTokens.iconColor} />
-            </div>
-          </button>
-
-          {showAdvanced && (
-            <div className={`p-4 pt-0 space-y-4 border-t ${styleTokens.divider}`}>
-              {/* خط الرسم القرآني */}
-              <div className="space-y-2 pt-3">
-                <span className="text-xs font-bold block opacity-80">خط الرسم القرآني:</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {fontOptions.map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => onChangeSettings({ quranFont: f.id })}
-                      className={`flex flex-col text-right p-3 rounded-xl border transition-all cursor-pointer ${
-                        settings.quranFont === f.id ? styleTokens.activeBtn : styleTokens.inactiveBtn
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold">{f.label}</span>
-                        {settings.quranFont === f.id && <Check size={14} className={styleTokens.iconColor} />}
-                      </div>
-                      <span className="text-[10px] opacity-70 mt-0.5">{f.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* حجم الخط */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold block opacity-80">حجم الخط:</span>
-                <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl border border-black/10 dark:border-white/10">
-                  {fontSizes.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => onChangeSettings({ fontSize: s.id })}
-                      className={`py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                        settings.fontSize === s.id ? styleTokens.activeBtn : "opacity-75 hover:opacity-100"
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* القارئ المفضل */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold block opacity-80">القارئ المفضل للتلاوة:</span>
-                <select
-                  value={settings.reciterId || "alafasy"}
-                  onChange={(e) => onChangeSettings({ reciterId: e.target.value })}
-                  className={`w-full p-3 rounded-xl text-xs font-bold border ${styleTokens.inactiveBtn} focus:outline-hidden`}
-                >
-                  {recitersData.map((r) => (
-                    <option key={r.id} value={r.id} className="bg-slate-900 text-white">
-                      {r.nameAr}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
-
       </div>
 
       {/* 7. الزر السفلي العريض: حفظ وتطبيق الخيارات */}
@@ -659,41 +510,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <span>إرسال المقترح</span>
               </button>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Interactive Modal: App Details (المفردون / فضائل) */}
-      {(modalType === "app_mufarridoon" || modalType === "app_fadail") && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setModalType(null)}>
-          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl flex flex-col items-center text-center gap-4 ${styleTokens.cardBg} ${styleTokens.cardBorder}`} onClick={(e) => e.stopPropagation()}>
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${styleTokens.badgeBg}`}>
-              {modalType === "app_mufarridoon" ? (
-                <BookMarked size={32} className={styleTokens.iconColor} />
-              ) : (
-                <Sparkles size={32} className={styleTokens.iconColor} />
-              )}
-            </div>
-            <h3 className="text-[10px] font-black">
-              {modalType === "app_mufarridoon" ? "تطبيق المفردون" : "تطبيق فضائل"}
-            </h3>
-            <p className="text-xs opacity-80 leading-relaxed">
-              {modalType === "app_mufarridoon"
-                ? "تطبيق قرآني وتربوي يُعينك على محاسبة النفس وإنجاز الأوراد اليومية والأذكار المأثورة بتتبع ذكي وخالٍ من الإعلانات."
-                : "تطبيق متخصص في جمع فضائل الأعمال الصالحة والسنن النبوية الصحيحة والآداب الشرعية بأسلوب ميسر وتصميم مريح."}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setActionNotice(modalType === "app_mufarridoon" ? "جاري فتح تطبيق المفردون..." : "جاري فتح تطبيق فضائل...");
-                setModalType(null);
-                setTimeout(() => setActionNotice(null), 2500);
-              }}
-              className={`w-full py-3 rounded-xl font-bold text-sm cursor-pointer flex items-center justify-center gap-2 ${styleTokens.saveBtn}`}
-            >
-              <ExternalLink size={16} />
-              <span>فتح التطبيق</span>
-            </button>
           </div>
         </div>
       )}

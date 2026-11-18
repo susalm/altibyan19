@@ -19,7 +19,6 @@ import {
   Palette,
   X,
   Image as ImageIcon,
-  ShieldCheck,
 } from "lucide-react";
 import { surahsList } from "../data/surahList";
 import { getSurahStartPage } from "../data/quranSvgPageMetadata";
@@ -33,8 +32,6 @@ import {
   fetchQcf4VerseWords,
   loadQcf4Font,
   ensureQbsmlLoaded,
-  isQbsmlLoaded,
-  QCF4_QBSML_ISTIADHAH_GLYPHS,
 } from "../utils/qcf4Utils";
 import {
   isNativeCapacitor,
@@ -341,19 +338,9 @@ export const ShareAyahPage: React.FC<ShareAyahPageProps> = ({
     [surahNumber]
   );
 
-  const [qbsmlReady, setQbsmlReady] = useState<boolean>(() => isQbsmlLoaded());
   useEffect(() => {
-    if (qbsmlReady) return;
-    let active = true;
-    ensureQbsmlLoaded()
-      .then(() => {
-        if (active && isQbsmlLoaded()) setQbsmlReady(true);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [qbsmlReady]);
+    ensureQbsmlLoaded().catch(() => {});
+  }, []);
 
   // Studio preferences & active control sub-tab
   const [prefs, setPrefs] = useState<StudioPreferences>(() => loadSavedPrefs(theme));
@@ -1957,7 +1944,7 @@ export const ShareAyahPage: React.FC<ShareAyahPageProps> = ({
                   <span>{prefs.showBismillah ? "مفعل" : "مخفي"}</span>
                 </button>
 
-                {/* 2. أيقونة الاستعاذة بخط QCF4_QBSML على يسار عنصر إظهار البسملة */}
+                {/* 2. زر الاستعاذة */}
                 <button
                   id="share-toggle-istiadhah"
                   type="button"
@@ -1967,20 +1954,7 @@ export const ShareAyahPage: React.FC<ShareAyahPageProps> = ({
                     prefs.showIstiadhah ? `${accentBtn} border-transparent` : mutedChip
                   }`}
                 >
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    {qbsmlReady ? (
-                      <span
-                        dir="rtl"
-                        className="inline-flex items-center shrink-0 text-[15px] leading-none font-normal"
-                        style={{ fontFamily: "'QCF4_QBSML', serif" }}
-                      >
-                        {QCF4_QBSML_ISTIADHAH_GLYPHS[0]}
-                      </span>
-                    ) : (
-                      <ShieldCheck size={15} className="shrink-0" />
-                    )}
-                    <span className="truncate">الاستعاذة</span>
-                  </span>
+                  <span className="truncate">الاستعاذة</span>
                   <span className="shrink-0">{prefs.showIstiadhah ? "مفعل" : "مخفي"}</span>
                 </button>
 
