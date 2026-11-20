@@ -4659,13 +4659,6 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
           ? `آيات من سورة ${activeData.surahName} (${rangeFrom}-${rangeTo})`
           : `آية من سورة ${activeData.surahName}`;
 
-      const cleanedShareText = getCleanedAyahTextForShare();
-      const shareText = shareMode === "page"
-        ? `﴿ ${cleanedShareText} ﴾\n[القرآن الكريم - صفحة ${toArabicNumerals(selectedPageNumber)} - سورة ${activeData.surahName}] - مصحف التبيان`
-        : shareMode === "range"
-          ? `﴿ ${cleanedShareText} ﴾\n[سورة ${activeData.surahName} : الآيات ${toArabicNumerals(rangeFrom)}-${toArabicNumerals(rangeTo)}] - مصحف التبيان`
-          : `﴿ ${cleanedShareText} ﴾\n[سورة ${activeData.surahName} : ${activeData.ayah.numberInSurah}] - مصحف التبيان`;
-
       // 1. Android Native Javascript Interface (if app was wrapped with a custom WebView bridge)
       if (typeof window !== "undefined") {
         const anyWin = window as any;
@@ -4681,15 +4674,13 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         }
       }
 
-      // 1b. Capacitor Native Share (writes PNG to Filesystem cache & invokes Android Intent FileProvider)
+      // 1b. Capacitor Native Share (writes PNG to Filesystem cache & invokes Android Intent FileProvider - image only)
       if (isNativeCapacitor()) {
         const base64Data = await resolveImageBase64(targetUrl, finalBlob);
         if (base64Data) {
           const capRes = await shareImageOnCapacitor({
             base64Data,
             fileName,
-            title: titleText,
-            text: shareText,
             dialogTitle: "مشاركة بطاقة الآية",
           });
           if (capRes.status === "shared") {
@@ -4706,50 +4697,12 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         }
       }
 
-      // 2. Web Share API (with Capacitor Share web fallback & Android Chrome/Browser file compatibility)
+      // 2. Web Share API (image file only - no accompanying text or title)
       if (finalBlob && typeof File !== "undefined" && typeof navigator !== "undefined" && typeof navigator.share === "function") {
         const file = new File([finalBlob], fileName, { type: "image/png" });
         const canShareFiles = typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : true;
 
         if (canShareFiles) {
-          // 2a. Try files + title + text
-          try {
-            await navigator.share({
-              files: [file],
-              title: titleText,
-              text: shareText,
-            });
-            setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
-            setTimeout(() => setShareStatus(null), 3000);
-            setIsSharing(false);
-            return;
-          } catch (shareWithTextErr) {
-            if (isShareCancelledError(shareWithTextErr)) {
-              setShareStatus(null);
-              setIsSharing(false);
-              return;
-            }
-          }
-
-          // 2b. Retry with files + title only (some Android targets reject combined text + file)
-          try {
-            await navigator.share({
-              files: [file],
-              title: titleText,
-            });
-            setShareStatus("تمت مشاركة بطاقة الآية بنجاح!");
-            setTimeout(() => setShareStatus(null), 3000);
-            setIsSharing(false);
-            return;
-          } catch (shareFilesTitleErr) {
-            if (isShareCancelledError(shareFilesTitleErr)) {
-              setShareStatus(null);
-              setIsSharing(false);
-              return;
-            }
-          }
-
-          // 2c. Retry with files only (strictest Android Web Share compatibility)
           try {
             await navigator.share({
               files: [file],
@@ -4769,13 +4722,11 @@ export const ShareAyahModal: React.FC<ShareAyahModalProps> = ({
         }
       }
 
-      // 2d. Try @capacitor/share web/hybrid fallback if available
+      // 2d. Try @capacitor/share web/hybrid fallback if available (image URL only)
       try {
         const capCanShare = await Share.canShare();
         if (capCanShare.value && targetUrl.startsWith("http")) {
           await Share.share({
-            title: titleText,
-            text: shareText,
             url: targetUrl,
             dialogTitle: "مشاركة بطاقة الآية",
           });

@@ -77,8 +77,8 @@ function makeAsciiPngFileName(rawName: string): string {
 export async function shareImageOnCapacitor(params: {
   base64Data: string;
   fileName: string;
-  title: string;
-  text: string;
+  title?: string;
+  text?: string;
   dialogTitle?: string;
 }): Promise<{ status: "shared" | "cancelled" | "failed"; error?: string }> {
   if (!isNativeCapacitor()) {
@@ -118,23 +118,29 @@ export async function shareImageOnCapacitor(params: {
       fileUri = extWriteRes.uri;
     }
 
+    const sharePayload: {
+      files: string[];
+      dialogTitle: string;
+      title?: string;
+      text?: string;
+    } = {
+      files: [fileUri],
+      dialogTitle: params.dialogTitle || "مشاركة بطاقة الآية",
+    };
+    if (params.title) sharePayload.title = params.title;
+    if (params.text) sharePayload.text = params.text;
+
     try {
-      await Share.share({
-        title: params.title,
-        text: params.text,
-        files: [fileUri],
-        dialogTitle: params.dialogTitle || "مشاركة بطاقة الآية",
-      });
+      await Share.share(sharePayload);
       return { status: "shared" };
     } catch (shareWithTextErr) {
       if (isShareCancelledError(shareWithTextErr)) {
         return { status: "cancelled" };
       }
 
-      // Some Android targets reject EXTRA_TEXT alongside EXTRA_STREAM
+      // Retry with files only (strict image-only compatibility)
       try {
         await Share.share({
-          title: params.title,
           files: [fileUri],
           dialogTitle: params.dialogTitle || "مشاركة بطاقة الآية",
         });
@@ -147,7 +153,6 @@ export async function shareImageOnCapacitor(params: {
         // Legacy fallback using url parameter
         try {
           await Share.share({
-            title: params.title,
             url: fileUri,
             dialogTitle: params.dialogTitle || "مشاركة بطاقة الآية",
           });
@@ -227,7 +232,6 @@ export async function saveImageOnCapacitor(params: {
 
     try {
       await Share.share({
-        title: "حفظ بطاقة الآية",
         files: [cacheRes.uri],
         dialogTitle: "حفظ أو مشاركة بطاقة الآية",
       });

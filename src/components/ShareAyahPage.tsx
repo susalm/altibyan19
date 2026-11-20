@@ -858,18 +858,11 @@ export const ShareAyahPage: React.FC<ShareAyahPageProps> = ({
       const { blob, dataUrl, base64 } = await prepareExactCardExport();
       const fileName =
         scope === "page" ? `mushaf_page_${pageNumber}.png` : `ayah_${surahNumber}_${ayahFrom}.png`;
-      const shareTitle =
-        scope === "page"
-          ? `صفحة ${toArabicDigits(pageNumber)} - ${pageSurahSummary.displayLabel}`
-          : `سورة ${currentSurah.name}`;
-      const caption = buildShareCaption();
 
       if (isNativeCapacitor()) {
         const res = await shareImageOnCapacitor({
           base64Data: base64,
           fileName,
-          title: shareTitle,
-          text: caption,
           dialogTitle: "مشاركة بطاقة الآية",
         });
         if (res.status === "shared") {
@@ -887,8 +880,6 @@ export const ShareAyahPage: React.FC<ShareAyahPageProps> = ({
           if (!navigator.canShare || navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: shareTitle,
-              text: caption,
             });
             showToast("تمت مشاركة البطاقة بنجاح");
             return;
